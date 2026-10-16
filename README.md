@@ -74,4 +74,4 @@ The specification snapshots still refer to `agentic-setup` and the earlier
 root. Historical reviews also link to instruction-library files in the original
 repository. Those references remain unchanged to preserve the reviewed documents.
 
-Each completed update is recorded as one simple commit.
+Commit and push each completed development change separately as work progresses.

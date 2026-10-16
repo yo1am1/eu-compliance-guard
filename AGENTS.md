@@ -23,6 +23,14 @@ not an operational compliance audit.
   provider execution needs its applicable scope and authorization.
 - Keep one writer per file. When using teammates, keep them visible in native Herdr
   and preserve their conversations; do not create internal hidden subagents.
-- Each completed update gets one simple Conventional Commit. Review exactly what
-  will be staged, include only that update, and preserve unrelated work. Do not amend,
-  force-push, or rewrite history. Push under the user's current authorization.
+- Commit and push each completed development change separately as work progresses;
+  do not batch independent changes into a final bulk commit or push. Use a simple
+  Conventional Commit subject and review exactly what will be staged.
+- Before committing, verify both the effective author and committer are Yehor Trepalin
+  (`yo1am1`), using `110065476+yo1am1@users.noreply.github.com`. Configure this locally
+  in this repository; do not change the laptop's global Git identity.
+- Credit the agent that actually contributed using its native `Co-authored-by`
+  trailer. For Codex: `Co-authored-by: Codex <noreply@openai.com>`. Credit Claude when
+  it contributes, using its verified native trailer. Keep the user as primary author.
+- Preserve unrelated work. Do not amend, force-push, or rewrite published history
+  without an explicit Owner correction request. Push under current authorization.
