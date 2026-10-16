@@ -1,0 +1,5146 @@
+{
+  "$defs": {
+    "AgentReplyEnvelope": {
+      "additionalProperties": false,
+      "properties": {
+        "context_manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Context Manifest Id",
+          "type": "string"
+        },
+        "conversation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "finding_assessment_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Finding Assessment Id",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 65536,
+          "title": "Message",
+          "type": "string"
+        },
+        "proposal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TextPatch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "conversation_id",
+        "context_manifest_id",
+        "finding_assessment_id",
+        "message"
+      ],
+      "title": "AgentReplyEnvelope",
+      "type": "object"
+    },
+    "AuditCancelArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "maxLength": 8192,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "AuditCancelArgs",
+      "type": "object"
+    },
+    "AuditCancelCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/AuditCancelArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "audit.cancel",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "AuditCancelCommand",
+      "type": "object"
+    },
+    "AuditResumeArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Manifest Id",
+          "type": "string"
+        },
+        "permission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Permission Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "manifest_id",
+        "permission_id"
+      ],
+      "title": "AuditResumeArgs",
+      "type": "object"
+    },
+    "AuditResumeCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/AuditResumeArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "audit.resume",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "AuditResumeCommand",
+      "type": "object"
+    },
+    "AuditRun": {
+      "additionalProperties": false,
+      "properties": {
+        "budgets": {
+          "$ref": "#/$defs/Budgets"
+        },
+        "coverage_plan": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Coverage Plan",
+          "type": "array"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "gaps": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Gaps",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Manifest Id",
+          "type": "string"
+        },
+        "parent_run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Run Id"
+        },
+        "permission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Permission Id",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "state": {
+          "enum": [
+            "planned",
+            "running",
+            "cancelling",
+            "completed",
+            "partial",
+            "cancelled",
+            "interrupted"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "terminal_sequence": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Terminal Sequence"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "revision",
+        "state",
+        "manifest_id",
+        "permission_id",
+        "coverage_plan",
+        "gaps",
+        "budgets"
+      ],
+      "title": "AuditRun",
+      "type": "object"
+    },
+    "AuditStartArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "budgets": {
+          "$ref": "#/$defs/Budgets"
+        },
+        "check_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Check Ids",
+          "type": "array"
+        },
+        "manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Manifest Id",
+          "type": "string"
+        },
+        "permission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Permission Id",
+          "type": "string"
+        },
+        "scope_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Scope Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scope_id",
+        "manifest_id",
+        "permission_id",
+        "check_ids",
+        "budgets"
+      ],
+      "title": "AuditStartArgs",
+      "type": "object"
+    },
+    "AuditStartCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/AuditStartArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "audit.start",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "AuditStartCommand",
+      "type": "object"
+    },
+    "Budgets": {
+      "additionalProperties": false,
+      "properties": {
+        "check_seconds": {
+          "maximum": 86400,
+          "minimum": 1,
+          "title": "Check Seconds",
+          "type": "integer"
+        },
+        "run_seconds": {
+          "maximum": 86400,
+          "minimum": 1,
+          "title": "Run Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_seconds",
+        "check_seconds"
+      ],
+      "title": "Budgets",
+      "type": "object"
+    },
+    "CapabilityObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Capability",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "level": {
+          "enum": [
+            "static",
+            "fake",
+            "observed"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "mechanism": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Mechanism",
+          "type": "string"
+        },
+        "mechanism_version": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mechanism Version"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "title": "Observed At",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 8192,
+          "title": "Reason",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "not_run",
+            "passed",
+            "failed",
+            "blocked"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability",
+        "mechanism",
+        "level",
+        "state",
+        "observed_at",
+        "evidence_ids",
+        "reason"
+      ],
+      "title": "CapabilityObservation",
+      "type": "object"
+    },
+    "CapabilityReport": {
+      "additionalProperties": false,
+      "properties": {
+        "blocked": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Blocked",
+          "type": "array"
+        },
+        "observations": {
+          "items": {
+            "$ref": "#/$defs/CapabilityObservation"
+          },
+          "maxItems": 100,
+          "title": "Observations",
+          "type": "array"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "observations",
+        "blocked"
+      ],
+      "title": "CapabilityReport",
+      "type": "object"
+    },
+    "CheckAttempt": {
+      "additionalProperties": false,
+      "properties": {
+        "actual": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "check_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Check Id",
+          "type": "string"
+        },
+        "check_version": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Check Version",
+          "type": "string"
+        },
+        "errors": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Errors",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "exclusions": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Exclusions",
+          "type": "array"
+        },
+        "expected": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "inconsistent_with": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Inconsistent With",
+          "type": "array"
+        },
+        "manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Manifest Id",
+          "type": "string"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "enum": [
+                "passed",
+                "observed_failure",
+                "unresolved_review",
+                "blocked",
+                "not_tested",
+                "lead"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Outcome"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "retry_of": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retry Of"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "pending",
+            "running",
+            "completed",
+            "cancelled",
+            "interrupted"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "tool_and_rule_versions": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Tool And Rule Versions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "run_id",
+        "check_id",
+        "check_version",
+        "manifest_id",
+        "state",
+        "outcome",
+        "expected",
+        "actual",
+        "evidence_ids",
+        "tool_and_rule_versions",
+        "errors",
+        "exclusions",
+        "inconsistent_with"
+      ],
+      "title": "CheckAttempt",
+      "type": "object"
+    },
+    "ChecksRetestArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "check_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "minItems": 1,
+          "title": "Check Ids",
+          "type": "array"
+        },
+        "manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Manifest Id",
+          "type": "string"
+        },
+        "permission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Permission Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "manifest_id",
+        "check_ids",
+        "permission_id"
+      ],
+      "title": "ChecksRetestArgs",
+      "type": "object"
+    },
+    "ChecksRetestCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/ChecksRetestArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "checks.retest",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "ChecksRetestCommand",
+      "type": "object"
+    },
+    "CommandBase": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision"
+      ],
+      "title": "CommandBase",
+      "type": "object"
+    },
+    "CommandReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action Id"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SafeError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "execution_run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Execution Run Id"
+        },
+        "origin_run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin Run Id"
+        },
+        "payload_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Payload Digest",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "accepted",
+            "pending",
+            "blocked",
+            "conflict",
+            "failed",
+            "completed"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "payload_digest",
+        "project_id",
+        "revision",
+        "state"
+      ],
+      "title": "CommandReceipt",
+      "type": "object"
+    },
+    "Control": {
+      "additionalProperties": false,
+      "properties": {
+        "assertion_or_question": {
+          "maxLength": 8192,
+          "title": "Assertion Or Question",
+          "type": "string"
+        },
+        "check_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Check Ids",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "limitations": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Limitations",
+          "type": "array"
+        },
+        "obligation_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Obligation Ids",
+          "type": "array"
+        },
+        "owner": {
+          "maxLength": 8192,
+          "title": "Owner",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "required_evidence": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Required Evidence",
+          "type": "array"
+        },
+        "required_facts": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Required Facts",
+          "type": "array"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "obligation_ids",
+        "assertion_or_question",
+        "required_facts",
+        "check_ids",
+        "required_evidence",
+        "owner",
+        "provenance",
+        "limitations"
+      ],
+      "title": "Control",
+      "type": "object"
+    },
+    "Conversation": {
+      "additionalProperties": false,
+      "properties": {
+        "context_manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Context Manifest Id",
+          "type": "string"
+        },
+        "execution_run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Execution Run Id",
+          "type": "string"
+        },
+        "finding_assessment_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Finding Assessment Id",
+          "type": "string"
+        },
+        "finding_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "message_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Message Ids",
+          "type": "array"
+        },
+        "origin_run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Origin Run Id",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "finding_id",
+        "finding_assessment_id",
+        "origin_run_id",
+        "execution_run_id",
+        "context_manifest_id",
+        "revision",
+        "message_ids"
+      ],
+      "title": "Conversation",
+      "type": "object"
+    },
+    "ConversationMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "enum": [
+            "owner",
+            "agent"
+          ],
+          "title": "Author",
+          "type": "string"
+        },
+        "content": {
+          "maxLength": 65536,
+          "title": "Content",
+          "type": "string"
+        },
+        "context_manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Context Manifest Id",
+          "type": "string"
+        },
+        "conversation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "proposal_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Proposal Ids",
+          "type": "array"
+        },
+        "state": {
+          "enum": [
+            "partial",
+            "accepted",
+            "blocked"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "conversation_id",
+        "author",
+        "content",
+        "state",
+        "context_manifest_id",
+        "proposal_ids"
+      ],
+      "title": "ConversationMessage",
+      "type": "object"
+    },
+    "CurrentAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "changed_dependencies": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Changed Dependencies",
+          "type": "array"
+        },
+        "checked_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "title": "Checked At",
+          "type": "string"
+        },
+        "comparison_evidence_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Comparison Evidence Ids",
+          "type": "array"
+        },
+        "expected_manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Expected Manifest Id",
+          "type": "string"
+        },
+        "finding_assessment_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finding Assessment Id"
+        },
+        "freshness": {
+          "enum": [
+            "current_for_recorded_inputs",
+            "stale",
+            "unknown"
+          ],
+          "title": "Freshness",
+          "type": "string"
+        },
+        "historical_run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Historical Run Id",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "obligation_disposition_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Obligation Disposition Id"
+        },
+        "observed_manifest_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed Manifest Id"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "reasons": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Reasons",
+          "type": "array"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "project_id",
+        "historical_run_id",
+        "expected_manifest_id",
+        "checked_at",
+        "freshness",
+        "reasons",
+        "changed_dependencies"
+      ],
+      "title": "CurrentAssessment",
+      "type": "object"
+    },
+    "DetailPage": {
+      "additionalProperties": false,
+      "properties": {
+        "next_cursor": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Cursor"
+        },
+        "origin_run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Origin Run Id",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "projection_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Projection Revision",
+          "type": "integer"
+        },
+        "records": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Obligation"
+              },
+              {
+                "$ref": "#/$defs/ObligationDisposition"
+              },
+              {
+                "$ref": "#/$defs/Control"
+              },
+              {
+                "$ref": "#/$defs/LegalSource"
+              },
+              {
+                "$ref": "#/$defs/SourceAttempt"
+              },
+              {
+                "$ref": "#/$defs/SourceReview"
+              },
+              {
+                "$ref": "#/$defs/Conversation"
+              },
+              {
+                "$ref": "#/$defs/ConversationMessage"
+              },
+              {
+                "$ref": "#/$defs/PatchProposal"
+              },
+              {
+                "$ref": "#/$defs/PatchPreview"
+              },
+              {
+                "$ref": "#/$defs/GraphRelationship"
+              }
+            ]
+          },
+          "maxItems": 100,
+          "title": "Records",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "section": {
+          "enum": [
+            "obligations",
+            "controls",
+            "sources",
+            "reviews",
+            "conversations",
+            "patches",
+            "graph"
+          ],
+          "title": "Section",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "project_id",
+        "origin_run_id",
+        "section",
+        "projection_revision",
+        "records"
+      ],
+      "title": "DetailPage",
+      "type": "object"
+    },
+    "DetailQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cursor"
+        },
+        "entity_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity Id"
+        },
+        "limit": {
+          "default": 50,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "section": {
+          "enum": [
+            "obligations",
+            "controls",
+            "sources",
+            "reviews",
+            "conversations",
+            "patches",
+            "graph"
+          ],
+          "title": "Section",
+          "type": "string"
+        }
+      },
+      "required": [
+        "section"
+      ],
+      "title": "DetailQuery",
+      "type": "object"
+    },
+    "Event": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity Id"
+        },
+        "entity_revision": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity Revision"
+        },
+        "occurred_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "title": "Occurred At",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "sequence": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "type": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "project_id",
+        "run_id",
+        "sequence",
+        "type",
+        "occurred_at",
+        "payload"
+      ],
+      "title": "Event",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attempt Id"
+        },
+        "availability": {
+          "enum": [
+            "available",
+            "missing",
+            "purged",
+            "corrupt",
+            "blocked"
+          ],
+          "title": "Availability",
+          "type": "string"
+        },
+        "browser_context": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 8192,
+                "type": "string"
+              },
+              "propertyNames": {
+                "maxLength": 256,
+                "minLength": 1
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Browser Context"
+        },
+        "captured_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "title": "Captured At",
+          "type": "string"
+        },
+        "digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Manifest Id",
+          "type": "string"
+        },
+        "media_type": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Media Type",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "provenance": {
+          "enum": [
+            "declared",
+            "documented",
+            "observed",
+            "independently_verified"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "redaction": {
+          "enum": [
+            "safe",
+            "blocked",
+            "unknown"
+          ],
+          "title": "Redaction",
+          "type": "string"
+        },
+        "retention_until": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retention Until"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "source_refs": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Source Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "run_id",
+        "kind",
+        "provenance",
+        "digest",
+        "captured_at",
+        "manifest_id",
+        "media_type",
+        "redaction",
+        "availability",
+        "source_refs"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "EvidenceImportArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "maxLength": 524288,
+          "title": "Content",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "evidence",
+        "content"
+      ],
+      "title": "EvidenceImportArgs",
+      "type": "object"
+    },
+    "EvidenceImportCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/EvidenceImportArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "evidence.import",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "EvidenceImportCommand",
+      "type": "object"
+    },
+    "Fact": {
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "enum": [
+            "observed",
+            "declared",
+            "assumed",
+            "unknown"
+          ],
+          "title": "Basis",
+          "type": "string"
+        },
+        "conflicts": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "key": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "title": "Observed At",
+          "type": "string"
+        },
+        "owner": {
+          "maxLength": 8192,
+          "title": "Owner",
+          "type": "string"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "key",
+        "value",
+        "basis",
+        "evidence_ids",
+        "owner",
+        "observed_at",
+        "conflicts"
+      ],
+      "title": "Fact",
+      "type": "object"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "properties": {
+        "control_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Control Id",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "subject_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Subject Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "control_id",
+        "subject_id"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "FindingAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "action_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Action Ids",
+          "type": "array"
+        },
+        "affected_parties": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Affected Parties",
+          "type": "array"
+        },
+        "attempt_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Attempt Ids",
+          "type": "array"
+        },
+        "control_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Control Revision",
+          "type": "integer"
+        },
+        "evidence_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "finding_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "impact": {
+          "maxLength": 8192,
+          "title": "Impact",
+          "type": "string"
+        },
+        "manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Manifest Id",
+          "type": "string"
+        },
+        "obligation_disposition_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Obligation Disposition Ids",
+          "type": "array"
+        },
+        "owner": {
+          "maxLength": 8192,
+          "title": "Owner",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "technical_outcome": {
+          "enum": [
+            "passed",
+            "observed_failure",
+            "unresolved_review",
+            "blocked",
+            "not_tested",
+            "lead"
+          ],
+          "title": "Technical Outcome",
+          "type": "string"
+        },
+        "validation_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Validation Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "run_id",
+        "finding_id",
+        "revision",
+        "manifest_id",
+        "control_revision",
+        "obligation_disposition_ids",
+        "attempt_ids",
+        "evidence_ids",
+        "validation_ids",
+        "technical_outcome",
+        "impact",
+        "affected_parties",
+        "owner",
+        "action_ids"
+      ],
+      "title": "FindingAssessment",
+      "type": "object"
+    },
+    "FindingDiscussArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "context_manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Context Manifest Id",
+          "type": "string"
+        },
+        "finding_assessment_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Finding Assessment Id",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 65536,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_assessment_id",
+        "context_manifest_id",
+        "message"
+      ],
+      "title": "FindingDiscussArgs",
+      "type": "object"
+    },
+    "FindingDiscussCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/FindingDiscussArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "finding.discuss",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "FindingDiscussCommand",
+      "type": "object"
+    },
+    "GraphRelationship": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "from_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "From Id",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "structural",
+            "static_inferred",
+            "semantic",
+            "ambiguous",
+            "unknown"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "source_paths": {
+          "items": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Source Paths",
+          "type": "array"
+        },
+        "to_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "To Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "from_id",
+        "to_id",
+        "kind",
+        "origin",
+        "evidence_ids",
+        "source_paths",
+        "provenance"
+      ],
+      "title": "GraphRelationship",
+      "type": "object"
+    },
+    "InputManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "browser_state": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 8192,
+                "type": "string"
+              },
+              "propertyNames": {
+                "maxLength": 256,
+                "minLength": 1
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Browser State"
+        },
+        "config_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Config Digest",
+          "type": "string"
+        },
+        "digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "environment_identity": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Environment Identity",
+          "type": "string"
+        },
+        "exclusions": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Exclusions",
+          "type": "array"
+        },
+        "fact_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Fact Digest",
+          "type": "string"
+        },
+        "fixture_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Fixture Digest",
+          "type": "string"
+        },
+        "graph_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Graph Digest"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "registry_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Registry Digest",
+          "type": "string"
+        },
+        "scope_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Scope Revision",
+          "type": "integer"
+        },
+        "source_files": {
+          "items": {
+            "$ref": "#/$defs/SourceFile"
+          },
+          "maxItems": 10000,
+          "title": "Source Files",
+          "type": "array"
+        },
+        "source_versions": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Source Versions",
+          "type": "array"
+        },
+        "tool_versions": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Tool Versions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "digest",
+        "source_files",
+        "exclusions",
+        "scope_revision",
+        "fact_digest",
+        "registry_digest",
+        "source_versions",
+        "fixture_digest",
+        "tool_versions",
+        "config_digest",
+        "environment_identity"
+      ],
+      "title": "InputManifest",
+      "type": "object"
+    },
+    "InputsRefreshArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "finding_assessment_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Finding Assessment Ids",
+          "type": "array"
+        },
+        "obligation_disposition_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Obligation Disposition Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "finding_assessment_ids",
+        "obligation_disposition_ids"
+      ],
+      "title": "InputsRefreshArgs",
+      "type": "object"
+    },
+    "InputsRefreshCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/InputsRefreshArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "inputs.refresh",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "InputsRefreshCommand",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "LegalRefreshArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "source_target_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Source Target Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source_target_ids"
+      ],
+      "title": "LegalRefreshArgs",
+      "type": "object"
+    },
+    "LegalRefreshCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/LegalRefreshArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "legal.refresh",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "LegalRefreshCommand",
+      "type": "object"
+    },
+    "LegalSource": {
+      "additionalProperties": false,
+      "properties": {
+        "content_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Content Digest",
+          "type": "string"
+        },
+        "document_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Document Date"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "identifier": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Identifier"
+        },
+        "jurisdiction": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Jurisdiction",
+          "type": "string"
+        },
+        "language": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Language",
+          "type": "string"
+        },
+        "provisions": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Provisions",
+          "type": "array"
+        },
+        "publisher": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Publisher",
+          "type": "string"
+        },
+        "related_source_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Related Source Ids",
+          "type": "array"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "synthetic": {
+          "title": "Synthetic",
+          "type": "boolean"
+        },
+        "type": {
+          "enum": [
+            "eu_act",
+            "national_act",
+            "judgment",
+            "final_guidance",
+            "draft_guidance",
+            "proposal",
+            "standard",
+            "engineering_practice",
+            "synthetic_fixture"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 4096,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "type",
+        "publisher",
+        "url",
+        "language",
+        "jurisdiction",
+        "retrieved_at",
+        "content_digest",
+        "provisions",
+        "related_source_ids",
+        "synthetic"
+      ],
+      "title": "LegalSource",
+      "type": "object"
+    },
+    "MethodDisposition": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Attempt Ids",
+          "type": "array"
+        },
+        "method": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "missing_evidence": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Missing Evidence",
+          "type": "array"
+        },
+        "outcome": {
+          "enum": [
+            "passed",
+            "observed_failure",
+            "unresolved_review",
+            "blocked",
+            "not_tested",
+            "lead"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "review_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Review Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "method",
+        "outcome",
+        "attempt_ids",
+        "review_ids",
+        "missing_evidence"
+      ],
+      "title": "MethodDisposition",
+      "type": "object"
+    },
+    "Obligation": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "enum": [
+            "duty",
+            "recommendation"
+          ],
+          "title": "Classification",
+          "type": "string"
+        },
+        "conditions": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Conditions",
+          "type": "array"
+        },
+        "control_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Control Ids",
+          "type": "array"
+        },
+        "exceptions": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Exceptions",
+          "type": "array"
+        },
+        "family": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Family",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "limitations": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Limitations",
+          "type": "array"
+        },
+        "overlay_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Overlay Ids",
+          "type": "array"
+        },
+        "required_methods": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Required Methods",
+          "type": "array"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "source_provisions": {
+          "items": {
+            "$ref": "#/$defs/ProvisionRef"
+          },
+          "title": "Source Provisions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "family",
+        "classification",
+        "source_provisions",
+        "conditions",
+        "exceptions",
+        "overlay_ids",
+        "control_ids",
+        "required_methods",
+        "limitations"
+      ],
+      "title": "Obligation",
+      "type": "object"
+    },
+    "ObligationDisposition": {
+      "additionalProperties": false,
+      "properties": {
+        "applicability": {
+          "enum": [
+            "applicable",
+            "not_applicable",
+            "unresolved"
+          ],
+          "title": "Applicability",
+          "type": "string"
+        },
+        "applicability_decision_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Applicability Decision Id",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "manual_review": {
+          "enum": [
+            "pending",
+            "supported",
+            "unsupported",
+            "unresolved"
+          ],
+          "title": "Manual Review",
+          "type": "string"
+        },
+        "obligation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Obligation Id",
+          "type": "string"
+        },
+        "obligation_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Obligation Revision",
+          "type": "integer"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 8192,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "required_method_dispositions": {
+          "items": {
+            "$ref": "#/$defs/MethodDisposition"
+          },
+          "title": "Required Method Dispositions",
+          "type": "array"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "run_id",
+        "obligation_id",
+        "obligation_revision",
+        "applicability",
+        "applicability_decision_id",
+        "rationale",
+        "required_method_dispositions",
+        "manual_review"
+      ],
+      "title": "ObligationDisposition",
+      "type": "object"
+    },
+    "PatchApplyArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "permission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Permission Id",
+          "type": "string"
+        },
+        "proposal_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Proposal Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "proposal_id",
+        "permission_id"
+      ],
+      "title": "PatchApplyArgs",
+      "type": "object"
+    },
+    "PatchApplyCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/PatchApplyArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "patch.apply",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "PatchApplyCommand",
+      "type": "object"
+    },
+    "PatchPreview": {
+      "additionalProperties": false,
+      "properties": {
+        "blocked_reason": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blocked Reason"
+        },
+        "diff": {
+          "anyOf": [
+            {
+              "maxLength": 524288,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diff"
+        },
+        "diff_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Diff Digest",
+          "type": "string"
+        },
+        "preview_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preview Digest"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "proposal_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Proposal Id",
+          "type": "string"
+        },
+        "redaction": {
+          "enum": [
+            "safe",
+            "blocked",
+            "unknown"
+          ],
+          "title": "Redaction",
+          "type": "string"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "run_id",
+        "proposal_id",
+        "revision",
+        "diff_digest",
+        "redaction"
+      ],
+      "title": "PatchPreview",
+      "type": "object"
+    },
+    "PatchProposal": {
+      "additionalProperties": false,
+      "properties": {
+        "after_attempt_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "After Attempt Ids",
+          "type": "array"
+        },
+        "before_attempt_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Before Attempt Ids",
+          "type": "array"
+        },
+        "diff_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Diff Digest",
+          "type": "string"
+        },
+        "expected_postimages": {
+          "items": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Expected Postimages",
+          "type": "array"
+        },
+        "finding_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Finding Ids",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "permission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Permission Id",
+          "type": "string"
+        },
+        "preimages": {
+          "items": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Preimages",
+          "type": "array"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "relative_paths": {
+          "items": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Relative Paths",
+          "type": "array"
+        },
+        "retest_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "minItems": 1,
+          "title": "Retest Ids",
+          "type": "array"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "proposed",
+            "running",
+            "applied-awaiting-verification",
+            "verified",
+            "failed",
+            "blocked"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "run_id",
+        "finding_ids",
+        "revision",
+        "diff_digest",
+        "relative_paths",
+        "preimages",
+        "expected_postimages",
+        "permission_id",
+        "retest_ids",
+        "state",
+        "before_attempt_ids",
+        "after_attempt_ids"
+      ],
+      "title": "PatchProposal",
+      "type": "object"
+    },
+    "PatchProposeArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "reply": {
+          "$ref": "#/$defs/AgentReplyEnvelope"
+        }
+      },
+      "required": [
+        "reply"
+      ],
+      "title": "PatchProposeArgs",
+      "type": "object"
+    },
+    "PatchProposeCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/PatchProposeArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "patch.propose",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "PatchProposeCommand",
+      "type": "object"
+    },
+    "PermissionGrant": {
+      "additionalProperties": false,
+      "properties": {
+        "expires_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "title": "Expires At",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "operations": {
+          "items": {
+            "enum": [
+              "project.register",
+              "scope.register",
+              "permission.grant",
+              "permission.revoke",
+              "registry.accept",
+              "audit.start",
+              "audit.cancel",
+              "audit.resume",
+              "results.import",
+              "evidence.import",
+              "legal.refresh",
+              "finding.discuss",
+              "patch.propose",
+              "patch.apply",
+              "checks.retest",
+              "inputs.refresh"
+            ],
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Operations",
+          "type": "array"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "provider": {
+          "$ref": "#/$defs/ProviderBoundary"
+        },
+        "relative_paths": {
+          "items": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Relative Paths",
+          "type": "array"
+        },
+        "revoked_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revoked At"
+        },
+        "root_identity": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Root Identity",
+          "type": "string"
+        },
+        "synthetic_fixture_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Synthetic Fixture Ids",
+          "type": "array"
+        },
+        "test_origins": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Test Origins",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "root_identity",
+        "operations",
+        "relative_paths",
+        "test_origins",
+        "synthetic_fixture_ids",
+        "provider",
+        "expires_at"
+      ],
+      "title": "PermissionGrant",
+      "type": "object"
+    },
+    "PermissionGrantArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "grant": {
+          "$ref": "#/$defs/PermissionGrant"
+        }
+      },
+      "required": [
+        "grant"
+      ],
+      "title": "PermissionGrantArgs",
+      "type": "object"
+    },
+    "PermissionGrantCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/PermissionGrantArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "permission.grant",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "PermissionGrantCommand",
+      "type": "object"
+    },
+    "PermissionRevokeArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "permission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Permission Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "permission_id"
+      ],
+      "title": "PermissionRevokeArgs",
+      "type": "object"
+    },
+    "PermissionRevokeCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/PermissionRevokeArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "permission.revoke",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "PermissionRevokeCommand",
+      "type": "object"
+    },
+    "ProcessingActivity": {
+      "additionalProperties": false,
+      "properties": {
+        "data_categories": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Data Categories",
+          "type": "array"
+        },
+        "evidence_owner": {
+          "maxLength": 8192,
+          "title": "Evidence Owner",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "lawful_basis": {
+          "$ref": "#/$defs/Fact"
+        },
+        "locations": {
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "title": "Locations",
+          "type": "array"
+        },
+        "purpose": {
+          "maxLength": 8192,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "recipients": {
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "title": "Recipients",
+          "type": "array"
+        },
+        "retention": {
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "title": "Retention",
+          "type": "array"
+        },
+        "roles": {
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "title": "Roles",
+          "type": "array"
+        },
+        "stores": {
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "title": "Stores",
+          "type": "array"
+        },
+        "subjects": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Subjects",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "subjects",
+        "data_categories",
+        "roles",
+        "lawful_basis",
+        "recipients",
+        "locations",
+        "stores",
+        "retention",
+        "evidence_owner"
+      ],
+      "title": "ProcessingActivity",
+      "type": "object"
+    },
+    "ProjectRegisterArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "repository_root": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "pattern": "^/",
+          "title": "Repository Root",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "test_origins": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Test Origins",
+          "type": "array"
+        }
+      },
+      "required": [
+        "repository_root",
+        "scope",
+        "test_origins"
+      ],
+      "title": "ProjectRegisterArgs",
+      "type": "object"
+    },
+    "ProjectRegisterCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/ProjectRegisterArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "project.register",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "ProjectRegisterCommand",
+      "type": "object"
+    },
+    "ProviderBoundary": {
+      "additionalProperties": false,
+      "properties": {
+        "authorized": {
+          "default": false,
+          "title": "Authorized",
+          "type": "boolean"
+        },
+        "data_classes": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Data Classes",
+          "type": "array"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        }
+      },
+      "title": "ProviderBoundary",
+      "type": "object"
+    },
+    "ProvisionRef": {
+      "additionalProperties": false,
+      "properties": {
+        "locator": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "source_target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Source Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_target_id",
+        "locator"
+      ],
+      "title": "ProvisionRef",
+      "type": "object"
+    },
+    "RegistryAcceptArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Candidate Digest",
+          "type": "string"
+        },
+        "reviewer": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Reviewer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_digest",
+        "reviewer"
+      ],
+      "title": "RegistryAcceptArgs",
+      "type": "object"
+    },
+    "RegistryAcceptCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/RegistryAcceptArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "registry.accept",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "RegistryAcceptCommand",
+      "type": "object"
+    },
+    "ResultsImportArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt": {
+          "$ref": "#/$defs/CheckAttempt"
+        }
+      },
+      "required": [
+        "attempt"
+      ],
+      "title": "ResultsImportArgs",
+      "type": "object"
+    },
+    "ResultsImportCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/ResultsImportArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "results.import",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "ResultsImportCommand",
+      "type": "object"
+    },
+    "RunRelation": {
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "title": "Created At",
+          "type": "string"
+        },
+        "creating_request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Creating Request Id",
+          "type": "string"
+        },
+        "operation": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Operation",
+          "type": "string"
+        },
+        "parent_run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Run Id"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "planned",
+            "running",
+            "cancelling",
+            "completed",
+            "partial",
+            "cancelled",
+            "interrupted"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "run_id",
+        "creating_request_id",
+        "operation",
+        "created_at",
+        "state"
+      ],
+      "title": "RunRelation",
+      "type": "object"
+    },
+    "SafeError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Code",
+          "type": "string"
+        },
+        "safe_message": {
+          "maxLength": 8192,
+          "title": "Safe Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "safe_message"
+      ],
+      "title": "SafeError",
+      "type": "object"
+    },
+    "SafeEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "blocked_reason": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blocked Reason"
+        },
+        "content_text": {
+          "anyOf": [
+            {
+              "maxLength": 524288,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Text"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "evidence"
+      ],
+      "title": "SafeEvidence",
+      "type": "object"
+    },
+    "Scope": {
+      "additionalProperties": false,
+      "properties": {
+        "activities": {
+          "items": {
+            "$ref": "#/$defs/ProcessingActivity"
+          },
+          "title": "Activities",
+          "type": "array"
+        },
+        "assessment_date": {
+          "format": "date",
+          "title": "Assessment Date",
+          "type": "string"
+        },
+        "customer_types": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Customer Types",
+          "type": "array"
+        },
+        "environment": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Environment",
+          "type": "string"
+        },
+        "establishment": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Establishment",
+          "type": "array"
+        },
+        "exclusions": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Exclusions",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "included_scenarios": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Included Scenarios",
+          "type": "array"
+        },
+        "jurisdictions": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Jurisdictions",
+          "type": "array"
+        },
+        "markets": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Markets",
+          "type": "array"
+        },
+        "permission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Permission Id",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "roles": {
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "title": "Roles",
+          "type": "array"
+        },
+        "size_and_sector": {
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "title": "Size And Sector",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "project_id",
+        "assessment_date",
+        "environment",
+        "activities",
+        "establishment",
+        "markets",
+        "customer_types",
+        "roles",
+        "size_and_sector",
+        "jurisdictions",
+        "included_scenarios",
+        "exclusions",
+        "permission_id"
+      ],
+      "title": "Scope",
+      "type": "object"
+    },
+    "ScopeRegisterArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        }
+      },
+      "required": [
+        "scope"
+      ],
+      "title": "ScopeRegisterArgs",
+      "type": "object"
+    },
+    "ScopeRegisterCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/ScopeRegisterArgs"
+        },
+        "expected_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "operation": {
+          "const": "scope.register",
+          "title": "Operation",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "project_id",
+        "expected_revision",
+        "operation",
+        "arguments"
+      ],
+      "title": "ScopeRegisterCommand",
+      "type": "object"
+    },
+    "Snapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/PatchProposal"
+          },
+          "title": "Actions",
+          "type": "array"
+        },
+        "attempts": {
+          "items": {
+            "$ref": "#/$defs/CheckAttempt"
+          },
+          "title": "Attempts",
+          "type": "array"
+        },
+        "current_assessments": {
+          "items": {
+            "$ref": "#/$defs/CurrentAssessment"
+          },
+          "title": "Current Assessments",
+          "type": "array"
+        },
+        "cursor": {
+          "maxLength": 160,
+          "title": "Cursor",
+          "type": "string"
+        },
+        "finding_assessments": {
+          "items": {
+            "$ref": "#/$defs/FindingAssessment"
+          },
+          "title": "Finding Assessments",
+          "type": "array"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/Finding"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "obligation_dispositions": {
+          "items": {
+            "$ref": "#/$defs/ObligationDisposition"
+          },
+          "title": "Obligation Dispositions",
+          "type": "array"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "relations_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Relations Revision",
+          "type": "integer"
+        },
+        "run": {
+          "$ref": "#/$defs/AuditRun"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "terminal": {
+          "title": "Terminal",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schema_version",
+        "project_id",
+        "run",
+        "findings",
+        "finding_assessments",
+        "obligation_dispositions",
+        "attempts",
+        "actions",
+        "cursor",
+        "terminal",
+        "current_assessments",
+        "relations_revision"
+      ],
+      "title": "Snapshot",
+      "type": "object"
+    },
+    "SourceAttempt": {
+      "additionalProperties": false,
+      "properties": {
+        "attempted_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "title": "Attempted At",
+          "type": "string"
+        },
+        "failure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SafeError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "intended_identifier": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Intended Identifier"
+        },
+        "intended_type": {
+          "enum": [
+            "eu_act",
+            "national_act",
+            "judgment",
+            "final_guidance",
+            "draft_guidance",
+            "proposal",
+            "standard",
+            "engineering_practice",
+            "synthetic_fixture"
+          ],
+          "title": "Intended Type",
+          "type": "string"
+        },
+        "intended_url": {
+          "maxLength": 4096,
+          "title": "Intended Url",
+          "type": "string"
+        },
+        "language": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Language",
+          "type": "string"
+        },
+        "last_successful_source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "publisher": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Publisher",
+          "type": "string"
+        },
+        "retrieved_source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source_target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Source Target Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "retrieved",
+            "retrieval_failed",
+            "translation_unverified"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "source_target_id",
+        "intended_url",
+        "publisher",
+        "intended_type",
+        "language",
+        "attempted_at",
+        "state"
+      ],
+      "title": "SourceAttempt",
+      "type": "object"
+    },
+    "SourceFile": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "digest"
+      ],
+      "title": "SourceFile",
+      "type": "object"
+    },
+    "SourceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    },
+    "SourceReview": {
+      "additionalProperties": false,
+      "properties": {
+        "act_chain": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Act Chain",
+          "type": "array"
+        },
+        "application_dates": {
+          "items": {
+            "format": "date",
+            "type": "string"
+          },
+          "title": "Application Dates",
+          "type": "array"
+        },
+        "assessment_date": {
+          "format": "date",
+          "title": "Assessment Date",
+          "type": "string"
+        },
+        "case_law_refs": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Case Law Refs",
+          "type": "array"
+        },
+        "entry_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entry Date"
+        },
+        "gaps": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Gaps",
+          "type": "array"
+        },
+        "last_successful_verification": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Successful Verification"
+        },
+        "national_overlay_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "National Overlay Ids",
+          "type": "array"
+        },
+        "reviewer": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewer"
+        },
+        "source_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Source Revision",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "unreviewed",
+            "reviewed_for_assessment",
+            "stale",
+            "unavailable",
+            "superseded"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "transition_dates": {
+          "items": {
+            "format": "date",
+            "type": "string"
+          },
+          "title": "Transition Dates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_revision",
+        "assessment_date",
+        "state",
+        "act_chain",
+        "case_law_refs",
+        "national_overlay_ids",
+        "application_dates",
+        "transition_dates",
+        "gaps"
+      ],
+      "title": "SourceReview",
+      "type": "object"
+    },
+    "TextPatch": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "one_file_text_patch",
+          "title": "Kind",
+          "type": "string"
+        },
+        "preimage_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Preimage Digest",
+          "type": "string"
+        },
+        "proposed_postimage": {
+          "maxLength": 524288,
+          "title": "Proposed Postimage",
+          "type": "string"
+        },
+        "relative_path": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "retest_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "minItems": 1,
+          "title": "Retest Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "relative_path",
+        "preimage_digest",
+        "proposed_postimage",
+        "retest_ids"
+      ],
+      "title": "TextPatch",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "discriminator": {
+    "mapping": {
+      "audit.cancel": "#/$defs/AuditCancelCommand",
+      "audit.resume": "#/$defs/AuditResumeCommand",
+      "audit.start": "#/$defs/AuditStartCommand",
+      "checks.retest": "#/$defs/ChecksRetestCommand",
+      "evidence.import": "#/$defs/EvidenceImportCommand",
+      "finding.discuss": "#/$defs/FindingDiscussCommand",
+      "inputs.refresh": "#/$defs/InputsRefreshCommand",
+      "legal.refresh": "#/$defs/LegalRefreshCommand",
+      "patch.apply": "#/$defs/PatchApplyCommand",
+      "patch.propose": "#/$defs/PatchProposeCommand",
+      "permission.grant": "#/$defs/PermissionGrantCommand",
+      "permission.revoke": "#/$defs/PermissionRevokeCommand",
+      "project.register": "#/$defs/ProjectRegisterCommand",
+      "registry.accept": "#/$defs/RegistryAcceptCommand",
+      "results.import": "#/$defs/ResultsImportCommand",
+      "scope.register": "#/$defs/ScopeRegisterCommand"
+    },
+    "propertyName": "operation"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ProjectRegisterCommand"
+    },
+    {
+      "$ref": "#/$defs/ScopeRegisterCommand"
+    },
+    {
+      "$ref": "#/$defs/PermissionGrantCommand"
+    },
+    {
+      "$ref": "#/$defs/PermissionRevokeCommand"
+    },
+    {
+      "$ref": "#/$defs/RegistryAcceptCommand"
+    },
+    {
+      "$ref": "#/$defs/AuditStartCommand"
+    },
+    {
+      "$ref": "#/$defs/AuditCancelCommand"
+    },
+    {
+      "$ref": "#/$defs/AuditResumeCommand"
+    },
+    {
+      "$ref": "#/$defs/ResultsImportCommand"
+    },
+    {
+      "$ref": "#/$defs/EvidenceImportCommand"
+    },
+    {
+      "$ref": "#/$defs/LegalRefreshCommand"
+    },
+    {
+      "$ref": "#/$defs/FindingDiscussCommand"
+    },
+    {
+      "$ref": "#/$defs/PatchProposeCommand"
+    },
+    {
+      "$ref": "#/$defs/PatchApplyCommand"
+    },
+    {
+      "$ref": "#/$defs/ChecksRetestCommand"
+    },
+    {
+      "$ref": "#/$defs/InputsRefreshCommand"
+    }
+  ],
+  "title": "Command"
+}

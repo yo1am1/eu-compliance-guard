@@ -1,0 +1,28 @@
+# Local dependencies and build products
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+node_modules/
+dist/
+build/
+*.egg-info/
+
+# Secrets, audit evidence, and local runtime state
+.env
+.env.*
+!.env.example
+credentials.json
+token.json
+*.db
+*.db-*
+*.sqlite*
+*.log
+/audit-data/
+/artifacts/
+/docs/status/
+.codex/
+.claude/
+.cursor/
+.DS_Store
