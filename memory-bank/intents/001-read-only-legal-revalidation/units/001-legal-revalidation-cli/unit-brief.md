@@ -3,10 +3,10 @@ unit: 001-legal-revalidation-cli
 unit_type: cli
 default_bolt_type: simple-construction-bolt
 intent: 001-read-only-legal-revalidation
-phase: inception
-status: draft
+phase: construction
+status: ready
 created: 2026-10-18T19:01:39Z
-updated: 2026-10-18T19:01:39Z
+updated: 2026-10-18T19:06:25Z
 ---
 
 # Unit brief: Legal revalidation CLI
@@ -38,7 +38,7 @@ Reuse Scope, Fact, LegalSource, SourceAttempt, SourceReview, ProvisionRef, Oblig
 
 ## Story summary
 
-Six Must stories; all draft, unimplemented and awaiting Owner artifacts review. [Global index](../../../../story-index.md).
+Six Must stories; all unimplemented. Inception artifacts and construction readiness are Owner-approved; Bolt 001 is in Implement. [Global index](../../../../story-index.md).
 
 1. [001 Input/coverage](stories/001-input-and-coverage.md)
 2. [002 Mapping/report](stories/002-accountable-mapping-and-report.md)
@@ -53,7 +53,7 @@ No other units or dependent units. Optional public official HTTPS endpoints can 
 
 The proposed CLI is `python -m eu_compliance_guard revalidate --input ... --output ...`, adding `--previous ...` for comparison. Network is disabled by default; `--offline` makes that explicit and conflicts with the opt-in `--fetch-official`. `--output` names a new run directory. Follow the canonical design for exact commands and exit semantics.
 
-Use the [tech stack](../../../../standards/tech-stack.md) and [coding standards](../../../../standards/coding-standards.md). Canonical [context](../../../../../specs_v2/system-context.md) and [design](../../../../../specs_v2/design.md) await Owner review. Read callers/tests before editing.
+Use the [tech stack](../../../../standards/tech-stack.md) and [coding standards](../../../../standards/coding-standards.md). Canonical [context](../../../../../specs_v2/system-context.md) and [design](../../../../../specs_v2/design.md) are Owner-approved. Read callers/tests before editing.
 
 ## Bolts and success criteria
 
@@ -61,6 +61,7 @@ Use the [tech stack](../../../../standards/tech-stack.md) and [coding standards]
 
 - [ ] Every linked story criterion is verified with synthetic checks/offline example.
 - [ ] make check and package inspection pass; runtime artifacts stay private/out of Git.
-- [ ] Owner approves artifacts/readiness before construction; every construction stage receives human validation.
+- [x] Owner approved artifacts/readiness before construction.
+- [ ] Every construction stage receives human validation.
 
-Exact bounds and file/API changes are resolved in design and the first approved Plan stage. This draft does not claim implementation or an operational legal assessment.
+Exact bounds and file/API changes are resolved in design and the first approved Plan stage. This approved unit brief does not claim implementation or an operational legal assessment.

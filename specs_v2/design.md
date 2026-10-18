@@ -1,6 +1,6 @@
 # Read-only legal revalidation MVP — design
 
-Status: proposed for artifacts review, following Owner approval of
+Status: approved by the Owner for construction, following approval of
 [requirements](requirements.md) on 2026-10-18. This describes future implementation;
 the foundation has no runnable legal workflow. No current law or legal corpus was
 verified for this design. Historical `specs/**` remains unchanged.

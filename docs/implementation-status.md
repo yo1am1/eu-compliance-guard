@@ -67,15 +67,27 @@ remain pending. Research links are a starting register, not a current vetted cor
 The Owner selected the read-only requirements-to-law revalidation MVP. Two visible
 Orca workers completed architecture and legal-workflow reviews; the new scope and
 acceptance requirements are recorded separately in [specifications v2](../specs_v2/README.md).
-The Owner approved the v2 requirements. The proposed design/system context, one
-CLI unit, six draft stories and three sequential planned construction bolts are
-ready for the next specsmd review. No MVP implementation is complete. Historical
+The Owner approved requirements, design/system context, the CLI unit, six stories
+and the three-bolt sequence, then selected Bolt 001 Plan with `let's roll`.
+Inception is complete. The Owner approved Bolt 001 Plan and starting Implement;
+implementation acceptance and later stage checkpoints remain pending. No MVP implementation is complete. Historical
 `specs/**` files remain unchanged. Baseline `make check` passed all 61 tests,
 generated contract checks and TypeScript compilation; it was not repeated for
 this documentation-only update. No live-law verification ran.
 
 Planning validation checked 22 documents: YAML metadata and full timestamps, local
 Markdown links, unique assignment of all six stories, and three acyclic bolt
-dependencies. Construction artifacts retain pending Owner checkpoints. The installed
-specsmd completion script needs its external `fs-extra`/`js-yaml` tool dependencies
-resolved before final bolt completion; this adds no application dependency.
+dependencies. Construction stage checkpoints remain pending. The installed
+specsmd completion script now has a preflighted private temporary tool environment
+with `fs-extra` and `js-yaml`; module loading and script startup were verified,
+without completing any bolt or adding an application dependency.
+
+## Bolt 001 implementation start
+
+Plan approved at 2026-10-18T19:15:48Z. The saved implementation plan covers every
+criterion in stories 001–002 and defines contract, workflow and CLI/report file
+ownership. Independent review corrections cover full metadata timestamps, explicit
+local source media metadata and transitive synthetic provenance. Planning checks
+verified 24 documents, including links, YAML/timestamps, all twelve acceptance
+criteria, stage state and acyclic story/bolt assignments. No application code was
+changed while preparing the plan. Stage 2 implementation is now authorized.

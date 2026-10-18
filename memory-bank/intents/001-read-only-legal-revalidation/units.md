@@ -1,8 +1,8 @@
 ---
 intent: 001-read-only-legal-revalidation
-phase: inception
-status: units-decomposed
-updated: 2026-10-18T19:01:39Z
+phase: construction
+status: ready
+updated: 2026-10-18T19:10:04Z
 ---
 
 # Unit decomposition
@@ -15,4 +15,4 @@ One deployable unit: [001-legal-revalidation-cli](units/001-legal-revalidation-c
 2. [Bolt 002](../../bolts/002-legal-revalidation-cli/bolt.md): story 003, official-source retrieval; requires 001.
 3. [Bolt 003](../../bolts/003-legal-revalidation-cli/bolt.md): stories 004–006, history/revalidation, skill/example and release; requires 002.
 
-All bolts use simple-construction-bolt. This acyclic sequence is planned only; Owner artifacts review and construction-readiness confirmation remain pending.
+All bolts use simple-construction-bolt. The Owner approved this acyclic sequence and construction readiness; Bolt 001 is in Implement, with every subsequent stage checkpoint still pending.

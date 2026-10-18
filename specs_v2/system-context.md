@@ -1,6 +1,6 @@
 # Read-only legal revalidation MVP — system context
 
-Status: proposed for artifacts review against approved
+Status: approved by the Owner for construction against approved
 [requirements](requirements.md). [Design](design.md) defines the intended CLI,
 records, bounds and acceptance checks. This is planning; no operational MVP,
 reviewed current-law corpus or completed legal assessment is claimed.

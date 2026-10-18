@@ -1,10 +1,10 @@
 # Global Story Index
 
-Updated: 2026-10-18T19:01:39Z
+Updated: 2026-10-18T19:10:04Z
 
 ## Overview
 
-Total planned: 6. Generated: 6. Not yet generated: 0. Implemented/completed: 0. Generated stories await Owner artifacts review.
+Total planned: 6. Generated: 6. Not yet generated: 0. Implemented/completed: 0. The Owner approved inception artifacts; construction stage checkpoints remain pending.
 
 ## Intent: 001-read-only-legal-revalidation
 

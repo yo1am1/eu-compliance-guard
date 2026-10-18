@@ -3,13 +3,16 @@ id: 001-legal-revalidation-cli
 unit: 001-legal-revalidation-cli
 intent: 001-read-only-legal-revalidation
 type: simple-construction-bolt
-status: planned
+status: in-progress
 stories: [001-input-and-coverage, 002-accountable-mapping-and-report]
 created: 2026-10-18T19:01:39Z
-started: null
+started: 2026-10-18T19:06:25Z
 completed: null
-current_stage: null
-stages_completed: []
+current_stage: implement
+stages_completed:
+  - name: plan
+    completed: 2026-10-18T19:15:48Z
+    artifact: implementation-plan.md
 requires_bolts: []
 enables_bolts: [002-legal-revalidation-cli]
 requires_units: []
@@ -25,7 +28,7 @@ complexity:
 
 ## Objective
 
-Validated contracts and offline report. Planned only; included stories remain unimplemented.
+Validated contracts and offline report. Plan is approved and Implement has started; included stories remain unimplemented.
 
 ## Stories Included
 
@@ -42,8 +45,8 @@ Simple Construction; installed definition: `/home/user/.specsmd/aidlc/templates/
 
 ## Stages
 
-- [ ] **1. Plan**: Pending → implementation-plan.md; confirm changes, bounds, fixtures and acceptance checks.
-- [ ] **2. Implement**: Pending → source/docs + implementation-walkthrough.md.
+- ✅ **1. Plan**: Approved → implementation-plan.md.
+- ⏳ **2. Implement**: In progress → source/docs + implementation-walkthrough.md.
 - [ ] **3. Test**: Pending → tests + test-walkthrough.md, including make check.
 
 Execute in this order, stopping for human validation after each stage before advancing/completing. These stage artifacts are created during construction; none exist or are claimed complete now.
@@ -60,4 +63,4 @@ Requires: none. Enables: [002-legal-revalidation-cli](../002-legal-revalidation-
 
 ## Approval Gate
 
-Do not begin Plan/implementation until Owner artifacts review and construction-readiness confirmation. No live-source smoke run is authorized by this plan.
+The Owner approved inception artifacts, confirmed construction readiness and selected this bolt's Plan stage, then approved the concrete plan and starting Implement. Present implementation for human validation before Test. No live-source smoke run is authorized by this offline bolt.

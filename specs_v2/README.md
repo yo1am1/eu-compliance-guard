@@ -3,11 +3,11 @@
 This directory records the new read-only legal revalidation MVP selected by the
 Owner on 2026-10-18. It does not replace or modify the historical `specs/**` files.
 
-[Requirements](requirements.md) are approved by the Owner. The proposed
+[Requirements](requirements.md) are approved by the Owner. The approved
 [design](design.md), [system context](system-context.md) and
 [construction unit](../memory-bank/intents/001-read-only-legal-revalidation/units/001-legal-revalidation-cli/unit-brief.md)
-are prepared for the specsmd artifacts review. No implementation or MVP acceptance
-is claimed at this checkpoint.
+have completed inception. Bolt 001 has an approved implementation plan and is in Implement; implementation
+acceptance and MVP completion remain pending.
 
 ## Recovered baseline
 
@@ -38,7 +38,7 @@ not in the public repository.
   temporal/jurisdiction reasoning and human evidence assessments independently of
   technical checks. An obligation without a technical finding must remain visible.
 
-## Implementation direction for review
+## Approved implementation direction
 
 Use a local synchronous CLI and the existing Pydantic/standard-library stack.
 Accept declared JSON inputs, fetch explicitly selected official sources, retain
@@ -51,9 +51,9 @@ The first implementation must reach models and generated contracts, CLI/retrieva
 report/revalidation modules, synthetic fixtures and tests, portable skill resources,
 packaging where needed, and user documentation. Existing scanner/agent helpers and
 frontend UI are outside that change. Exact file ownership and acceptance checks
-will be assigned in the construction plan for artifacts review.
+are recorded in the [Bolt 001 implementation plan](../memory-bank/bolts/001-legal-revalidation-cli/implementation-plan.md) approved by the Owner for Implement.
 
-## Construction sequence for review
+## Approved construction sequence
 
 All six stories belong to one deployable CLI unit. The bolts are sequential:
 
@@ -66,12 +66,12 @@ All six stories belong to one deployable CLI unit. The bolts are sequential:
    compare retained runs, deliver the portable skill/examples, and verify packaging.
 
 The [story index](../memory-bank/story-index.md) records each story and its state.
-Every bolt remains planned until the required human checkpoints permit construction.
+Bolt 001 is in Implement; bolts 002 and 003 remain planned and dependent on prior completion.
 Live legal review and corpus acceptance remain distinct from software verification.
 
 ## Outstanding acceptance
 
-Design review, construction stage checkpoints, implemented
+Implementation acceptance, subsequent construction stage checkpoints, implemented
 end-to-end synthetic examples and MVP release checks remain pending. No current
 legal corpus was accepted and no real legal assessment, scanner/provider execution,
 containment verification, global installation or OS-policy change was performed.
