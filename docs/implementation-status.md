@@ -61,3 +61,13 @@ remain pending. Research links are a starting register, not a current vetted cor
   they were not reformatted to satisfy Git's generic whitespace warning.
 - No real legal audit, live scanner/provider execution, dashboard/browser acceptance,
   global installation, or OS-policy change was performed for this extraction.
+
+## Read-only MVP continuation — 2026-10-18
+
+The Owner selected the read-only requirements-to-law revalidation MVP. Two visible
+Orca workers completed architecture and legal-workflow reviews; the new scope and
+acceptance requirements are recorded separately in [specifications v2](../specs_v2/README.md).
+The requirements draft is awaiting Owner review under the invoked specsmd workflow;
+no construction bolt or MVP implementation is complete. Historical `specs/**`
+files remain unchanged. Baseline `make check` again passed all 61 tests, generated
+contract checks and TypeScript compilation. No live-law verification ran.
