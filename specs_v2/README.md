@@ -3,9 +3,11 @@
 This directory records the new read-only legal revalidation MVP selected by the
 Owner on 2026-10-18. It does not replace or modify the historical `specs/**` files.
 
-[Requirements](requirements.md) are drafted for Owner review. Design, construction
-units, stories and bolts are pending that review under the invoked specsmd flow.
-No implementation or MVP acceptance is claimed at this checkpoint.
+[Requirements](requirements.md) are approved by the Owner. The proposed
+[design](design.md), [system context](system-context.md) and
+[construction unit](../memory-bank/intents/001-read-only-legal-revalidation/units/001-legal-revalidation-cli/unit-brief.md)
+are prepared for the specsmd artifacts review. No implementation or MVP acceptance
+is claimed at this checkpoint.
 
 ## Recovered baseline
 
@@ -49,11 +51,27 @@ The first implementation must reach models and generated contracts, CLI/retrieva
 report/revalidation modules, synthetic fixtures and tests, portable skill resources,
 packaging where needed, and user documentation. Existing scanner/agent helpers and
 frontend UI are outside that change. Exact file ownership and acceptance checks
-will be assigned in the construction plan after requirements review.
+will be assigned in the construction plan for artifacts review.
+
+## Construction sequence for review
+
+All six stories belong to one deployable CLI unit. The bolts are sequential:
+
+1. [001 — Contracts and offline reporting](../memory-bank/bolts/001-legal-revalidation-cli/bolt.md):
+   validate declared inputs/coverage and accountable mappings, then retain JSON and
+   Markdown reports from synthetic inputs.
+2. [002 — Official-source retrieval](../memory-bank/bolts/002-legal-revalidation-cli/bolt.md):
+   add bounded opt-in retrieval and recorded provenance/failures.
+3. [003 — Revalidation and release](../memory-bank/bolts/003-legal-revalidation-cli/bolt.md):
+   compare retained runs, deliver the portable skill/examples, and verify packaging.
+
+The [story index](../memory-bank/story-index.md) records each story and its state.
+Every bolt remains planned until the required human checkpoints permit construction.
+Live legal review and corpus acceptance remain distinct from software verification.
 
 ## Outstanding acceptance
 
-Requirements approval, design review, construction stage checkpoints, implemented
+Design review, construction stage checkpoints, implemented
 end-to-end synthetic examples and MVP release checks remain pending. No current
 legal corpus was accepted and no real legal assessment, scanner/provider execution,
 containment verification, global installation or OS-policy change was performed.

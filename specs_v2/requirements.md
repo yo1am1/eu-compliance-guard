@@ -1,6 +1,6 @@
 # Read-only legal revalidation MVP — requirements v2
 
-Status: draft for Owner review. The Owner selected this MVP on 2026-10-18.
+Status: approved by the Owner on 2026-10-18. The Owner selected this MVP on 2026-10-18.
 This is a new delivery scope; `specs/**` remains an unchanged historical snapshot.
 No MVP completion or real legal assessment is claimed by this document.
 
@@ -113,5 +113,7 @@ The broader product requirements in the preserved snapshots remain future scope.
 
 ## Approval state
 
-The Owner selected the read-only MVP unit. These v2 requirements still require
-review under the invoked specsmd workflow before construction artifacts advance.
+The Owner selected the read-only MVP unit and approved these v2 requirements
+with `y` in the continuation session on 2026-10-18. Design, stories and bolts
+may now be prepared for the artifacts-review checkpoint; implementation approval
+is not implied by requirements approval.

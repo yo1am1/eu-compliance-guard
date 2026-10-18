@@ -67,7 +67,15 @@ remain pending. Research links are a starting register, not a current vetted cor
 The Owner selected the read-only requirements-to-law revalidation MVP. Two visible
 Orca workers completed architecture and legal-workflow reviews; the new scope and
 acceptance requirements are recorded separately in [specifications v2](../specs_v2/README.md).
-The requirements draft is awaiting Owner review under the invoked specsmd workflow;
-no construction bolt or MVP implementation is complete. Historical `specs/**`
-files remain unchanged. Baseline `make check` again passed all 61 tests, generated
-contract checks and TypeScript compilation. No live-law verification ran.
+The Owner approved the v2 requirements. The proposed design/system context, one
+CLI unit, six draft stories and three sequential planned construction bolts are
+ready for the next specsmd review. No MVP implementation is complete. Historical
+`specs/**` files remain unchanged. Baseline `make check` passed all 61 tests,
+generated contract checks and TypeScript compilation; it was not repeated for
+this documentation-only update. No live-law verification ran.
+
+Planning validation checked 22 documents: YAML metadata and full timestamps, local
+Markdown links, unique assignment of all six stories, and three acyclic bolt
+dependencies. Construction artifacts retain pending Owner checkpoints. The installed
+specsmd completion script needs its external `fs-extra`/`js-yaml` tool dependencies
+resolved before final bolt completion; this adds no application dependency.
