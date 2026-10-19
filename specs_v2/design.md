@@ -1,9 +1,10 @@
 # Read-only legal revalidation MVP — design
 
 Status: approved by the Owner for construction, following approval of
-[requirements](requirements.md) on 2026-10-18. This describes future implementation;
-the foundation has no runnable legal workflow. No current law or legal corpus was
-verified for this design. Historical `specs/**` remains unchanged.
+[requirements](requirements.md) on 2026-10-18. This describes the full planned MVP;
+its first offline reporting slice is implemented, awaiting the Implement checkpoint.
+Retrieval and predecessor comparison below remain future work. No current law or
+legal corpus was verified for this design. Historical `specs/**` remains unchanged.
 
 ## Delivery boundary
 
@@ -22,8 +23,9 @@ frontend UI, and the 16-operation `Command` union stay outside the MVP path.
 
 ## CLI contract and reproducible workflow
 
-These are the exact intended commands after construction, not commands available
-today. `--output` names the new run directory itself; it must not exist. Network is
+The help and first offline run below are implemented. Successor/changed-input and
+fetching examples describe the later bolts and are unavailable today. `--output`
+names the new run directory itself; it must not exist. Network is
 disabled by default. `--offline` states that choice explicitly; it conflicts with
 `--fetch-official`. The only subcommand is `revalidate`; a first run omits `--previous`.
 
@@ -40,9 +42,10 @@ uv run --locked python -m eu_compliance_guard revalidate \
   --output "$eucg_example_dir/run-002" --offline
 ```
 
-The two future fixtures include explicit references to small fictional source and
-evidence files. Paths resolve relative to the declaration file's parent, using the
-existing normalized `RelativePath` rules. No implicit repository root, glob, walk,
+The first checked-in fixture and future changed-input fixture include explicit
+references to small fictional source and evidence files. Paths resolve relative to
+the declaration file's parent, using the existing normalized `RelativePath` rules.
+No implicit repository root, glob, walk,
 URL-following evidence importer or environment credential lookup is permitted.
 
 An opt-in smoke check uses a separately prepared declaration whose source targets

@@ -24,8 +24,10 @@ library is imported into the standalone repository.
 - Shared validated records and closed commands for scope, sources, evidence,
   findings, assessments, conversations, proposals, capabilities, and progress.
 - Generated JSON Schema and frontend TypeScript definitions with drift checks.
-- Synthetic contract fixtures and 61 model, legal-record, frontend-record,
-  agent-admission, and fake-executor tests.
+- An offline requirement/report CLI, synthetic first-run fixture, bounded selected
+  file reads, accountable mapping/evidence gaps and private immutable run artifacts.
+- Synthetic foundation, contract, offline workflow, CLI and escaped-report tests,
+  with generated schema/type drift checks and TypeScript compilation.
 - Static native-protocol inspection and bounded reply validation.
 - An offline Linux executor helper that rejects unverified cleanup. Its live
   containment/admission requirements remain unmet; fake tests are not that evidence.
@@ -33,13 +35,13 @@ library is imported into the standalone repository.
 
 ## Current priority and remaining work
 
-The next implementation is a read-only skill and scripts for requirements-to-law
-revalidation using current official sources, recorded applicability, evidence, and
-explicit unknowns. The earlier OS isolation investigation is not a prerequisite to
+The first offline reporting script is implemented. Official-source retrieval and
+predecessor comparison, followed by the portable skill/release, remain the next
+implementation work. The earlier OS isolation investigation is not a prerequisite to
 this text/evidence workflow. No OS security policy was changed and no PC vulnerability
 audit was performed. Do not continue that detour as the next task.
 
-No operational audit engine, persistence/API/CLI, reviewed legal corpus, real scanner,
+No operational compliance audit, API, reviewed legal corpus, real scanner,
 browser checks, provider bridge, remediation loop, dashboard, Graphify integration,
 global host installation, or completed legal audit exists yet. These obligations
 remain pending. Research links are a starting register, not a current vetted corpus.
@@ -91,3 +93,47 @@ local source media metadata and transitive synthetic provenance. Planning checks
 verified 24 documents, including links, YAML/timestamps, all twelve acceptance
 criteria, stage state and acyclic story/bolt assignments. No application code was
 changed while preparing the plan. Stage 2 implementation is now authorized.
+
+## Bolt 001 implementation checkpoint — 2026-10-19
+
+The Owner requested visible teammates in split panes of the coordinator's Orca tab.
+Two panes were created there and reused for contract writing/review, workflow and
+CLI/report implementation, and independent integration review. Each file had one
+writer; conversations remain in Orca rather than Git.
+
+The first offline slice now accepts versioned declarations and selected local
+files, retains the original claims, derives accountable effective reviews and
+explicit gaps, and publishes validated JSON with escaped Markdown. It covers every
+declared requirement and candidate obligation and expands eleven candidate-family
+screenings. Unsupported source content/reviews, unknown facts and unavailable
+evidence cannot silently support the result. Requirement-specific facts, origin and
+evidence are checked independently of a mapped obligation's review. Missing explicit
+amendment/case-law/national/related source dependencies also block derived support.
+
+New public records originate in `models.py`. The generated JSON schema retains the
+sixteen-operation Command root. A generator correction makes all public definitions
+available in TypeScript; previously the compiler silently omitted unreachable
+definitions under a union root. Contracts and the synthetic fixture were committed
+and pushed as c617705; dependency hardening followed as 9d8daaa and f95002c.
+
+`python -m eu_compliance_guard revalidate` is offline by default. Fetching and
+predecessor arguments fail with exit 2 before reads/output. Outputs require a new
+directory under a private owner-controlled parent, use 0700/0600 modes and a final
+artifact-digest completion marker. Selected evidence bodies are not copied or
+rendered; declarations and metadata remain private. Existing reports are preserved.
+
+Stage 2 verification observed `make check` passing all 121 synthetic tests, generated
+schema/type drift checks and TypeScript compilation. Independent CLI checks confirmed
+the supported fictional mapping plus partial/unmapped coverage, marker digests, private modes,
+collision/history preservation, unsupported flags, safe errors and symlink refusal.
+Wheel and source distribution built offline; archive inspection found the expected
+modules/schema and synthetic sdist resources without dependencies, caches or private
+runtime artifacts. The built wheel also ran the offline synthetic example in an
+isolated Python invocation outside the checkout.
+
+The [implementation walkthrough](../memory-bank/bolts/001-legal-revalidation-cli/implementation-walkthrough.md)
+is the Stage 2 handoff. Human validation is pending before the separate Test stage;
+no story, bolt or MVP completion is asserted. No live-law, scanner or provider run,
+real containment verification, global installation or OS-policy change occurred.
+Offline freshness and reviewer identity remain unverified; source-page detection
+is conservative and budgets impose cooperative checks rather than hard containment.

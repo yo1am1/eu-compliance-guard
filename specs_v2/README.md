@@ -6,8 +6,9 @@ Owner on 2026-10-18. It does not replace or modify the historical `specs/**` fil
 [Requirements](requirements.md) are approved by the Owner. The approved
 [design](design.md), [system context](system-context.md) and
 [construction unit](../memory-bank/intents/001-read-only-legal-revalidation/units/001-legal-revalidation-cli/unit-brief.md)
-have completed inception. Bolt 001 has an approved implementation plan and is in Implement; implementation
-acceptance and MVP completion remain pending.
+have completed inception. Bolt 001 has an approved implementation plan and its
+offline reporting slice is implemented, awaiting human validation before Test.
+Implementation acceptance and MVP completion remain pending.
 
 ## Recovered baseline
 
@@ -28,6 +29,10 @@ Two visible Codex workers ran through Orca orchestration, as explicitly requeste
 for this session. This superseded the earlier Herdr-specific placement instruction
 for this run; no hidden internal agents were used. Conversations stay in Orca,
 not in the public repository.
+
+On 2026-10-19 the Owner requested teammates in the coordinator's tab. Two split
+panes in that tab were reused for contracts, workflow, CLI/report and independent
+review, preserving one writer per file and the native conversations.
 
 - Architecture review: complete. Reuse existing scope, legal source/attempt/review,
   obligation, evidence, disposition and freshness records. Missing workflow pieces
@@ -66,12 +71,16 @@ All six stories belong to one deployable CLI unit. The bolts are sequential:
    compare retained runs, deliver the portable skill/examples, and verify packaging.
 
 The [story index](../memory-bank/story-index.md) records each story and its state.
-Bolt 001 is in Implement; bolts 002 and 003 remain planned and dependent on prior completion.
+Bolt 001 awaits its Implement checkpoint; bolts 002 and 003 remain planned and
+dependent on prior completion. The [implementation walkthrough](../memory-bank/bolts/001-legal-revalidation-cli/implementation-walkthrough.md)
+records the first slice and verification limits.
 Live legal review and corpus acceptance remain distinct from software verification.
 
 ## Outstanding acceptance
 
-Implementation acceptance, subsequent construction stage checkpoints, implemented
-end-to-end synthetic examples and MVP release checks remain pending. No current
+Implementation acceptance, subsequent construction stage checkpoints, official
+retrieval, predecessor revalidation, portable skill and full MVP release checks
+remain pending. The first offline synthetic CLI example is runnable from the
+checkout and built wheel. No current
 legal corpus was accepted and no real legal assessment, scanner/provider execution,
 containment verification, global installation or OS-policy change was performed.

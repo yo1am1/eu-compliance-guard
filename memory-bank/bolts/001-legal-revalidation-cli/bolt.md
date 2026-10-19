@@ -28,7 +28,8 @@ complexity:
 
 ## Objective
 
-Validated contracts and offline report. Plan is approved and Implement has started; included stories remain unimplemented.
+Validated contracts and offline report. The first slice is implemented and awaits
+human validation of the walkthrough before Test; story acceptance remains pending.
 
 ## Stories Included
 
@@ -46,10 +47,12 @@ Simple Construction; installed definition: `/home/user/.specsmd/aidlc/templates/
 ## Stages
 
 - ✅ **1. Plan**: Approved → implementation-plan.md.
-- ⏳ **2. Implement**: In progress → source/docs + implementation-walkthrough.md.
+- ⏳ **2. Implement**: Awaiting human validation → source/docs + implementation-walkthrough.md.
 - [ ] **3. Test**: Pending → tests + test-walkthrough.md, including make check.
 
-Execute in this order, stopping for human validation after each stage before advancing/completing. These stage artifacts are created during construction; none exist or are claimed complete now.
+Execute in this order, stopping for human validation after each stage before
+advancing/completing. Plan is accepted; the implementation walkthrough is ready
+for review. Test and final acceptance remain pending.
 
 ## Dependencies
 

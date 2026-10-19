@@ -2,7 +2,7 @@
 unit: 001-legal-revalidation-cli
 intent: 001-read-only-legal-revalidation
 created: 2026-10-18T19:06:25Z
-last_updated: 2026-10-18T19:15:48Z
+last_updated: 2026-10-19T08:18:08Z
 ---
 
 # Construction log: Legal revalidation CLI
@@ -16,7 +16,7 @@ Three sequential simple-construction bolts: 001 contracts/offline reporting (sto
 
 ## Current bolt structure
 
-- ⏳ [001](../../../../bolts/001-legal-revalidation-cli/bolt.md): Implement in progress; Plan approved.
+- ⏳ [001](../../../../bolts/001-legal-revalidation-cli/bolt.md): Implement awaiting human validation; Plan approved.
 - [ ] [002](../../../../bolts/002-legal-revalidation-cli/bolt.md): planned; depends on 001.
 - [ ] [003](../../../../bolts/003-legal-revalidation-cli/bolt.md): planned; depends on 002.
 
@@ -26,9 +26,15 @@ Three sequential simple-construction bolts: 001 contracts/offline reporting (sto
 
 - **2026-10-18T19:15:48Z**: 001-legal-revalidation-cli plan approved — stage-complete: plan → implement.
 
+- **2026-10-19T08:18:08Z**: Offline contracts, synthetic fixture, CLI, workflow and
+  escaped report implemented. Visible Orca teammates used split panes in one tab,
+  with independent contract/integration reviews. Mandatory development checks and
+  synthetic CLI/package probes passed; implementation walkthrough prepared for
+  human validation. No advancement to Test or story/bolt completion.
+
 ## Execution summary
 
 Original/current bolts: 3. Completed: 0. In progress: 1. Not started: 2.
 No replanning has occurred. The Owner approved Plan and starting Implement; Test
-and final bolt completion retain their human checkpoints. Implementation acceptance
-is pending.
+and final bolt completion retain their human checkpoints. The implementation is
+ready for the human checkpoint; acceptance is pending.

@@ -115,5 +115,6 @@ The broader product requirements in the preserved snapshots remain future scope.
 
 The Owner selected the read-only MVP unit and approved these v2 requirements
 with `y` in the continuation session on 2026-10-18. Design, stories and bolts
-may now be prepared for the artifacts-review checkpoint; implementation approval
-is not implied by requirements approval.
+were subsequently approved, followed by Bolt 001 Plan and starting Implement.
+The first offline slice now awaits its Implement checkpoint; later construction
+and MVP acceptance remain pending. See the [current status](../docs/implementation-status.md).
