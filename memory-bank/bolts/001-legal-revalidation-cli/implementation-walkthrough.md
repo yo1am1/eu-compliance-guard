@@ -2,7 +2,7 @@
 stage: implement
 bolt: 001-legal-revalidation-cli
 created: 2026-10-19T08:05:24Z
-status: awaiting-human-validation
+status: approved
 ---
 
 ## Implementation Walkthrough: offline legal revalidation CLI
@@ -12,8 +12,8 @@ status: awaiting-human-validation
 The first offline slice accepts declared requirements and selected files, retains
 accountable mappings and explicit gaps, and publishes private JSON and escaped
 Markdown reports. Original claims remain visible alongside conservative effective
-results. Stage 2 awaits human validation; the Test checkpoint, stories and bolt
-completion remain pending.
+results. The Owner approved Stage 2 and starting Test on 2026-10-19T08:34:22Z;
+the Test checkpoint, stories and bolt completion remain pending.
 
 ### Structure Overview
 

@@ -2,7 +2,7 @@
 unit: 001-legal-revalidation-cli
 intent: 001-read-only-legal-revalidation
 created: 2026-10-18T19:06:25Z
-last_updated: 2026-10-19T08:18:08Z
+last_updated: 2026-10-19T08:34:22Z
 ---
 
 # Construction log: Legal revalidation CLI
@@ -16,7 +16,7 @@ Three sequential simple-construction bolts: 001 contracts/offline reporting (sto
 
 ## Current bolt structure
 
-- ⏳ [001](../../../../bolts/001-legal-revalidation-cli/bolt.md): Implement awaiting human validation; Plan approved.
+- ⏳ [001](../../../../bolts/001-legal-revalidation-cli/bolt.md): Test in progress; Plan and Implement approved.
 - [ ] [002](../../../../bolts/002-legal-revalidation-cli/bolt.md): planned; depends on 001.
 - [ ] [003](../../../../bolts/003-legal-revalidation-cli/bolt.md): planned; depends on 002.
 
@@ -34,7 +34,10 @@ Three sequential simple-construction bolts: 001 contracts/offline reporting (sto
 
 ## Execution summary
 
+The Owner approved Implement and starting Test at 2026-10-19T08:34:22Z. Acceptance
+now explicitly checks the clear issue → project location → exact legal point →
+evidence → next action chain, with missing support labelled as a review gap.
+
 Original/current bolts: 3. Completed: 0. In progress: 1. Not started: 2.
-No replanning has occurred. The Owner approved Plan and starting Implement; Test
-and final bolt completion retain their human checkpoints. The implementation is
-ready for the human checkpoint; acceptance is pending.
+No replanning has occurred. Test is authorized; final test/bolt acceptance retains
+its human checkpoint. Stories remain pending the final completion procedure.

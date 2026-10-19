@@ -64,6 +64,15 @@ new output directory per run and refuse overwriting existing output. Do not embe
 private evidence contents by default. Invalid input exits unsuccessfully with a
 safe diagnostic; retrieval/review gaps yield an explicitly partial report.
 
+Owner clarification on 2026-10-19: the report must make each issue understandable
+without reconstructing raw records. Show what is wrong or still unknown, the
+affected project requirement and declared location, the exact supplied law
+identifier and article/paragraph locator, evidence and applicability reasoning,
+and the next review action together. Distinguish reviewed deficiencies from
+unanswered questions; missing legal support is a research gap, not an invented
+violation. Automatic repository inspection remains deferred; this MVP audits
+declared project facts and explicitly selected evidence.
+
 ### FR-5 — Revalidation
 
 Compare a previous retained assessment with newly validated declared inputs and
@@ -116,5 +125,5 @@ The broader product requirements in the preserved snapshots remain future scope.
 The Owner selected the read-only MVP unit and approved these v2 requirements
 with `y` in the continuation session on 2026-10-18. Design, stories and bolts
 were subsequently approved, followed by Bolt 001 Plan and starting Implement.
-The first offline slice now awaits its Implement checkpoint; later construction
-and MVP acceptance remain pending. See the [current status](../docs/implementation-status.md).
+The Owner approved the first offline slice and starting Test on 2026-10-19;
+final bolt and MVP acceptance remain pending. See the [current status](../docs/implementation-status.md).

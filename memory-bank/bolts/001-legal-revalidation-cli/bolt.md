@@ -8,11 +8,14 @@ stories: [001-input-and-coverage, 002-accountable-mapping-and-report]
 created: 2026-10-18T19:01:39Z
 started: 2026-10-18T19:06:25Z
 completed: null
-current_stage: implement
+current_stage: test
 stages_completed:
   - name: plan
     completed: 2026-10-18T19:15:48Z
     artifact: implementation-plan.md
+  - name: implement
+    completed: 2026-10-19T08:34:22Z
+    artifact: implementation-walkthrough.md
 requires_bolts: []
 enables_bolts: [002-legal-revalidation-cli]
 requires_units: []
@@ -28,8 +31,8 @@ complexity:
 
 ## Objective
 
-Validated contracts and offline report. The first slice is implemented and awaits
-human validation of the walkthrough before Test; story acceptance remains pending.
+Validated contracts and offline report. The Owner approved implementation and
+starting Test on 2026-10-19. Test and story acceptance remain pending.
 
 ## Stories Included
 
@@ -47,12 +50,12 @@ Simple Construction; installed definition: `/home/user/.specsmd/aidlc/templates/
 ## Stages
 
 - ✅ **1. Plan**: Approved → implementation-plan.md.
-- ⏳ **2. Implement**: Awaiting human validation → source/docs + implementation-walkthrough.md.
-- [ ] **3. Test**: Pending → tests + test-walkthrough.md, including make check.
+- ✅ **2. Implement**: Approved → source/docs + implementation-walkthrough.md.
+- ⏳ **3. Test**: In progress → tests + test-walkthrough.md, including make check.
 
 Execute in this order, stopping for human validation after each stage before
-advancing/completing. Plan is accepted; the implementation walkthrough is ready
-for review. Test and final acceptance remain pending.
+advancing/completing. Plan and implementation are accepted; Test is authorized.
+Final test/bolt acceptance remains pending.
 
 ## Dependencies
 
@@ -66,4 +69,6 @@ Requires: none. Enables: [002-legal-revalidation-cli](../002-legal-revalidation-
 
 ## Approval Gate
 
-The Owner approved inception artifacts, confirmed construction readiness and selected this bolt's Plan stage, then approved the concrete plan and starting Implement. Present implementation for human validation before Test. No live-source smoke run is authorized by this offline bolt.
+The Owner approved inception, Plan and Implement, then explicitly approved starting
+Test. Present the test report before final bolt completion. No live-source smoke
+run is authorized by this offline bolt.
