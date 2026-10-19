@@ -2,7 +2,7 @@
 stage: test
 bolt: 001-legal-revalidation-cli
 created: 2026-10-19T08:41:29Z
-status: awaiting-human-validation
+status: approved
 ---
 
 ## Test Report: offline legal revalidation CLI
@@ -117,6 +117,6 @@ self-attested, content sniffing is conservative, and budgets are cooperative rat
 than hard containment. No live legal corpus, scanner/provider execution, target-code
 execution, global installation or OS-policy changes were used.
 
-The Owner approved starting Test; final test/bolt acceptance is still required.
-Stories and bolt are not marked complete until that approval and the mandatory
-specsmd completion procedure.
+The Owner accepted Test and bolt completion on 2026-10-19T09:08:42Z. The mandatory
+specsmd completion script succeeded: both included stories are complete and
+implemented. The unit and intent remain open for the two subsequent bolts.

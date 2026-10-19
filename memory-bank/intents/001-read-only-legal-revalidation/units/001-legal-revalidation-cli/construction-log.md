@@ -2,7 +2,7 @@
 unit: 001-legal-revalidation-cli
 intent: 001-read-only-legal-revalidation
 created: 2026-10-18T19:06:25Z
-last_updated: 2026-10-19T08:42:46Z
+last_updated: 2026-10-19T09:08:42Z
 ---
 
 # Construction log: Legal revalidation CLI
@@ -16,7 +16,7 @@ Three sequential simple-construction bolts: 001 contracts/offline reporting (sto
 
 ## Current bolt structure
 
-- ⏳ [001](../../../../bolts/001-legal-revalidation-cli/bolt.md): Test verified, awaiting final human acceptance; Plan and Implement approved.
+- ✅ [001](../../../../bolts/001-legal-revalidation-cli/bolt.md): complete; all three stages accepted.
 - [ ] [002](../../../../bolts/002-legal-revalidation-cli/bolt.md): planned; depends on 001.
 - [ ] [003](../../../../bolts/003-legal-revalidation-cli/bolt.md): planned; depends on 002.
 
@@ -43,6 +43,7 @@ all 130 tests plus contract/type checks. The early issue/citation summary and ex
 capacity-boundary regressions were independently reviewed. Wheel/sdist checks and
 the built-wheel example passed. The test walkthrough is ready for final acceptance.
 
-Original/current bolts: 3. Completed: 0. In progress: 1. Not started: 2.
-No replanning has occurred. Test is authorized; final test/bolt acceptance retains
-its human checkpoint. Stories remain pending the final completion procedure.
+Original/current bolts: 3. Completed: 1. In progress: 0. Not started: 2.
+At 2026-10-19T09:08:42Z the Owner accepted Test and completion of Bolt 001, and
+selected preparing Bolt 002 Plan. The mandatory completion script updated two
+stories with zero errors; unit and intent remain incomplete. No replanning occurred.

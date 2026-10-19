@@ -1,10 +1,10 @@
 # Global Story Index
 
-Updated: 2026-10-18T19:10:04Z
+Updated: 2026-10-19T09:08:42Z
 
 ## Overview
 
-Total planned: 6. Generated: 6. Not yet generated: 0. Implemented/completed: 0. The Owner approved inception artifacts; construction stage checkpoints remain pending.
+Total planned: 6. Generated: 6. Not yet generated: 0. Implemented/completed: 2. Bolt 001 and its Test checkpoint are accepted; four stories remain pending.
 
 ## Intent: 001-read-only-legal-revalidation
 
@@ -12,13 +12,13 @@ Total planned: 6. Generated: 6. Not yet generated: 0. Implemented/completed: 0. 
 
 **Title**: Validate declared inputs and coverage
 
-[Story](intents/001-read-only-legal-revalidation/units/001-legal-revalidation-cli/stories/001-input-and-coverage.md) · Must · draft · [Bolt 001](bolts/001-legal-revalidation-cli/bolt.md)
+[Story](intents/001-read-only-legal-revalidation/units/001-legal-revalidation-cli/stories/001-input-and-coverage.md) · Must · complete · [Bolt 001](bolts/001-legal-revalidation-cli/bolt.md)
 
 ### 002-accountable-mapping-and-report.md ✅ GENERATED
 
 **Title**: Produce an accountable offline report
 
-[Story](intents/001-read-only-legal-revalidation/units/001-legal-revalidation-cli/stories/002-accountable-mapping-and-report.md) · Must · draft · [Bolt 001](bolts/001-legal-revalidation-cli/bolt.md)
+[Story](intents/001-read-only-legal-revalidation/units/001-legal-revalidation-cli/stories/002-accountable-mapping-and-report.md) · Must · complete · [Bolt 001](bolts/001-legal-revalidation-cli/bolt.md)
 
 ### 003-official-source-retrieval.md ✅ GENERATED
 

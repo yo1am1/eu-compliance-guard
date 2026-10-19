@@ -160,3 +160,13 @@ is ready for final human acceptance. Bolt/stories remain incomplete until that
 approval and the required completion procedure. Official retrieval, revalidation
 and the portable skill remain the next bolts; automatic repository inspection is
 still deferred. Existing teammate panes/conversations remain in the same Orca tab.
+
+## Bolt 001 accepted — 2026-10-19
+
+The Owner accepted the Test report, completion of Bolt 001 and preparing Bolt 002
+Plan. At 2026-10-19T09:08:42Z the mandatory specsmd completion script succeeded:
+Bolt 001 is complete and both included stories are complete/implemented, with zero
+script errors. Unit and intent remain open because two bolts are unfinished.
+The final Test stage was recorded in bolt metadata after verifying the cascade.
+The 130-test acceptance evidence remains unchanged; no new application code or
+live-source operation was run for this lifecycle update.

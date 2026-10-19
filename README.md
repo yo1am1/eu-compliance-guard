@@ -99,7 +99,8 @@ Network is disabled by default; `--offline` is explicit. `--fetch-official` and
 offline declarations/reporting, official-source retrieval, then predecessor
 revalidation and the portable skill/release. Bolt 001 implementation is approved;
 its [Test report](memory-bank/bolts/001-legal-revalidation-cli/test-walkthrough.md)
-passes all twelve offline acceptance criteria and awaits final bolt acceptance.
+passes all twelve offline acceptance criteria and is accepted. Bolt 001 is complete;
+official-source retrieval is the next planned slice.
 
 Scanners, Graphify, the dashboard, and authorized fix/retest automation remain later
 layers. They do not require a PC vulnerability audit to begin the legal workflow.

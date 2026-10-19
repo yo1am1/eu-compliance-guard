@@ -13,7 +13,7 @@ The first offline slice accepts declared requirements and selected files, retain
 accountable mappings and explicit gaps, and publishes private JSON and escaped
 Markdown reports. Original claims remain visible alongside conservative effective
 results. The Owner approved Stage 2 and starting Test on 2026-10-19T08:34:22Z;
-the Test checkpoint, stories and bolt completion remain pending.
+Test and final bolt completion were accepted on 2026-10-19T09:08:42Z.
 
 ### Structure Overview
 
@@ -102,4 +102,4 @@ offline real-law freshness is unverified. Format/page detection is conservative,
 PDF identity needs manual review, and processing budgets are cooperative. No live
 law, scanner/provider execution, OS-policy change or containment proof is claimed.
 The separate [Test walkthrough](test-walkthrough.md) records subsequent verification;
-final test/bolt acceptance remains pending.
+the Owner accepted final test/bolt completion on 2026-10-19T09:08:42Z.

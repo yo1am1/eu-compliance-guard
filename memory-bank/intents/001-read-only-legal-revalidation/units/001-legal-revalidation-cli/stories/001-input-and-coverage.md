@@ -2,11 +2,11 @@
 id: 001-input-and-coverage
 unit: 001-legal-revalidation-cli
 intent: 001-read-only-legal-revalidation
-status: draft
+status: complete
 priority: must
-created: 2026-10-18T19:01:39Z
+created: 2026-10-18T19:01:39.000Z
 assigned_bolt: 001-legal-revalidation-cli
-implemented: false
+implemented: true
 ---
 
 # Story: 001-input-and-coverage
