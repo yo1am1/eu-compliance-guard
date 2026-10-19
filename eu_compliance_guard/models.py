@@ -1440,13 +1440,21 @@ class RevalidationBundle(Record):
             _require_ids(assessment.obligation_disposition_ids, dispositions)
             _require_ids(assessment.evidence_ids, evidence)
             _require_ids(assessment.review_ids, reviews)
-            mapped = {pin.id for pin in requirements[assessment.requirement.id].obligation_refs}
+            requirement = requirements[assessment.requirement.id]
+            mapped = {pin.id for pin in requirement.obligation_refs}
             if {dispositions[identity].obligation_id for identity in assessment.obligation_disposition_ids} != mapped:
                 raise ValueError("requirement assessment mapping mismatch")
             if any(reviews[identity].obligation.id not in mapped for identity in assessment.review_ids):
                 raise ValueError("requirement review does not belong to a mapped obligation")
             if assessment.state == "supported" and (
                     not mapped or assessment.gaps or not assessment.rationale.strip()
+                    or not set(requirement.evidence_ids) <= set(assessment.evidence_ids)
+                    or any(not admitted_evidence(identity) for identity in assessment.evidence_ids)
+                    or any(facts[pin.id].basis in ("assumed", "unknown") or facts[pin.id].conflicts
+                           or any(not admitted_evidence(identity) for identity in facts[pin.id].evidence_ids)
+                           for pin in requirement.fact_refs)
+                    or (requirement.origin is not None
+                        and observed_files.get(requirement.origin.path) != requirement.origin.digest)
                     or any(dispositions[identity].manual_review != "supported"
                            or dispositions[identity].applicability != "applicable"
                            or not dispositions[identity].required_method_dispositions

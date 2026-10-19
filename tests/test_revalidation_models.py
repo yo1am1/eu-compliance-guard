@@ -447,6 +447,38 @@ class RevalidationModelTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             m.RevalidationBundle.model_validate(payload)
 
+    def test_requirement_support_needs_its_own_dependencies(self):
+        payload = json.loads(json.dumps(supported_payload()))
+        selected = deepcopy(payload["declarations"]["evidence"][0])
+        selected["evidence"].update(id="requirement-only", availability="missing")
+        payload["declarations"]["evidence"].append(selected)
+        output = deepcopy(selected["evidence"])
+        output.update(run_id=payload["run"]["id"], manifest_id=payload["manifest"]["id"])
+        payload["evidence"].append(output)
+        payload["declarations"]["requirements"][0]["evidence_ids"].append("requirement-only")
+        payload["requirement_assessments"][0]["evidence_ids"].append("requirement-only")
+        with self.assertRaises(ValidationError):
+            m.RevalidationBundle.model_validate(payload)
+        payload["requirement_assessments"][0]["evidence_ids"].remove("requirement-only")
+        with self.assertRaises(ValidationError):
+            m.RevalidationBundle.model_validate(payload)
+        for dependency in ("fact", "origin", "fact-evidence"):
+            payload = json.loads(json.dumps(supported_payload()))
+            requirement = payload["declarations"]["requirements"][0]
+            if dependency == "fact":
+                requirement["fact_refs"] = [{"id": "fact-unknown", "revision": 0}]
+            elif dependency == "origin":
+                requirement.update(origin={"path": "missing-origin.txt", "digest": m.content_digest(b"origin")},
+                                   locator="section 1")
+            else:
+                payload["declarations"]["evidence"].append(deepcopy(selected))
+                payload["evidence"].append(deepcopy(output))
+                fact = payload["declarations"]["scope"]["roles"][1]
+                fact.update(basis="declared", evidence_ids=["requirement-only"])
+                requirement["fact_refs"] = [{"id": fact["id"], "revision": fact["revision"]}]
+            with self.subTest(dependency=dependency), self.assertRaises(ValidationError):
+                m.RevalidationBundle.model_validate(payload)
+
     def test_generated_contracts_export_the_offline_records(self):
         from eu_compliance_guard.schema import contract_schema
         schema = contract_schema()
