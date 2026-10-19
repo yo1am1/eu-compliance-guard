@@ -1,16 +1,138 @@
 """Synthetic metadata rendering and hostile-text checks; no legal truth asserted."""
 
+from copy import deepcopy
 import html
+import json
+from pathlib import Path
 import re
+import tempfile
 import unittest
 from unittest.mock import patch
 
 from eu_compliance_guard import models as m
 from eu_compliance_guard.report import render_report
-from test_revalidation_models import bundle_payload, supported_payload
+from test_revalidation_models import FIXTURE, FIXTURE_PATH, bundle_payload, supported_payload
 
 
 class RevalidationReportTests(unittest.TestCase):
+    @staticmethod
+    def insufficient_payload():
+        payload = supported_payload()
+        declared = payload["declarations"]
+        locator = "Fictional Article 7(2)(a)"
+        declared["sources"][0]["source"]["identifier"] = "FICTIONAL-EU-EXAMPLE"
+        declared["source_targets"][0]["intended_identifier"] = "FICTIONAL-EU-EXAMPLE"
+        declared["sources"][0]["source"]["provisions"] = [locator]
+        for obligation in declared["obligations"]:
+            obligation["source_provisions"][0]["locator"] = locator
+        for decision in declared["applicability_decisions"] + payload["effective_applicability_decisions"]:
+            decision["provisions"][0]["locator"] = locator
+        declared["requirements"][0].update(
+            statement="FICTIONAL: retain an accountable ownership record.",
+            origin={"path": "requirements.md", "digest": m.content_digest(b"fictional requirement")},
+            locator="Requirement R-7")
+        declared["evidence_reviews"][0].update(
+            state="insufficient", rationale="Fictional ownership record omits the approval owner.",
+            missing_evidence=["Fictional signed owner approval"],
+            contrary_evidence=["Fictional register lists no accountable owner."])
+        disposition = payload["obligation_dispositions"][0]
+        disposition["manual_review"] = "unsupported"
+        disposition["required_method_dispositions"][0].update(
+            outcome="observed_failure", missing_evidence=["Fictional signed owner approval"])
+        payload["requirement_assessments"][0].update(
+            state="conflicting", rationale="Fictional review records an evidence deficiency.",
+            gaps=["Fictional ownership evidence insufficient."], next_actions=["Request the missing fictional owner approval."])
+        return payload
+
+    def test_attention_issue_connects_deficiency_project_and_exact_declared_provision(self):
+        report = html.unescape(render_report(m.RevalidationBundle.model_validate(self.insufficient_payload())))
+        attention = report.split("## Run and retained artifacts", 1)[0]
+        issue = attention.split("### FICTIONAL / SYNTHETIC — Reviewed evidence deficiency", 1)[1].split("### ", 1)[0]
+        for value in (
+            "requirement-example@0: FICTIONAL: retain an accountable ownership record.",
+            "requirements.md — Requirement R-7", "obligation-example@0: duty",
+            "FICTIONAL-EU-EXAMPLE — Fictional Article 7(2)(a)",
+            "type synthetic_fixture", "source source-example@0", "https://example.invalid/synthetic-authority",
+            "Effective applicability: applicable", "decision-example@0", "Fictional reviewer",
+            "Fictional ownership record omits the approval owner.", "Fictional signed owner approval",
+            "Fictional register lists no accountable owner.", "review-example@0", "evidence-example",
+            "Next review action", "not an established legal breach",
+        ):
+            with self.subTest(value=value):
+                self.assertIn(value, issue)
+        self.assertIn("Unmapped requirement; no candidate obligation or exact legal provision", attention)
+        self.assertIn("Unmapped obligation; no project requirement", attention)
+
+    def test_unknown_and_not_applicable_issues_are_not_reported_as_legal_violations(self):
+        for applicability in ("unresolved", "not_applicable"):
+            payload = self.insufficient_payload()
+            payload["declarations"]["applicability_decisions"][0]["applicability"] = applicability
+            payload["effective_applicability_decisions"][0]["applicability"] = applicability
+            payload["obligation_dispositions"][0]["applicability"] = applicability
+            report = html.unescape(render_report(m.RevalidationBundle.model_validate(payload)))
+            attention = report.split("## Run and retained artifacts", 1)[0]
+            with self.subTest(applicability=applicability):
+                self.assertIn("Effective applicability: " + applicability, attention)
+                self.assertIn("not an established legal breach", attention)
+                self.assertIn("a not-applicable decision is not a violation", attention)
+                self.assertNotIn("Legal violation:", attention)
+
+    def test_supported_and_metadata_missing_cases_remain_explicit_in_attention(self):
+        text = html.unescape(render_report(m.RevalidationBundle.model_validate(supported_payload())))
+        attention = text.split("## Run and retained artifacts", 1)[0]
+        self.assertIn("Recorded mapping support", attention)
+        self.assertIn("Requirement assessment: supported", attention)
+        self.assertIn("Fictional section 1", attention)
+        payload = bundle_payload()
+        payload["declarations"]["obligations"][0]["source_provisions"] = []
+        payload["declarations"]["requirements"][0]["origin"] = None
+        text = html.unescape(render_report(m.RevalidationBundle.model_validate(payload)))
+        attention = text.split("## Run and retained artifacts", 1)[0]
+        self.assertIn("No provision locator declared", attention)
+        self.assertIn("Review gap", attention)
+        self.assertNotIn("Reviewed evidence deficiency", attention)
+
+    def test_offline_insufficiency_run_places_fictional_article_next_to_issue(self):
+        from eu_compliance_guard.revalidation import run
+        payload = deepcopy(FIXTURE)
+        source_bytes = b"FICTIONAL ONLY. Fictional Article 7(2)(a): retain an accountable ownership record."
+        locator = "Fictional Article 7(2)(a)"
+        source = payload["sources"][0]
+        source["file"]["digest"] = source["source"]["content_digest"] = m.content_digest(source_bytes)
+        source["source"].update(identifier="FICTIONAL-EU-EXAMPLE", provisions=[locator])
+        payload["source_targets"][0]["intended_identifier"] = "FICTIONAL-EU-EXAMPLE"
+        for obligation in payload["obligations"]:
+            obligation["source_provisions"][0]["locator"] = locator
+        payload["applicability_decisions"][0]["provisions"][0]["locator"] = locator
+        requirement_bytes = b"FICTIONAL: retain an accountable ownership record."
+        payload["requirements"][0].update(statement=requirement_bytes.decode(),
+            origin={"path": "requirements.md", "digest": m.content_digest(requirement_bytes)}, locator="Requirement R-7",
+            activity_ids=["activity-example"])
+        payload["scope"]["activities"] = [{"id": "activity-example", "purpose": "Fictional onboarding",
+            "subjects": [], "data_categories": [], "roles": [], "lawful_basis": deepcopy(payload["scope"]["roles"][0]),
+            "recipients": [], "locations": [], "stores": [], "retention": [], "evidence_owner": "Fictional owner"}]
+        payload["evidence_reviews"][0].update(state="insufficient",
+            rationale="Fictional ownership record omits the approval owner.",
+            missing_evidence=["Fictional signed owner approval"], contrary_evidence=["Fictional record lacks an owner."])
+        with tempfile.TemporaryDirectory(prefix="eucg-report-issue-") as parent:
+            parent = Path(parent)
+            (parent / "revalidation-synthetic").mkdir()
+            (parent / source["file"]["path"]).write_bytes(source_bytes)
+            (parent / payload["evidence"][0]["path"]).write_bytes(
+                (FIXTURE_PATH.parent / FIXTURE["evidence"][0]["path"]).read_bytes())
+            (parent / "requirements.md").write_bytes(requirement_bytes)
+            declaration = parent / "input.json"
+            declaration.write_text(json.dumps(payload), encoding="utf-8")
+            bundle = run(declaration, parent / "run")
+            self.assertEqual(bundle.obligation_dispositions[0].required_method_dispositions[0].outcome, "observed_failure")
+            report = html.unescape((parent / "run/report.md").read_text())
+            issue = report.split("### FICTIONAL / SYNTHETIC — Reviewed evidence deficiency", 1)[1].split("### ", 1)[0]
+            for value in (locator, "FICTIONAL-EU-EXAMPLE", "approval owner", "requirements.md — Requirement R-7",
+                          "activity-example: Fictional onboarding", "Fictional signed owner approval"):
+                self.assertIn(value, issue)
+            self.assertNotIn("established violation", issue)
+            self.assertTrue((parent / "run/complete.json").is_file())
+
     def test_all_declared_records_mapping_chains_and_uncertainty_are_visible(self):
         bundle = m.RevalidationBundle.model_validate(supported_payload())
         text = html.unescape(render_report(bundle))

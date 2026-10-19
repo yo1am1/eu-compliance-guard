@@ -56,6 +56,107 @@ def render_report(bundle: m.RevalidationBundle) -> str:
     emit("Only explicitly selected local files were considered. Evidence bodies are excluded from this report; metadata and declarations remain private.")
     emit("Recorded processing budgets use cooperative checks; they do not establish a hard CPU/filesystem deadline or process containment.")
     emit()
+    emit("## What needs attention and the declared legal basis")
+    emit()
+    emit("Reviewed evidence deficiencies describe the named reviewer's assessment. Missing evidence and unresolved applicability are review gaps. Neither establishes a legal breach; a not-applicable decision is not a violation.")
+    emit("References below are candidate declarations, not extracted or independently verified legal provisions.")
+    emit()
+    requirements = {item.id: item for item in declared.requirements}
+    obligations = {item.id: item for item in declared.obligations}
+    assessments = {item.requirement.id: item for item in bundle.requirement_assessments}
+    dispositions = {item.obligation_id: item for item in bundle.obligation_dispositions}
+    decisions = {item.obligation.id: item for item in bundle.effective_applicability_decisions}
+    sources = {item.source.id: item.source for item in declared.sources}
+    targets = {item.id: item for item in declared.source_targets}
+    reviews = {item.id: item for item in declared.evidence_reviews}
+    activities = {item.id: item for item in declared.scope.activities}
+
+    def requirement_context(requirement: m.DeclaredRequirement) -> None:
+        field("Project requirement", f"{requirement.id}@{requirement.revision}: {requirement.statement}")
+        if requirement.origin:
+            field("Declared project location", f"{requirement.origin.path} — {requirement.locator}")
+        for identity in requirement.activity_ids:
+            field("Declared project activity", f"{identity}: {activities[identity].purpose}")
+
+    def legal_context(obligation: m.Obligation) -> None:
+        field("Candidate obligation", f"{obligation.id}@{obligation.revision}: {obligation.classification}; family {obligation.family}")
+        for pin in obligation.source_provisions:
+            source = sources.get(pin.source_id)
+            target = targets[pin.source_target_id]
+            if source:
+                field("Candidate legal reference", f"{source.identifier or source.id} — {pin.locator}; type {source.type}; source {source.id}@{source.revision}; URL {source.url}")
+            else:
+                field("Unpinned candidate legal reference", f"{target.intended_identifier or target.id} — {pin.locator}; intended type {target.intended_type}; target {target.id}@{target.revision}; URL {target.intended_url}")
+        if not obligation.source_provisions:
+            field("Legal reference gap", "No provision locator declared; identify and review a candidate source before drawing a legal conclusion.")
+        decision = decisions[obligation.id]
+        field("Effective applicability", f"{decision.applicability}; decision {decision.id}@{decision.revision}; assessment date {decision.assessment_date}")
+        field("Applicability reasoning", decision.rationale)
+        field("Applicability reviewer", decision.reviewer)
+        field("Applicability reviewed at", decision.reviewed_at)
+        field("Applicability evidence references", decision.evidence_ids)
+        field("Applicability gaps", decision.gaps)
+
+    for obligation in declared.obligations:
+        disposition = dispositions[obligation.id]
+        pending = [item for item in disposition.required_method_dispositions if item.outcome != "passed"]
+        if not pending and disposition.required_method_dispositions and decisions[obligation.id].applicability != "unresolved":
+            continue
+        for method in pending or [None]:
+            deficiency = method is not None and method.outcome == "observed_failure"
+            title = "Reviewed evidence deficiency" if deficiency else "Review gap"
+            emit(f"### {label}{title}")
+            emit()
+            linked = [item for item in declared.requirements if any(pin.id == obligation.id for pin in item.obligation_refs)]
+            for requirement in linked:
+                requirement_context(requirement)
+            if not linked:
+                field("Project mapping gap", "Unmapped obligation; no project requirement declares this mapping.")
+            legal_context(obligation)
+            if method is not None:
+                field("Review method and recorded outcome", f"{method.method}: {method.outcome}")
+                field("Missing evidence or review", method.missing_evidence)
+                for identity in method.review_ids:
+                    review = reviews[identity]
+                    field("Evidence review", f"{review.id}@{review.revision}: {review.state}")
+                    field("What the reviewer found", review.rationale)
+                    field("Reviewer and review time", f"{review.reviewer or 'not supplied'}; {review.reviewed_at or 'not supplied'}")
+                    field("Evidence owner and period", f"{review.owner}; {review.period}")
+                    field("Evidence references", review.evidence_ids)
+                    field("Missing evidence", review.missing_evidence)
+                    field("Contrary evidence", review.contrary_evidence)
+            else:
+                field("Review gap", "Required review methods or effective applicability remain unresolved.")
+            field("Conclusion limit", "Recorded evidence insufficiency, not an established legal breach." if deficiency else "Review is incomplete; no violation is inferred, including for unknown or not-applicable cases.")
+            field("Next review action", "Ask the named evidence owner to address the recorded insufficiency and obtain an accountable review against the declared provision." if deficiency else "Resolve the listed applicability and evidence gaps with an accountable reviewer before drawing a legal conclusion.")
+            emit()
+
+    for requirement in declared.requirements:
+        assessment = assessments[requirement.id]
+        title = "Recorded mapping support" if assessment.state == "supported" else "Requirement review gap or recorded exclusion"
+        emit(f"### {label}{title}")
+        emit()
+        requirement_context(requirement)
+        field("Requirement assessment", assessment.state)
+        field("Reason", assessment.rationale)
+        for pin in requirement.obligation_refs:
+            legal_context(obligations[pin.id])
+        if not requirement.obligation_refs:
+            field("Mapping gap", "Unmapped requirement; no candidate obligation or exact legal provision has been declared.")
+        field("Requirement gaps", assessment.gaps)
+        field("Next review actions", assessment.next_actions)
+        if not requirement.obligation_refs:
+            field("Next review action", "Request an explicit, reviewed obligation and provision mapping; do not infer a duty from requirement text.")
+        emit()
+    if not requirements:
+        field("Coverage gap", "No requirements supplied; declare the project requirements to be assessed.")
+    if not obligations:
+        field("Coverage gap", "No candidate obligations supplied; identify and review source provisions before mapping requirements.")
+    for gap in bundle.gaps:
+        field("Additional coverage, source or review gap", gap)
+    for action in bundle.next_actions:
+        field("Grounded next review action", action)
+    emit()
     emit("## Run and retained artifacts")
     emit()
     field("Processing state", bundle.run.state)
@@ -81,9 +182,6 @@ def render_report(bundle: m.RevalidationBundle) -> str:
 
     emit("## Every declared requirement and mapping")
     emit()
-    assessments = {item.requirement.id: item for item in bundle.requirement_assessments}
-    dispositions = {item.obligation_id: item for item in bundle.obligation_dispositions}
-    decisions = {item.obligation.id: item for item in bundle.effective_applicability_decisions}
     if not declared.requirements:
         emit("No requirements supplied. This is an explicit coverage gap.")
         emit()
