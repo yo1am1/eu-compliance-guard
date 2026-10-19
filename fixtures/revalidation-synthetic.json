@@ -1,0 +1,332 @@
+{
+  "applicability_decisions": [
+    {
+      "applicability": "applicable",
+      "assessment_date": "2026-10-18",
+      "condition_answers": [
+        "Fictional condition declared satisfied."
+      ],
+      "evidence_ids": [
+        "evidence-example"
+      ],
+      "exception_answers": [
+        "No fictional exception asserted."
+      ],
+      "fact_refs": [
+        {
+          "id": "fact-declared",
+          "revision": 0
+        }
+      ],
+      "gaps": [],
+      "id": "decision-example",
+      "jurisdictions": [
+        "SYNTHETIC"
+      ],
+      "obligation": {
+        "id": "obligation-example",
+        "revision": 0
+      },
+      "project_id": "project-example",
+      "provisions": [
+        {
+          "locator": "Fictional section 1",
+          "revision": 0,
+          "source_id": "source-example",
+          "source_target_id": "target-example"
+        }
+      ],
+      "rationale": "Fictional declared role meets fictional condition.",
+      "reviewed_at": "2026-10-18T10:00:00Z",
+      "reviewer": "Fictional reviewer",
+      "revision": 0,
+      "scope": {
+        "id": "scope-example",
+        "revision": 0
+      },
+      "synthetic": true
+    }
+  ],
+  "controls": [],
+  "declaration_manifest_id": "declaration-manifest-example",
+  "declaration_run_id": "declaration-example",
+  "evidence": [
+    {
+      "evidence": {
+        "attempt_id": null,
+        "availability": "available",
+        "browser_context": null,
+        "captured_at": "2026-10-18T10:00:00Z",
+        "digest": "sha256:19432142a62e292c7bb41f2e2abcd9a1360eff158462ba91c450fd5b2bcb3b2a",
+        "id": "evidence-example",
+        "kind": "document",
+        "manifest_id": "declaration-manifest-example",
+        "media_type": "text/plain",
+        "project_id": "project-example",
+        "provenance": "documented",
+        "redaction": "safe",
+        "retention_until": null,
+        "run_id": "declaration-example",
+        "source_refs": [
+          "Fictional owner document"
+        ]
+      },
+      "path": "revalidation-synthetic/evidence.txt"
+    }
+  ],
+  "evidence_reviews": [
+    {
+      "contrary_evidence": [],
+      "evidence_ids": [
+        "evidence-example"
+      ],
+      "id": "review-example",
+      "method": "document",
+      "missing_evidence": [],
+      "obligation": {
+        "id": "obligation-example",
+        "revision": 0
+      },
+      "owner": "Fictional owner",
+      "period": "Fictional 2026-10-18",
+      "project_id": "project-example",
+      "rationale": "Fictional document supports this fictional review only.",
+      "reviewed_at": "2026-10-18T10:00:00Z",
+      "reviewer": "Fictional reviewer",
+      "revision": 0,
+      "state": "reviewed",
+      "synthetic": true
+    }
+  ],
+  "family_screenings": [],
+  "obligations": [
+    {
+      "classification": "duty",
+      "conditions": [
+        "Fictional declared processing role"
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-example",
+      "limitations": [
+        "FICTIONAL ONLY; no real duty"
+      ],
+      "overlay_ids": [],
+      "required_methods": [
+        "document"
+      ],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Fictional section 1",
+          "revision": 0,
+          "source_id": "source-example",
+          "source_target_id": "target-example"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "Fictional declared processing role"
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-unmapped",
+      "limitations": [
+        "FICTIONAL ONLY; no real duty"
+      ],
+      "overlay_ids": [],
+      "required_methods": [
+        "organizational"
+      ],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Fictional section 1",
+          "revision": 0,
+          "source_id": "source-example",
+          "source_target_id": "target-example"
+        }
+      ]
+    }
+  ],
+  "project_id": "project-example",
+  "requirements": [
+    {
+      "activity_ids": [],
+      "evidence_ids": [
+        "evidence-example"
+      ],
+      "fact_refs": [
+        {
+          "id": "fact-declared",
+          "revision": 0
+        }
+      ],
+      "id": "requirement-example",
+      "locator": null,
+      "obligation_refs": [
+        {
+          "id": "obligation-example",
+          "revision": 0
+        }
+      ],
+      "origin": null,
+      "project_id": "project-example",
+      "revision": 0,
+      "statement": "FICTIONAL: record the declared review.",
+      "synthetic": true
+    },
+    {
+      "activity_ids": [],
+      "evidence_ids": [],
+      "fact_refs": [
+        {
+          "id": "fact-declared",
+          "revision": 0
+        }
+      ],
+      "id": "requirement-unmapped",
+      "locator": null,
+      "obligation_refs": [],
+      "origin": null,
+      "project_id": "project-example",
+      "revision": 0,
+      "statement": "FICTIONAL: unanswered owner requirement.",
+      "synthetic": true
+    }
+  ],
+  "schema_version": 1,
+  "scope": {
+    "activities": [],
+    "assessment_date": "2026-10-18",
+    "customer_types": [],
+    "environment": "synthetic",
+    "establishment": [],
+    "exclusions": [
+      "No real legal conclusions; no technical checks"
+    ],
+    "id": "scope-example",
+    "included_scenarios": [
+      "Fictional documentary review"
+    ],
+    "jurisdictions": [
+      "SYNTHETIC"
+    ],
+    "markets": [],
+    "permission_id": "declaration-only-no-execution",
+    "project_id": "project-example",
+    "revision": 0,
+    "roles": [
+      {
+        "basis": "declared",
+        "conflicts": [],
+        "evidence_ids": [],
+        "id": "fact-declared",
+        "key": "Fictional declared role",
+        "observed_at": "2026-10-18T10:00:00Z",
+        "owner": "Fictional owner",
+        "revision": 0,
+        "value": "synthetic"
+      },
+      {
+        "basis": "assumed",
+        "conflicts": [],
+        "evidence_ids": [],
+        "id": "fact-assumed",
+        "key": "Fictional assumed role",
+        "observed_at": "2026-10-18T10:00:00Z",
+        "owner": "Fictional owner",
+        "revision": 0,
+        "value": "synthetic"
+      },
+      {
+        "basis": "unknown",
+        "conflicts": [],
+        "evidence_ids": [],
+        "id": "fact-unknown",
+        "key": "Fictional unknown role",
+        "observed_at": "2026-10-18T10:00:00Z",
+        "owner": "Fictional owner",
+        "revision": 0,
+        "value": null
+      }
+    ],
+    "size_and_sector": []
+  },
+  "source_reviews": [
+    {
+      "act_chain": [],
+      "application_dates": [
+        "2026-10-18"
+      ],
+      "assessment_date": "2026-10-18",
+      "case_law_refs": [],
+      "entry_date": null,
+      "gaps": [],
+      "last_successful_verification": "2026-10-18T10:00:00Z",
+      "national_overlay_ids": [],
+      "review_notes": {
+        "amendments_repeal": "Fictional review only; this dimension has no real-law meaning.",
+        "application_transition_dates": "Fictional review only; this dimension has no real-law meaning.",
+        "case_law": "Fictional review only; this dimension has no real-law meaning.",
+        "classification": "Fictional review only; this dimension has no real-law meaning.",
+        "identity": "Fictional review only; this dimension has no real-law meaning.",
+        "national_overlays": "Fictional review only; this dimension has no real-law meaning.",
+        "translation": "Fictional review only; this dimension has no real-law meaning."
+      },
+      "reviewer": "Fictional reviewer",
+      "source_id": "source-example",
+      "source_revision": 0,
+      "state": "reviewed_for_assessment",
+      "synthetic": true,
+      "transition_dates": []
+    }
+  ],
+  "source_targets": [
+    {
+      "family": "gdpr",
+      "id": "target-example",
+      "intended_identifier": "FICTIONAL-001",
+      "intended_type": "synthetic_fixture",
+      "intended_url": "https://example.invalid/synthetic-authority",
+      "jurisdiction": "SYNTHETIC",
+      "language": "en",
+      "publisher": "Fictional fixture authority",
+      "revision": 0
+    }
+  ],
+  "sources": [
+    {
+      "charset": "utf-8",
+      "file": {
+        "digest": "sha256:b89f4bb123cc3732e9560553b419757350e5bdab12f0f1f4a8bdc53dfd89f5a0",
+        "path": "revalidation-synthetic/source.txt"
+      },
+      "media_type": "text/plain",
+      "source": {
+        "content_digest": "sha256:b89f4bb123cc3732e9560553b419757350e5bdab12f0f1f4a8bdc53dfd89f5a0",
+        "document_date": null,
+        "id": "source-example",
+        "identifier": "FICTIONAL-001",
+        "jurisdiction": "SYNTHETIC",
+        "language": "en",
+        "provisions": [
+          "Fictional section 1"
+        ],
+        "publisher": "Fictional fixture authority",
+        "related_source_ids": [],
+        "retrieved_at": "2026-10-18T10:00:00Z",
+        "revision": 0,
+        "synthetic": true,
+        "type": "synthetic_fixture",
+        "url": "https://example.invalid/synthetic-authority"
+      },
+      "target_id": "target-example"
+    }
+  ],
+  "synthetic": true
+}

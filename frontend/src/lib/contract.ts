@@ -5,30 +5,565 @@
  * and run json-schema-to-typescript to regenerate this file.
  */
 
-export type Command =
-  | ProjectRegisterCommand
-  | ScopeRegisterCommand
-  | PermissionGrantCommand
-  | PermissionRevokeCommand
-  | RegistryAcceptCommand
-  | AuditStartCommand
-  | AuditCancelCommand
-  | AuditResumeCommand
-  | ResultsImportCommand
-  | EvidenceImportCommand
-  | LegalRefreshCommand
-  | FindingDiscussCommand
-  | PatchProposeCommand
-  | PatchApplyCommand
-  | ChecksRetestCommand
-  | InputsRefreshCommand;
-export type RepositoryRoot = string;
+export type ContextManifestId = string;
+export type ConversationId = string;
+export type FindingAssessmentId = string;
+export type Message = string;
+export type Kind = "one_file_text_patch";
+export type PreimageDigest = string;
+export type ProposedPostimage = string;
+export type RelativePath = string;
+/**
+ * @minItems 1
+ * @maxItems 1000
+ */
+export type RetestIds = [string, ...string[]];
+export type SchemaVersion = 1;
+export type Applicability = "applicable" | "not_applicable" | "unresolved";
+export type AssessmentDate = string;
 /**
  * @maxItems 1000
  */
-export type DataCategories = string[];
-export type EvidenceOwner = string;
+export type ConditionAnswers = string[];
+/**
+ * @maxItems 1000
+ */
+export type EvidenceIds = string[];
+/**
+ * @maxItems 1000
+ */
+export type ExceptionAnswers = string[];
 export type Id = string;
+export type Revision = number;
+/**
+ * @maxItems 500
+ */
+export type FactRefs = SourceRef[];
+/**
+ * @maxItems 1000
+ */
+export type Gaps = string[];
+export type Id1 = string;
+/**
+ * @maxItems 1000
+ */
+export type Jurisdictions = string[];
+export type ProjectId = string;
+export type Locator = string;
+export type Revision1 = number | null;
+export type SourceId = string | null;
+export type SourceTargetId = string;
+/**
+ * @maxItems 1000
+ */
+export type Provisions = ProvisionRef[];
+export type Rationale = string;
+export type ReviewedAt = string | null;
+export type Reviewer = string | null;
+export type Revision2 = number;
+export type Synthetic = boolean;
+export type Reason = string;
+export type ExpectedRevision = number;
+export type Operation = "audit.cancel";
+export type ProjectId1 = string;
+export type RequestId = string;
+export type RunId = string | null;
+export type SchemaVersion1 = 1;
+export type ManifestId = string;
+export type PermissionId = string;
+export type ExpectedRevision1 = number;
+export type Operation1 = "audit.resume";
+export type ProjectId2 = string;
+export type RequestId1 = string;
+export type RunId1 = string | null;
+export type SchemaVersion2 = 1;
+export type CheckSeconds = number;
+export type RunSeconds = number;
+/**
+ * @maxItems 1000
+ */
+export type CoveragePlan = string[];
+export type EndedAt = string | null;
+/**
+ * @maxItems 1000
+ */
+export type Gaps1 = string[];
+export type Id2 = string;
+export type ManifestId1 = string;
+export type ParentRunId = string | null;
+export type PermissionId1 = string;
+export type ProjectId3 = string;
+export type Revision3 = number;
+export type StartedAt = string | null;
+export type State = "planned" | "running" | "cancelling" | "completed" | "partial" | "cancelled" | "interrupted";
+export type TerminalSequence = number | null;
+/**
+ * @maxItems 1000
+ */
+export type CheckIds = string[];
+export type ManifestId2 = string;
+export type PermissionId2 = string;
+export type ScopeId = string;
+export type ExpectedRevision2 = number;
+export type Operation2 = "audit.start";
+export type ProjectId4 = string;
+export type RequestId2 = string;
+export type RunId2 = string | null;
+export type SchemaVersion3 = 1;
+export type Capability = string;
+/**
+ * @maxItems 1000
+ */
+export type EvidenceIds1 = string[];
+export type Level = "static" | "fake" | "observed";
+export type Mechanism = string;
+export type MechanismVersion = string | null;
+export type ObservedAt = string;
+export type Reason1 = string;
+export type State1 = "not_run" | "passed" | "failed" | "blocked";
+/**
+ * @maxItems 1000
+ */
+export type Blocked = string[];
+/**
+ * @maxItems 100
+ */
+export type Observations = CapabilityObservation[];
+export type ProjectId5 = string;
+export type CheckId = string;
+export type CheckVersion = string;
+/**
+ * @maxItems 1000
+ */
+export type Errors = string[];
+/**
+ * @maxItems 1000
+ */
+export type EvidenceIds2 = string[];
+/**
+ * @maxItems 1000
+ */
+export type Exclusions = string[];
+export type Id3 = string;
+/**
+ * @maxItems 1000
+ */
+export type InconsistentWith = string[];
+export type ManifestId3 = string;
+export type Outcome = ("passed" | "observed_failure" | "unresolved_review" | "blocked" | "not_tested" | "lead") | null;
+export type ProjectId6 = string;
+export type RetryOf = string | null;
+export type RunId3 = string;
+export type State2 = "pending" | "running" | "completed" | "cancelled" | "interrupted";
+/**
+ * @maxItems 1000
+ */
+export type ToolAndRuleVersions = string[];
+/**
+ * @minItems 1
+ * @maxItems 1000
+ */
+export type CheckIds1 = [string, ...string[]];
+export type ManifestId4 = string;
+export type PermissionId3 = string;
+export type ExpectedRevision3 = number;
+export type Operation3 = "checks.retest";
+export type ProjectId7 = string;
+export type RequestId3 = string;
+export type RunId4 = string | null;
+export type SchemaVersion4 = 1;
+export type ExpectedRevision4 = number;
+export type ProjectId8 = string;
+export type RequestId4 = string;
+export type RunId5 = string | null;
+export type SchemaVersion5 = 1;
+export type ActionId = string | null;
+export type Code = string;
+export type SafeMessage = string;
+export type ExecutionRunId = string | null;
+export type OriginRunId = string | null;
+export type PayloadDigest = string;
+export type ProjectId9 = string;
+export type RequestId5 = string;
+export type Revision4 = number;
+export type State3 = "accepted" | "pending" | "blocked" | "conflict" | "failed" | "completed";
+export type AssertionOrQuestion = string;
+/**
+ * @maxItems 1000
+ */
+export type CheckIds2 = string[];
+export type Id4 = string;
+/**
+ * @maxItems 1000
+ */
+export type Limitations = string[];
+/**
+ * @maxItems 1000
+ */
+export type ObligationIds = string[];
+export type Owner = string;
+/**
+ * @maxItems 1000
+ */
+export type Provenance = string[];
+/**
+ * @maxItems 1000
+ */
+export type RequiredEvidence = string[];
+/**
+ * @maxItems 1000
+ */
+export type RequiredFacts = string[];
+export type Revision5 = number;
+export type ContextManifestId1 = string;
+export type ExecutionRunId1 = string;
+export type FindingAssessmentId1 = string;
+export type FindingId = string;
+export type Id5 = string;
+/**
+ * @maxItems 1000
+ */
+export type MessageIds = string[];
+export type OriginRunId1 = string;
+export type ProjectId10 = string;
+export type Revision6 = number;
+export type Author = "owner" | "agent";
+export type Content = string;
+export type ContextManifestId2 = string;
+export type ConversationId1 = string;
+export type Id6 = string;
+/**
+ * @maxItems 1000
+ */
+export type ProposalIds = string[];
+export type State4 = "partial" | "accepted" | "blocked";
+/**
+ * @maxItems 1000
+ */
+export type ChangedDependencies = string[];
+export type CheckedAt = string;
+/**
+ * @maxItems 1000
+ */
+export type ComparisonEvidenceIds = string[];
+export type ExpectedManifestId = string;
+export type FindingAssessmentId2 = string | null;
+export type Freshness = "current_for_recorded_inputs" | "stale" | "unknown";
+export type HistoricalRunId = string;
+export type Id7 = string;
+export type ObligationDispositionId = string | null;
+export type ObservedManifestId = string | null;
+export type ProjectId11 = string;
+/**
+ * @maxItems 1000
+ */
+export type Reasons = string[];
+export type Revision7 = number;
+/**
+ * @maxItems 1000
+ */
+export type ActivityIds = string[];
+/**
+ * @maxItems 1000
+ */
+export type EvidenceIds3 = string[];
+/**
+ * @maxItems 500
+ */
+export type FactRefs1 = SourceRef[];
+export type Id8 = string;
+export type Locator1 = string | null;
+/**
+ * @maxItems 200
+ */
+export type ObligationRefs = SourceRef[];
+export type Digest = string;
+export type Path = string;
+export type ProjectId12 = string;
+export type Revision8 = number;
+export type Statement = string;
+export type Synthetic1 = boolean;
+export type NextCursor = string | null;
+export type OriginRunId2 = string;
+export type ProjectId13 = string;
+export type ProjectionRevision = number;
+export type Classification = "duty" | "recommendation";
+/**
+ * @maxItems 1000
+ */
+export type Conditions = string[];
+/**
+ * @maxItems 1000
+ */
+export type ControlIds = string[];
+/**
+ * @maxItems 1000
+ */
+export type Exceptions = string[];
+export type Family = string;
+export type Id9 = string;
+/**
+ * @maxItems 1000
+ */
+export type Limitations1 = string[];
+/**
+ * @maxItems 1000
+ */
+export type OverlayIds = string[];
+/**
+ * @maxItems 1000
+ */
+export type RequiredMethods = string[];
+export type Revision9 = number;
+export type SourceProvisions = ProvisionRef[];
+export type Applicability1 = "applicable" | "not_applicable" | "unresolved";
+export type ApplicabilityDecisionId = string;
+export type Id10 = string;
+export type ManualReview = "pending" | "supported" | "unsupported" | "unresolved";
+export type ObligationId = string;
+export type ObligationRevision = number;
+export type ProjectId14 = string;
+export type Rationale1 = string;
+/**
+ * @maxItems 1000
+ */
+export type AttemptIds = string[];
+export type Method = string;
+/**
+ * @maxItems 1000
+ */
+export type MissingEvidence = string[];
+export type Outcome1 = "passed" | "observed_failure" | "unresolved_review" | "blocked" | "not_tested" | "lead";
+/**
+ * @maxItems 1000
+ */
+export type ReviewIds = string[];
+export type RequiredMethodDispositions = MethodDisposition[];
+export type RunId6 = string;
+export type ContentDigest = string;
+export type DocumentDate = string | null;
+export type Id11 = string;
+export type Identifier = string | null;
+export type Jurisdiction = string;
+export type Language = string;
+/**
+ * @maxItems 1000
+ */
+export type Provisions1 = string[];
+export type Publisher = string;
+/**
+ * @maxItems 1000
+ */
+export type RelatedSourceIds = string[];
+export type RetrievedAt = string;
+export type Revision10 = number;
+export type Synthetic2 = boolean;
+export type Type =
+  | "eu_act"
+  | "national_act"
+  | "judgment"
+  | "final_guidance"
+  | "draft_guidance"
+  | "proposal"
+  | "standard"
+  | "engineering_practice"
+  | "synthetic_fixture";
+export type Url = string;
+export type AttemptedAt = string;
+export type Id12 = string;
+export type IntendedIdentifier = string | null;
+export type IntendedType =
+  | "eu_act"
+  | "national_act"
+  | "judgment"
+  | "final_guidance"
+  | "draft_guidance"
+  | "proposal"
+  | "standard"
+  | "engineering_practice"
+  | "synthetic_fixture";
+export type IntendedUrl = string;
+export type Language1 = string;
+export type Publisher1 = string;
+export type SourceTargetId1 = string;
+export type State5 = "retrieved" | "retrieval_failed" | "translation_unverified";
+/**
+ * @maxItems 1000
+ */
+export type ActChain = string[];
+export type ApplicationDates = string[];
+export type AssessmentDate1 = string;
+/**
+ * @maxItems 1000
+ */
+export type CaseLawRefs = string[];
+export type EntryDate = string | null;
+/**
+ * @maxItems 1000
+ */
+export type Gaps2 = string[];
+export type LastSuccessfulVerification = string | null;
+/**
+ * @maxItems 1000
+ */
+export type NationalOverlayIds = string[];
+export type Reviewer1 = string | null;
+export type SourceId1 = string;
+export type SourceRevision = number;
+export type State6 = "unreviewed" | "reviewed_for_assessment" | "stale" | "unavailable" | "superseded";
+export type Synthetic3 = boolean;
+export type TransitionDates = string[];
+/**
+ * @maxItems 1000
+ */
+export type AfterAttemptIds = string[];
+/**
+ * @maxItems 1000
+ */
+export type BeforeAttemptIds = string[];
+export type DiffDigest = string;
+/**
+ * @minItems 1
+ * @maxItems 1
+ */
+export type ExpectedPostimages = [string];
+/**
+ * @maxItems 1000
+ */
+export type FindingIds = string[];
+export type Id13 = string;
+export type PermissionId4 = string;
+/**
+ * @minItems 1
+ * @maxItems 1
+ */
+export type Preimages = [string];
+export type ProjectId15 = string;
+/**
+ * @minItems 1
+ * @maxItems 1
+ */
+export type RelativePaths = [string];
+/**
+ * @minItems 1
+ * @maxItems 1000
+ */
+export type RetestIds1 = [string, ...string[]];
+export type Revision11 = number;
+export type RunId7 = string;
+export type State7 = "proposed" | "running" | "applied-awaiting-verification" | "verified" | "failed" | "blocked";
+export type BlockedReason = string | null;
+export type Diff = string | null;
+export type DiffDigest1 = string;
+export type PreviewDigest = string | null;
+export type ProjectId16 = string;
+export type ProposalId = string;
+export type Redaction = "safe" | "blocked" | "unknown";
+export type Revision12 = number;
+export type RunId8 = string;
+/**
+ * @maxItems 1000
+ */
+export type EvidenceIds4 = string[];
+export type FromId = string;
+export type Id14 = string;
+export type Kind1 = string;
+export type Origin = "structural" | "static_inferred" | "semantic" | "ambiguous" | "unknown";
+/**
+ * @maxItems 1000
+ */
+export type Provenance1 = string[];
+/**
+ * @maxItems 100
+ */
+export type SourcePaths = string[];
+export type ToId = string;
+/**
+ * @maxItems 100
+ */
+export type Records = (
+  | Obligation
+  | ObligationDisposition
+  | Control
+  | LegalSource
+  | SourceAttempt
+  | SourceReview
+  | Conversation
+  | ConversationMessage
+  | PatchProposal
+  | PatchPreview
+  | GraphRelationship
+)[];
+export type SchemaVersion6 = 1;
+export type Section = "obligations" | "controls" | "sources" | "reviews" | "conversations" | "patches" | "graph";
+export type Cursor = string | null;
+export type EntityId = string | null;
+export type Limit = number;
+export type Section1 = "obligations" | "controls" | "sources" | "reviews" | "conversations" | "patches" | "graph";
+export type EntityId1 = string | null;
+export type EntityRevision = number | null;
+export type OccurredAt = string;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "JsonValue".
+ */
+export type JsonValue = unknown;
+export type ProjectId17 = string;
+export type RequestId6 = string | null;
+export type RunId9 = string;
+export type SchemaVersion7 = 1;
+export type Sequence = number;
+export type Type1 = string;
+export type AttemptId = string | null;
+export type Availability = "available" | "missing" | "purged" | "corrupt" | "blocked";
+export type BrowserContext = {
+  [k: string]: string;
+} | null;
+export type CapturedAt = string;
+export type Digest1 = string;
+export type Id15 = string;
+export type Kind2 = string;
+export type ManifestId5 = string;
+export type MediaType = string;
+export type ProjectId18 = string;
+export type Provenance2 = "declared" | "documented" | "observed" | "independently_verified";
+export type Redaction1 = "safe" | "blocked" | "unknown";
+export type RetentionUntil = string | null;
+export type RunId10 = string;
+/**
+ * @maxItems 1000
+ */
+export type SourceRefs = string[];
+export type Content1 = string;
+export type ExpectedRevision5 = number;
+export type Operation4 = "evidence.import";
+export type ProjectId19 = string;
+export type RequestId7 = string;
+export type RunId11 = string | null;
+export type SchemaVersion8 = 1;
+/**
+ * @maxItems 1000
+ */
+export type ContraryEvidence = string[];
+/**
+ * @maxItems 1000
+ */
+export type EvidenceIds5 = string[];
+export type Id16 = string;
+export type Method1 = string;
+/**
+ * @maxItems 1000
+ */
+export type MissingEvidence1 = string[];
+export type Owner1 = string;
+export type Period = string;
+export type ProjectId20 = string;
+export type Rationale2 = string;
+export type ReviewedAt1 = string | null;
+export type Reviewer2 = string | null;
+export type Revision13 = number;
+export type State8 = "reviewed" | "insufficient" | "unresolved";
+export type Synthetic4 = boolean;
 export type Basis = "observed" | "declared" | "assumed" | "unknown";
 /**
  * @maxItems 1000
@@ -37,74 +572,261 @@ export type Conflicts = string[];
 /**
  * @maxItems 1000
  */
-export type EvidenceIds = string[];
-export type Id1 = string;
+export type EvidenceIds6 = string[];
+export type Id17 = string;
 export type Key = string;
-export type ObservedAt = string;
-export type Owner = string;
-export type Revision = number;
-export type JsonValue = unknown;
-export type Locations = Fact[];
-export type Purpose = string;
-export type Recipients = Fact[];
-export type Retention = Fact[];
-export type Roles = Fact[];
-export type Stores = Fact[];
+export type ObservedAt1 = string;
+export type Owner2 = string;
+export type Revision14 = number;
+export type Applicability2 = "applicable" | "not_applicable" | "unresolved";
+export type AssessmentDate2 = string;
+/**
+ * @maxItems 500
+ */
+export type FactRefs2 = SourceRef[];
+export type Family1 =
+  | "gdpr"
+  | "eprivacy"
+  | "service_disclosures"
+  | "consumer"
+  | "accessibility"
+  | "platforms"
+  | "ai"
+  | "cybersecurity"
+  | "data_products"
+  | "copyright"
+  | "sector_national";
 /**
  * @maxItems 1000
  */
-export type Subjects = string[];
-export type Activities = ProcessingActivity[];
-export type AssessmentDate = string;
+export type Gaps3 = string[];
+export type Rationale3 = string;
+export type ReviewedAt2 = string | null;
+export type Reviewer3 = string | null;
+/**
+ * @maxItems 16
+ */
+export type SourceRefs1 =
+  | []
+  | [SourceRef]
+  | [SourceRef, SourceRef]
+  | [SourceRef, SourceRef, SourceRef]
+  | [SourceRef, SourceRef, SourceRef, SourceRef]
+  | [SourceRef, SourceRef, SourceRef, SourceRef, SourceRef]
+  | [SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef]
+  | [SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef]
+  | [SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef]
+  | [SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef]
+  | [SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef, SourceRef]
+  | [
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef
+    ]
+  | [
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef
+    ]
+  | [
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef
+    ]
+  | [
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef
+    ]
+  | [
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef
+    ]
+  | [
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef,
+      SourceRef
+    ];
+export type Synthetic5 = boolean;
+export type ControlId = string;
+export type Id18 = string;
+export type ProjectId21 = string;
+export type SubjectId = string;
 /**
  * @maxItems 1000
  */
-export type CustomerTypes = string[];
-export type Environment = string;
+export type ActionIds = string[];
 /**
  * @maxItems 1000
  */
-export type Establishment = string[];
+export type AffectedParties = string[];
 /**
  * @maxItems 1000
  */
-export type Exclusions = string[];
-export type Id2 = string;
+export type AttemptIds1 = string[];
+export type ControlRevision = number;
 /**
  * @maxItems 1000
  */
-export type IncludedScenarios = string[];
+export type EvidenceIds7 = string[];
+export type FindingId1 = string;
+export type Id19 = string;
+export type Impact = string;
+export type ManifestId6 = string;
 /**
  * @maxItems 1000
  */
-export type Jurisdictions = string[];
+export type ObligationDispositionIds = string[];
+export type Owner3 = string;
+export type ProjectId22 = string;
+export type Revision15 = number;
+export type RunId12 = string;
+export type TechnicalOutcome = "passed" | "observed_failure" | "unresolved_review" | "blocked" | "not_tested" | "lead";
 /**
  * @maxItems 1000
  */
-export type Markets = string[];
-export type PermissionId = string;
-export type ProjectId = string;
-export type Revision1 = number;
-export type Roles1 = Fact[];
-export type SizeAndSector = Fact[];
+export type ValidationIds = string[];
+export type ContextManifestId3 = string;
+export type FindingAssessmentId3 = string;
+export type Message1 = string;
+export type ExpectedRevision6 = number;
+export type Operation5 = "finding.discuss";
+export type ProjectId23 = string;
+export type RequestId8 = string;
+export type RunId13 = string | null;
+export type SchemaVersion9 = 1;
+export type BrowserState = {
+  [k: string]: string;
+} | null;
+export type ConfigDigest = string;
+export type Digest2 = string;
+export type EnvironmentIdentity = string;
 /**
- * @maxItems 100
+ * @maxItems 1000
  */
-export type TestOrigins = string[];
-export type ExpectedRevision = number;
-export type Operation = "project.register";
-export type ProjectId1 = string;
-export type RequestId = string;
-export type RunId = string | null;
-export type SchemaVersion = 1;
-export type ExpectedRevision1 = number;
-export type Operation1 = "scope.register";
-export type ProjectId2 = string;
-export type RequestId1 = string;
-export type RunId1 = string | null;
-export type SchemaVersion1 = 1;
+export type Exclusions1 = string[];
+export type FactDigest = string;
+export type FixtureDigest = string;
+export type GraphDigest = string | null;
+export type Id20 = string;
+export type RegistryDigest = string;
+export type ScopeRevision = number;
+/**
+ * @maxItems 10000
+ */
+export type SourceFiles = SourceFile[];
+/**
+ * @maxItems 1000
+ */
+export type SourceVersions = string[];
+/**
+ * @maxItems 1000
+ */
+export type ToolVersions = string[];
+/**
+ * @maxItems 1000
+ */
+export type FindingAssessmentIds = string[];
+/**
+ * @maxItems 1000
+ */
+export type ObligationDispositionIds1 = string[];
+export type ExpectedRevision7 = number;
+export type Operation6 = "inputs.refresh";
+export type ProjectId24 = string;
+export type RequestId9 = string;
+export type RunId14 = string | null;
+export type SchemaVersion10 = 1;
+/**
+ * @maxItems 1000
+ */
+export type SourceTargetIds = string[];
+export type ExpectedRevision8 = number;
+export type Operation7 = "legal.refresh";
+export type ProjectId25 = string;
+export type RequestId10 = string;
+export type RunId15 = string | null;
+export type SchemaVersion11 = 1;
+export type PermissionId5 = string;
+export type ProposalId1 = string;
+export type ExpectedRevision9 = number;
+export type Operation8 = "patch.apply";
+export type ProjectId26 = string;
+export type RequestId11 = string;
+export type RunId16 = string | null;
+export type SchemaVersion12 = 1;
+export type ExpectedRevision10 = number;
+export type Operation9 = "patch.propose";
+export type ProjectId27 = string;
+export type RequestId12 = string;
+export type RunId17 = string | null;
+export type SchemaVersion13 = 1;
 export type ExpiresAt = string;
-export type Id3 = string;
+export type Id21 = string;
 /**
  * @maxItems 100
  */
@@ -126,7 +848,7 @@ export type Operations = (
   | "checks.retest"
   | "inputs.refresh"
 )[];
-export type ProjectId3 = string;
+export type ProjectId28 = string;
 export type Authorized = boolean;
 /**
  * @maxItems 1000
@@ -136,7 +858,7 @@ export type Provider = string | null;
 /**
  * @maxItems 1000
  */
-export type RelativePaths = string[];
+export type RelativePaths1 = string[];
 export type RevokedAt = string | null;
 export type RootIdentity = string;
 /**
@@ -146,230 +868,1787 @@ export type SyntheticFixtureIds = string[];
 /**
  * @maxItems 100
  */
-export type TestOrigins1 = string[];
-export type ExpectedRevision2 = number;
-export type Operation2 = "permission.grant";
-export type ProjectId4 = string;
-export type RequestId2 = string;
-export type RunId2 = string | null;
-export type SchemaVersion2 = 1;
-export type PermissionId1 = string;
-export type ExpectedRevision3 = number;
-export type Operation3 = "permission.revoke";
-export type ProjectId5 = string;
-export type RequestId3 = string;
-export type RunId3 = string | null;
-export type SchemaVersion3 = 1;
-export type CandidateDigest = string;
-export type Reviewer = string;
-export type ExpectedRevision4 = number;
-export type Operation4 = "registry.accept";
-export type ProjectId6 = string;
-export type RequestId4 = string;
-export type RunId4 = string | null;
-export type SchemaVersion4 = 1;
-export type CheckSeconds = number;
-export type RunSeconds = number;
-/**
- * @maxItems 1000
- */
-export type CheckIds = string[];
-export type ManifestId = string;
-export type PermissionId2 = string;
-export type ScopeId = string;
-export type ExpectedRevision5 = number;
-export type Operation5 = "audit.start";
-export type ProjectId7 = string;
-export type RequestId5 = string;
-export type RunId5 = string | null;
-export type SchemaVersion5 = 1;
-export type Reason = string;
-export type ExpectedRevision6 = number;
-export type Operation6 = "audit.cancel";
-export type ProjectId8 = string;
-export type RequestId6 = string;
-export type RunId6 = string | null;
-export type SchemaVersion6 = 1;
-export type ManifestId1 = string;
-export type PermissionId3 = string;
-export type ExpectedRevision7 = number;
-export type Operation7 = "audit.resume";
-export type ProjectId9 = string;
-export type RequestId7 = string;
-export type RunId7 = string | null;
-export type SchemaVersion7 = 1;
-export type CheckId = string;
-export type CheckVersion = string;
-/**
- * @maxItems 1000
- */
-export type Errors = string[];
-/**
- * @maxItems 1000
- */
-export type EvidenceIds1 = string[];
-/**
- * @maxItems 1000
- */
-export type Exclusions1 = string[];
-export type Id4 = string;
-/**
- * @maxItems 1000
- */
-export type InconsistentWith = string[];
-export type ManifestId2 = string;
-export type Outcome = ("passed" | "observed_failure" | "unresolved_review" | "blocked" | "not_tested" | "lead") | null;
-export type ProjectId10 = string;
-export type RetryOf = string | null;
-export type RunId8 = string;
-export type State = "pending" | "running" | "completed" | "cancelled" | "interrupted";
-/**
- * @maxItems 1000
- */
-export type ToolAndRuleVersions = string[];
-export type ExpectedRevision8 = number;
-export type Operation8 = "results.import";
-export type ProjectId11 = string;
-export type RequestId8 = string;
-export type RunId9 = string | null;
-export type SchemaVersion8 = 1;
-export type Content = string;
-export type AttemptId = string | null;
-export type Availability = "available" | "missing" | "purged" | "corrupt" | "blocked";
-export type BrowserContext = {
-  [k: string]: string;
-} | null;
-export type CapturedAt = string;
-export type Digest = string;
-export type Id5 = string;
-export type Kind = string;
-export type ManifestId3 = string;
-export type MediaType = string;
-export type ProjectId12 = string;
-export type Provenance = "declared" | "documented" | "observed" | "independently_verified";
-export type Redaction = "safe" | "blocked" | "unknown";
-export type RetentionUntil = string | null;
-export type RunId10 = string;
-/**
- * @maxItems 1000
- */
-export type SourceRefs = string[];
-export type ExpectedRevision9 = number;
-export type Operation9 = "evidence.import";
-export type ProjectId13 = string;
-export type RequestId9 = string;
-export type RunId11 = string | null;
-export type SchemaVersion9 = 1;
-/**
- * @maxItems 1000
- */
-export type SourceTargetIds = string[];
-export type ExpectedRevision10 = number;
-export type Operation10 = "legal.refresh";
-export type ProjectId14 = string;
-export type RequestId10 = string;
-export type RunId12 = string | null;
-export type SchemaVersion10 = 1;
-export type ContextManifestId = string;
-export type FindingAssessmentId = string;
-export type Message = string;
+export type TestOrigins = string[];
 export type ExpectedRevision11 = number;
-export type Operation11 = "finding.discuss";
-export type ProjectId15 = string;
-export type RequestId11 = string;
-export type RunId13 = string | null;
-export type SchemaVersion11 = 1;
-export type ContextManifestId1 = string;
-export type ConversationId = string;
-export type FindingAssessmentId1 = string;
-export type Message1 = string;
-export type Kind1 = "one_file_text_patch";
-export type PreimageDigest = string;
-export type ProposedPostimage = string;
-export type RelativePath = string;
-/**
- * @minItems 1
- * @maxItems 1000
- */
-export type RetestIds = [string, ...string[]];
-export type SchemaVersion12 = 1;
-export type ExpectedRevision12 = number;
-export type Operation12 = "patch.propose";
-export type ProjectId16 = string;
-export type RequestId12 = string;
-export type RunId14 = string | null;
-export type SchemaVersion13 = 1;
-export type PermissionId4 = string;
-export type ProposalId = string;
-export type ExpectedRevision13 = number;
-export type Operation13 = "patch.apply";
-export type ProjectId17 = string;
+export type Operation10 = "permission.grant";
+export type ProjectId29 = string;
 export type RequestId13 = string;
-export type RunId15 = string | null;
+export type RunId18 = string | null;
 export type SchemaVersion14 = 1;
-/**
- * @minItems 1
- * @maxItems 1000
- */
-export type CheckIds1 = [string, ...string[]];
-export type ManifestId4 = string;
-export type PermissionId5 = string;
-export type ExpectedRevision14 = number;
-export type Operation14 = "checks.retest";
-export type ProjectId18 = string;
+export type PermissionId6 = string;
+export type ExpectedRevision12 = number;
+export type Operation11 = "permission.revoke";
+export type ProjectId30 = string;
 export type RequestId14 = string;
-export type RunId16 = string | null;
+export type RunId19 = string | null;
 export type SchemaVersion15 = 1;
 /**
  * @maxItems 1000
  */
-export type FindingAssessmentIds = string[];
+export type DataCategories = string[];
+export type EvidenceOwner = string;
+export type Id22 = string;
+export type Locations = Fact[];
+export type Purpose = string;
+export type Recipients = Fact[];
+export type Retention = Fact[];
+export type Roles = Fact[];
+export type Stores = Fact[];
 /**
  * @maxItems 1000
  */
-export type ObligationDispositionIds = string[];
-export type ExpectedRevision15 = number;
-export type Operation15 = "inputs.refresh";
-export type ProjectId19 = string;
+export type Subjects = string[];
+export type RepositoryRoot = string;
+export type Activities = ProcessingActivity[];
+export type AssessmentDate3 = string;
+/**
+ * @maxItems 1000
+ */
+export type CustomerTypes = string[];
+export type Environment = string;
+/**
+ * @maxItems 1000
+ */
+export type Establishment = string[];
+/**
+ * @maxItems 1000
+ */
+export type Exclusions2 = string[];
+export type Id23 = string;
+/**
+ * @maxItems 1000
+ */
+export type IncludedScenarios = string[];
+/**
+ * @maxItems 1000
+ */
+export type Jurisdictions1 = string[];
+/**
+ * @maxItems 1000
+ */
+export type Markets = string[];
+export type PermissionId7 = string;
+export type ProjectId31 = string;
+export type Revision16 = number;
+export type Roles1 = Fact[];
+export type SizeAndSector = Fact[];
+/**
+ * @maxItems 100
+ */
+export type TestOrigins1 = string[];
+export type ExpectedRevision13 = number;
+export type Operation12 = "project.register";
+export type ProjectId32 = string;
 export type RequestId15 = string;
-export type RunId17 = string | null;
+export type RunId20 = string | null;
 export type SchemaVersion16 = 1;
+export type CandidateDigest = string;
+export type Reviewer4 = string;
+export type ExpectedRevision14 = number;
+export type Operation13 = "registry.accept";
+export type ProjectId33 = string;
+export type RequestId16 = string;
+export type RunId21 = string | null;
+export type SchemaVersion17 = 1;
+/**
+ * @maxItems 1000
+ */
+export type EvidenceIds8 = string[];
+/**
+ * @maxItems 1000
+ */
+export type Gaps4 = string[];
+/**
+ * @maxItems 1000
+ */
+export type NextActions = string[];
+/**
+ * @maxItems 1000
+ */
+export type ObligationDispositionIds2 = string[];
+export type Rationale4 = string;
+/**
+ * @maxItems 1000
+ */
+export type ReviewIds1 = string[];
+export type State9 = "supported" | "conflicting" | "unresolved" | "outside_declared_assessment";
+export type ExpectedRevision15 = number;
+export type Operation14 = "results.import";
+export type ProjectId34 = string;
+export type RequestId17 = string;
+export type RunId22 = string | null;
+export type SchemaVersion18 = 1;
+/**
+ * @maxItems 200
+ */
+export type ApplicabilityDecisions = ApplicabilityDecision[];
+/**
+ * @maxItems 200
+ */
+export type Controls = Control[];
+export type DeclarationManifestId = string;
+export type DeclarationRunId = string;
+export type Path1 = string | null;
+/**
+ * @maxItems 200
+ */
+export type Evidence1 = SelectedEvidence[];
+/**
+ * @maxItems 200
+ */
+export type EvidenceReviews = EvidenceReview[];
+/**
+ * @maxItems 11
+ */
+export type FamilyScreenings =
+  | []
+  | [FamilyScreening]
+  | [FamilyScreening, FamilyScreening]
+  | [FamilyScreening, FamilyScreening, FamilyScreening]
+  | [FamilyScreening, FamilyScreening, FamilyScreening, FamilyScreening]
+  | [FamilyScreening, FamilyScreening, FamilyScreening, FamilyScreening, FamilyScreening]
+  | [FamilyScreening, FamilyScreening, FamilyScreening, FamilyScreening, FamilyScreening, FamilyScreening]
+  | [
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening
+    ]
+  | [
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening
+    ]
+  | [
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening
+    ]
+  | [
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening
+    ]
+  | [
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening,
+      FamilyScreening
+    ];
+/**
+ * @maxItems 200
+ */
+export type Obligations = Obligation[];
+export type ProjectId35 = string;
+/**
+ * @maxItems 200
+ */
+export type Requirements = DeclaredRequirement[];
+export type SchemaVersion19 = 1;
+/**
+ * @maxItems 16
+ */
+export type SourceReviews =
+  | []
+  | [SourceReview]
+  | [SourceReview, SourceReview]
+  | [SourceReview, SourceReview, SourceReview]
+  | [SourceReview, SourceReview, SourceReview, SourceReview]
+  | [SourceReview, SourceReview, SourceReview, SourceReview, SourceReview]
+  | [SourceReview, SourceReview, SourceReview, SourceReview, SourceReview, SourceReview]
+  | [SourceReview, SourceReview, SourceReview, SourceReview, SourceReview, SourceReview, SourceReview]
+  | [SourceReview, SourceReview, SourceReview, SourceReview, SourceReview, SourceReview, SourceReview, SourceReview]
+  | [
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview
+    ]
+  | [
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview
+    ]
+  | [
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview
+    ]
+  | [
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview
+    ]
+  | [
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview
+    ]
+  | [
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview
+    ]
+  | [
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview
+    ]
+  | [
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview,
+      SourceReview
+    ];
+/**
+ * @maxItems 16
+ */
+export type SourceTargets =
+  | []
+  | [SourceTarget]
+  | [SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ];
+export type Family2 = string;
+export type Id24 = string;
+export type IntendedIdentifier1 = string | null;
+export type IntendedType1 =
+  | "eu_act"
+  | "national_act"
+  | "judgment"
+  | "final_guidance"
+  | "draft_guidance"
+  | "proposal"
+  | "standard"
+  | "engineering_practice"
+  | "synthetic_fixture";
+export type IntendedUrl1 = string;
+export type Jurisdiction1 = string;
+export type Language2 = string;
+export type Publisher2 = string;
+export type Revision17 = number;
+/**
+ * @maxItems 16
+ */
+export type Sources =
+  | []
+  | [SelectedSource]
+  | [SelectedSource, SelectedSource]
+  | [SelectedSource, SelectedSource, SelectedSource]
+  | [SelectedSource, SelectedSource, SelectedSource, SelectedSource]
+  | [SelectedSource, SelectedSource, SelectedSource, SelectedSource, SelectedSource]
+  | [SelectedSource, SelectedSource, SelectedSource, SelectedSource, SelectedSource, SelectedSource]
+  | [SelectedSource, SelectedSource, SelectedSource, SelectedSource, SelectedSource, SelectedSource, SelectedSource]
+  | [
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource
+    ]
+  | [
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource
+    ]
+  | [
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource
+    ]
+  | [
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource
+    ]
+  | [
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource
+    ]
+  | [
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource
+    ]
+  | [
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource
+    ]
+  | [
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource
+    ]
+  | [
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource,
+      SelectedSource
+    ];
+export type Charset = string | null;
+export type MediaType1 = string;
+export type TargetId = string;
+export type Synthetic6 = boolean;
+/**
+ * @maxItems 200
+ */
+export type EffectiveApplicabilityDecisions = ApplicabilityDecision[];
+/**
+ * @maxItems 200
+ */
+export type Evidence2 = Evidence[];
+/**
+ * @minItems 11
+ * @maxItems 11
+ */
+export type FamilyScreenings1 = [
+  FamilyScreening,
+  FamilyScreening,
+  FamilyScreening,
+  FamilyScreening,
+  FamilyScreening,
+  FamilyScreening,
+  FamilyScreening,
+  FamilyScreening,
+  FamilyScreening,
+  FamilyScreening,
+  FamilyScreening
+];
+/**
+ * @maxItems 1000
+ */
+export type Gaps5 = string[];
+export type InputDigest = string;
+/**
+ * @maxItems 1000
+ */
+export type NextActions1 = string[];
+/**
+ * @maxItems 200
+ */
+export type ObligationDispositions = ObligationDisposition[];
+export type ProjectId36 = string;
+/**
+ * @maxItems 200
+ */
+export type RequirementAssessments = RequirementAssessment[];
+export type SchemaVersion20 = 1;
+export type Synthetic7 = boolean;
+/**
+ * @minItems 4
+ * @maxItems 20
+ */
+export type Files =
+  | [SourceFile, SourceFile, SourceFile, SourceFile]
+  | [SourceFile, SourceFile, SourceFile, SourceFile, SourceFile]
+  | [SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile]
+  | [SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile]
+  | [SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile]
+  | [SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile]
+  | [
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile
+    ]
+  | [
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile
+    ]
+  | [
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile
+    ]
+  | [
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile
+    ]
+  | [
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile
+    ]
+  | [
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile
+    ]
+  | [
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile
+    ]
+  | [
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile
+    ]
+  | [
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile
+    ]
+  | [
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile
+    ]
+  | [
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile,
+      SourceFile
+    ];
+export type RunId23 = string;
+export type SchemaVersion21 = 1;
+export type CreatedAt = string;
+export type CreatingRequestId = string;
+export type Operation15 = string;
+export type ParentRunId1 = string | null;
+export type ProjectId37 = string;
+export type RunId24 = string;
+export type State10 = "planned" | "running" | "cancelling" | "completed" | "partial" | "cancelled" | "interrupted";
+export type BlockedReason1 = string | null;
+export type ContentText = string | null;
+export type ExpectedRevision16 = number;
+export type Operation16 = "scope.register";
+export type ProjectId38 = string;
+export type RequestId18 = string;
+export type RunId25 = string | null;
+export type SchemaVersion22 = 1;
+export type Actions = PatchProposal[];
+export type Attempts = CheckAttempt[];
+export type CurrentAssessments = CurrentAssessment[];
+export type Cursor1 = string;
+export type FindingAssessments = FindingAssessment[];
+export type Findings = Finding[];
+export type ObligationDispositions1 = ObligationDisposition[];
+export type ProjectId39 = string;
+export type RelationsRevision = number;
+export type SchemaVersion23 = 1;
+export type Terminal = boolean;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Command".
+ */
+export type Command =
+  | ProjectRegisterCommand
+  | ScopeRegisterCommand
+  | PermissionGrantCommand
+  | PermissionRevokeCommand
+  | RegistryAcceptCommand
+  | AuditStartCommand
+  | AuditCancelCommand
+  | AuditResumeCommand
+  | ResultsImportCommand
+  | EvidenceImportCommand
+  | LegalRefreshCommand
+  | FindingDiscussCommand
+  | PatchProposeCommand
+  | PatchApplyCommand
+  | ChecksRetestCommand
+  | InputsRefreshCommand;
 
-export interface ProjectRegisterCommand {
-  arguments: ProjectRegisterArgs;
+export interface ContractDefinitions {}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "AgentReplyEnvelope".
+ */
+export interface AgentReplyEnvelope {
+  context_manifest_id: ContextManifestId;
+  conversation_id: ConversationId;
+  finding_assessment_id: FindingAssessmentId;
+  message: Message;
+  proposal?: TextPatch | null;
+  schema_version: SchemaVersion;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "TextPatch".
+ */
+export interface TextPatch {
+  kind: Kind;
+  preimage_digest: PreimageDigest;
+  proposed_postimage: ProposedPostimage;
+  relative_path: RelativePath;
+  retest_ids: RetestIds;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ApplicabilityDecision".
+ */
+export interface ApplicabilityDecision {
+  applicability?: Applicability;
+  assessment_date: AssessmentDate;
+  condition_answers: ConditionAnswers;
+  evidence_ids: EvidenceIds;
+  exception_answers: ExceptionAnswers;
+  fact_refs: FactRefs;
+  gaps: Gaps;
+  id: Id1;
+  jurisdictions: Jurisdictions;
+  obligation: SourceRef;
+  project_id: ProjectId;
+  provisions: Provisions;
+  rationale: Rationale;
+  reviewed_at?: ReviewedAt;
+  reviewer?: Reviewer;
+  revision: Revision2;
+  scope: SourceRef;
+  synthetic: Synthetic;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "SourceRef".
+ */
+export interface SourceRef {
+  id: Id;
+  revision: Revision;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ProvisionRef".
+ */
+export interface ProvisionRef {
+  locator: Locator;
+  revision?: Revision1;
+  source_id?: SourceId;
+  source_target_id: SourceTargetId;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "AuditCancelArgs".
+ */
+export interface AuditCancelArgs {
+  reason: Reason;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "AuditCancelCommand".
+ */
+export interface AuditCancelCommand {
+  arguments: AuditCancelArgs;
   expected_revision: ExpectedRevision;
   operation: Operation;
   project_id: ProjectId1;
   request_id: RequestId;
   run_id?: RunId;
-  schema_version: SchemaVersion;
+  schema_version: SchemaVersion1;
 }
-export interface ProjectRegisterArgs {
-  repository_root: RepositoryRoot;
-  scope: Scope;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "AuditResumeArgs".
+ */
+export interface AuditResumeArgs {
+  manifest_id: ManifestId;
+  permission_id: PermissionId;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "AuditResumeCommand".
+ */
+export interface AuditResumeCommand {
+  arguments: AuditResumeArgs;
+  expected_revision: ExpectedRevision1;
+  operation: Operation1;
+  project_id: ProjectId2;
+  request_id: RequestId1;
+  run_id?: RunId1;
+  schema_version: SchemaVersion2;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "AuditRun".
+ */
+export interface AuditRun {
+  budgets: Budgets;
+  coverage_plan: CoveragePlan;
+  ended_at?: EndedAt;
+  gaps: Gaps1;
+  id: Id2;
+  manifest_id: ManifestId1;
+  parent_run_id?: ParentRunId;
+  permission_id: PermissionId1;
+  project_id: ProjectId3;
+  revision: Revision3;
+  started_at?: StartedAt;
+  state: State;
+  terminal_sequence?: TerminalSequence;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Budgets".
+ */
+export interface Budgets {
+  check_seconds: CheckSeconds;
+  run_seconds: RunSeconds;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "AuditStartArgs".
+ */
+export interface AuditStartArgs {
+  budgets: Budgets;
+  check_ids: CheckIds;
+  manifest_id: ManifestId2;
+  permission_id: PermissionId2;
+  scope_id: ScopeId;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "AuditStartCommand".
+ */
+export interface AuditStartCommand {
+  arguments: AuditStartArgs;
+  expected_revision: ExpectedRevision2;
+  operation: Operation2;
+  project_id: ProjectId4;
+  request_id: RequestId2;
+  run_id?: RunId2;
+  schema_version: SchemaVersion3;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "CapabilityObservation".
+ */
+export interface CapabilityObservation {
+  capability: Capability;
+  evidence_ids: EvidenceIds1;
+  level: Level;
+  mechanism: Mechanism;
+  mechanism_version?: MechanismVersion;
+  observed_at: ObservedAt;
+  reason: Reason1;
+  state: State1;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "CapabilityReport".
+ */
+export interface CapabilityReport {
+  blocked: Blocked;
+  observations: Observations;
+  project_id: ProjectId5;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "CheckAttempt".
+ */
+export interface CheckAttempt {
+  actual: unknown;
+  check_id: CheckId;
+  check_version: CheckVersion;
+  errors: Errors;
+  evidence_ids: EvidenceIds2;
+  exclusions: Exclusions;
+  expected: unknown;
+  id: Id3;
+  inconsistent_with: InconsistentWith;
+  manifest_id: ManifestId3;
+  outcome: Outcome;
+  project_id: ProjectId6;
+  retry_of?: RetryOf;
+  run_id: RunId3;
+  state: State2;
+  tool_and_rule_versions: ToolAndRuleVersions;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ChecksRetestArgs".
+ */
+export interface ChecksRetestArgs {
+  check_ids: CheckIds1;
+  manifest_id: ManifestId4;
+  permission_id: PermissionId3;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ChecksRetestCommand".
+ */
+export interface ChecksRetestCommand {
+  arguments: ChecksRetestArgs;
+  expected_revision: ExpectedRevision3;
+  operation: Operation3;
+  project_id: ProjectId7;
+  request_id: RequestId3;
+  run_id?: RunId4;
+  schema_version: SchemaVersion4;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "CommandBase".
+ */
+export interface CommandBase {
+  expected_revision: ExpectedRevision4;
+  project_id: ProjectId8;
+  request_id: RequestId4;
+  run_id?: RunId5;
+  schema_version: SchemaVersion5;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "CommandReceipt".
+ */
+export interface CommandReceipt {
+  action_id?: ActionId;
+  error?: SafeError | null;
+  execution_run_id?: ExecutionRunId;
+  origin_run_id?: OriginRunId;
+  payload_digest: PayloadDigest;
+  project_id: ProjectId9;
+  request_id: RequestId5;
+  revision: Revision4;
+  state: State3;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "SafeError".
+ */
+export interface SafeError {
+  code: Code;
+  safe_message: SafeMessage;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Control".
+ */
+export interface Control {
+  assertion_or_question: AssertionOrQuestion;
+  check_ids: CheckIds2;
+  id: Id4;
+  limitations: Limitations;
+  obligation_ids: ObligationIds;
+  owner: Owner;
+  provenance: Provenance;
+  required_evidence: RequiredEvidence;
+  required_facts: RequiredFacts;
+  revision: Revision5;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Conversation".
+ */
+export interface Conversation {
+  context_manifest_id: ContextManifestId1;
+  execution_run_id: ExecutionRunId1;
+  finding_assessment_id: FindingAssessmentId1;
+  finding_id: FindingId;
+  id: Id5;
+  message_ids: MessageIds;
+  origin_run_id: OriginRunId1;
+  project_id: ProjectId10;
+  revision: Revision6;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ConversationMessage".
+ */
+export interface ConversationMessage {
+  author: Author;
+  content: Content;
+  context_manifest_id: ContextManifestId2;
+  conversation_id: ConversationId1;
+  id: Id6;
+  proposal_ids: ProposalIds;
+  state: State4;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "CurrentAssessment".
+ */
+export interface CurrentAssessment {
+  changed_dependencies: ChangedDependencies;
+  checked_at: CheckedAt;
+  comparison_evidence_ids?: ComparisonEvidenceIds;
+  expected_manifest_id: ExpectedManifestId;
+  finding_assessment_id?: FindingAssessmentId2;
+  freshness: Freshness;
+  historical_run_id: HistoricalRunId;
+  id: Id7;
+  obligation_disposition_id?: ObligationDispositionId;
+  observed_manifest_id?: ObservedManifestId;
+  project_id: ProjectId11;
+  reasons: Reasons;
+  revision: Revision7;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "DeclaredRequirement".
+ */
+export interface DeclaredRequirement {
+  activity_ids: ActivityIds;
+  evidence_ids: EvidenceIds3;
+  fact_refs: FactRefs1;
+  id: Id8;
+  locator?: Locator1;
+  obligation_refs: ObligationRefs;
+  origin?: SourceFile | null;
+  project_id: ProjectId12;
+  revision: Revision8;
+  statement: Statement;
+  synthetic: Synthetic1;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "SourceFile".
+ */
+export interface SourceFile {
+  digest: Digest;
+  path: Path;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "DetailPage".
+ */
+export interface DetailPage {
+  next_cursor?: NextCursor;
+  origin_run_id: OriginRunId2;
+  project_id: ProjectId13;
+  projection_revision: ProjectionRevision;
+  records: Records;
+  schema_version: SchemaVersion6;
+  section: Section;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Obligation".
+ */
+export interface Obligation {
+  classification: Classification;
+  conditions: Conditions;
+  control_ids: ControlIds;
+  exceptions: Exceptions;
+  family: Family;
+  id: Id9;
+  limitations: Limitations1;
+  overlay_ids: OverlayIds;
+  required_methods: RequiredMethods;
+  revision: Revision9;
+  source_provisions: SourceProvisions;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ObligationDisposition".
+ */
+export interface ObligationDisposition {
+  applicability: Applicability1;
+  applicability_decision_id: ApplicabilityDecisionId;
+  id: Id10;
+  manual_review: ManualReview;
+  obligation_id: ObligationId;
+  obligation_revision: ObligationRevision;
+  project_id: ProjectId14;
+  rationale: Rationale1;
+  required_method_dispositions: RequiredMethodDispositions;
+  run_id: RunId6;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "MethodDisposition".
+ */
+export interface MethodDisposition {
+  attempt_ids: AttemptIds;
+  method: Method;
+  missing_evidence: MissingEvidence;
+  outcome: Outcome1;
+  review_ids: ReviewIds;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "LegalSource".
+ */
+export interface LegalSource {
+  content_digest: ContentDigest;
+  document_date?: DocumentDate;
+  id: Id11;
+  identifier?: Identifier;
+  jurisdiction: Jurisdiction;
+  language: Language;
+  provisions: Provisions1;
+  publisher: Publisher;
+  related_source_ids: RelatedSourceIds;
+  retrieved_at: RetrievedAt;
+  revision: Revision10;
+  synthetic: Synthetic2;
+  type: Type;
+  url: Url;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "SourceAttempt".
+ */
+export interface SourceAttempt {
+  attempted_at: AttemptedAt;
+  failure?: SafeError | null;
+  id: Id12;
+  intended_identifier?: IntendedIdentifier;
+  intended_type: IntendedType;
+  intended_url: IntendedUrl;
+  language: Language1;
+  last_successful_source?: SourceRef | null;
+  publisher: Publisher1;
+  retrieved_source?: SourceRef | null;
+  source_target_id: SourceTargetId1;
+  state: State5;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "SourceReview".
+ */
+export interface SourceReview {
+  act_chain: ActChain;
+  application_dates: ApplicationDates;
+  assessment_date: AssessmentDate1;
+  case_law_refs: CaseLawRefs;
+  entry_date?: EntryDate;
+  gaps: Gaps2;
+  last_successful_verification?: LastSuccessfulVerification;
+  national_overlay_ids: NationalOverlayIds;
+  review_notes?: ReviewNotes;
+  reviewer?: Reviewer1;
+  source_id: SourceId1;
+  source_revision: SourceRevision;
+  state: State6;
+  synthetic?: Synthetic3;
+  transition_dates: TransitionDates;
+}
+export interface ReviewNotes {
+  [k: string]: string;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "PatchProposal".
+ */
+export interface PatchProposal {
+  after_attempt_ids: AfterAttemptIds;
+  before_attempt_ids: BeforeAttemptIds;
+  diff_digest: DiffDigest;
+  expected_postimages: ExpectedPostimages;
+  finding_ids: FindingIds;
+  id: Id13;
+  permission_id: PermissionId4;
+  preimages: Preimages;
+  project_id: ProjectId15;
+  relative_paths: RelativePaths;
+  retest_ids: RetestIds1;
+  revision: Revision11;
+  run_id: RunId7;
+  state: State7;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "PatchPreview".
+ */
+export interface PatchPreview {
+  blocked_reason?: BlockedReason;
+  diff?: Diff;
+  diff_digest: DiffDigest1;
+  preview_digest?: PreviewDigest;
+  project_id: ProjectId16;
+  proposal_id: ProposalId;
+  redaction: Redaction;
+  revision: Revision12;
+  run_id: RunId8;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "GraphRelationship".
+ */
+export interface GraphRelationship {
+  evidence_ids: EvidenceIds4;
+  from_id: FromId;
+  id: Id14;
+  kind: Kind1;
+  origin: Origin;
+  provenance: Provenance1;
+  source_paths: SourcePaths;
+  to_id: ToId;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "DetailQuery".
+ */
+export interface DetailQuery {
+  cursor?: Cursor;
+  entity_id?: EntityId;
+  limit?: Limit;
+  section: Section1;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Event".
+ */
+export interface Event {
+  entity_id?: EntityId1;
+  entity_revision?: EntityRevision;
+  occurred_at: OccurredAt;
+  payload: JsonValue;
+  project_id: ProjectId17;
+  request_id?: RequestId6;
+  run_id: RunId9;
+  schema_version: SchemaVersion7;
+  sequence: Sequence;
+  type: Type1;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Evidence".
+ */
+export interface Evidence {
+  attempt_id?: AttemptId;
+  availability: Availability;
+  browser_context?: BrowserContext;
+  captured_at: CapturedAt;
+  digest: Digest1;
+  id: Id15;
+  kind: Kind2;
+  manifest_id: ManifestId5;
+  media_type: MediaType;
+  project_id: ProjectId18;
+  provenance: Provenance2;
+  redaction: Redaction1;
+  retention_until?: RetentionUntil;
+  run_id: RunId10;
+  source_refs: SourceRefs;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "EvidenceImportArgs".
+ */
+export interface EvidenceImportArgs {
+  content: Content1;
+  evidence: Evidence;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "EvidenceImportCommand".
+ */
+export interface EvidenceImportCommand {
+  arguments: EvidenceImportArgs;
+  expected_revision: ExpectedRevision5;
+  operation: Operation4;
+  project_id: ProjectId19;
+  request_id: RequestId7;
+  run_id?: RunId11;
+  schema_version: SchemaVersion8;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "EvidenceReview".
+ */
+export interface EvidenceReview {
+  contrary_evidence: ContraryEvidence;
+  evidence_ids: EvidenceIds5;
+  id: Id16;
+  method: Method1;
+  missing_evidence: MissingEvidence1;
+  obligation: SourceRef;
+  owner: Owner1;
+  period: Period;
+  project_id: ProjectId20;
+  rationale: Rationale2;
+  reviewed_at?: ReviewedAt1;
+  reviewer?: Reviewer2;
+  revision: Revision13;
+  state?: State8;
+  synthetic: Synthetic4;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Fact".
+ */
+export interface Fact {
+  basis: Basis;
+  conflicts: Conflicts;
+  evidence_ids: EvidenceIds6;
+  id: Id17;
+  key: Key;
+  observed_at: ObservedAt1;
+  owner: Owner2;
+  revision: Revision14;
+  value: JsonValue;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "FamilyScreening".
+ */
+export interface FamilyScreening {
+  applicability?: Applicability2;
+  assessment_date: AssessmentDate2;
+  fact_refs: FactRefs2;
+  family: Family1;
+  gaps: Gaps3;
+  rationale: Rationale3;
+  reviewed_at?: ReviewedAt2;
+  reviewer?: Reviewer3;
+  scope: SourceRef;
+  source_refs: SourceRefs1;
+  synthetic: Synthetic5;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Finding".
+ */
+export interface Finding {
+  control_id: ControlId;
+  id: Id18;
+  project_id: ProjectId21;
+  subject_id: SubjectId;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "FindingAssessment".
+ */
+export interface FindingAssessment {
+  action_ids: ActionIds;
+  affected_parties: AffectedParties;
+  attempt_ids: AttemptIds1;
+  control_revision: ControlRevision;
+  evidence_ids: EvidenceIds7;
+  finding_id: FindingId1;
+  id: Id19;
+  impact: Impact;
+  manifest_id: ManifestId6;
+  obligation_disposition_ids: ObligationDispositionIds;
+  owner: Owner3;
+  project_id: ProjectId22;
+  revision: Revision15;
+  run_id: RunId12;
+  technical_outcome: TechnicalOutcome;
+  validation_ids: ValidationIds;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "FindingDiscussArgs".
+ */
+export interface FindingDiscussArgs {
+  context_manifest_id: ContextManifestId3;
+  finding_assessment_id: FindingAssessmentId3;
+  message: Message1;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "FindingDiscussCommand".
+ */
+export interface FindingDiscussCommand {
+  arguments: FindingDiscussArgs;
+  expected_revision: ExpectedRevision6;
+  operation: Operation5;
+  project_id: ProjectId23;
+  request_id: RequestId8;
+  run_id?: RunId13;
+  schema_version: SchemaVersion9;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "InputManifest".
+ */
+export interface InputManifest {
+  browser_state?: BrowserState;
+  config_digest: ConfigDigest;
+  digest: Digest2;
+  environment_identity: EnvironmentIdentity;
+  exclusions: Exclusions1;
+  fact_digest: FactDigest;
+  fixture_digest: FixtureDigest;
+  graph_digest?: GraphDigest;
+  id: Id20;
+  registry_digest: RegistryDigest;
+  scope_revision: ScopeRevision;
+  source_files: SourceFiles;
+  source_versions: SourceVersions;
+  tool_versions: ToolVersions;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "InputsRefreshArgs".
+ */
+export interface InputsRefreshArgs {
+  finding_assessment_ids: FindingAssessmentIds;
+  obligation_disposition_ids: ObligationDispositionIds1;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "InputsRefreshCommand".
+ */
+export interface InputsRefreshCommand {
+  arguments: InputsRefreshArgs;
+  expected_revision: ExpectedRevision7;
+  operation: Operation6;
+  project_id: ProjectId24;
+  request_id: RequestId9;
+  run_id?: RunId14;
+  schema_version: SchemaVersion10;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "LegalRefreshArgs".
+ */
+export interface LegalRefreshArgs {
+  source_target_ids: SourceTargetIds;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "LegalRefreshCommand".
+ */
+export interface LegalRefreshCommand {
+  arguments: LegalRefreshArgs;
+  expected_revision: ExpectedRevision8;
+  operation: Operation7;
+  project_id: ProjectId25;
+  request_id: RequestId10;
+  run_id?: RunId15;
+  schema_version: SchemaVersion11;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "PatchApplyArgs".
+ */
+export interface PatchApplyArgs {
+  permission_id: PermissionId5;
+  proposal_id: ProposalId1;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "PatchApplyCommand".
+ */
+export interface PatchApplyCommand {
+  arguments: PatchApplyArgs;
+  expected_revision: ExpectedRevision9;
+  operation: Operation8;
+  project_id: ProjectId26;
+  request_id: RequestId11;
+  run_id?: RunId16;
+  schema_version: SchemaVersion12;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "PatchProposeArgs".
+ */
+export interface PatchProposeArgs {
+  reply: AgentReplyEnvelope;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "PatchProposeCommand".
+ */
+export interface PatchProposeCommand {
+  arguments: PatchProposeArgs;
+  expected_revision: ExpectedRevision10;
+  operation: Operation9;
+  project_id: ProjectId27;
+  request_id: RequestId12;
+  run_id?: RunId17;
+  schema_version: SchemaVersion13;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "PermissionGrant".
+ */
+export interface PermissionGrant {
+  expires_at: ExpiresAt;
+  id: Id21;
+  operations: Operations;
+  project_id: ProjectId28;
+  provider: ProviderBoundary;
+  relative_paths: RelativePaths1;
+  revoked_at?: RevokedAt;
+  root_identity: RootIdentity;
+  synthetic_fixture_ids: SyntheticFixtureIds;
   test_origins: TestOrigins;
 }
-export interface Scope {
-  activities: Activities;
-  assessment_date: AssessmentDate;
-  customer_types: CustomerTypes;
-  environment: Environment;
-  establishment: Establishment;
-  exclusions: Exclusions;
-  id: Id2;
-  included_scenarios: IncludedScenarios;
-  jurisdictions: Jurisdictions;
-  markets: Markets;
-  permission_id: PermissionId;
-  project_id: ProjectId;
-  revision: Revision1;
-  roles: Roles1;
-  size_and_sector: SizeAndSector;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ProviderBoundary".
+ */
+export interface ProviderBoundary {
+  authorized?: Authorized;
+  data_classes?: DataClasses;
+  provider?: Provider;
 }
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "PermissionGrantArgs".
+ */
+export interface PermissionGrantArgs {
+  grant: PermissionGrant;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "PermissionGrantCommand".
+ */
+export interface PermissionGrantCommand {
+  arguments: PermissionGrantArgs;
+  expected_revision: ExpectedRevision11;
+  operation: Operation10;
+  project_id: ProjectId29;
+  request_id: RequestId13;
+  run_id?: RunId18;
+  schema_version: SchemaVersion14;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "PermissionRevokeArgs".
+ */
+export interface PermissionRevokeArgs {
+  permission_id: PermissionId6;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "PermissionRevokeCommand".
+ */
+export interface PermissionRevokeCommand {
+  arguments: PermissionRevokeArgs;
+  expected_revision: ExpectedRevision12;
+  operation: Operation11;
+  project_id: ProjectId30;
+  request_id: RequestId14;
+  run_id?: RunId19;
+  schema_version: SchemaVersion15;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ProcessingActivity".
+ */
 export interface ProcessingActivity {
   data_categories: DataCategories;
   evidence_owner: EvidenceOwner;
-  id: Id;
+  id: Id22;
   lawful_basis: Fact;
   locations: Locations;
   purpose: Purpose;
@@ -379,278 +2658,246 @@ export interface ProcessingActivity {
   stores: Stores;
   subjects: Subjects;
 }
-export interface Fact {
-  basis: Basis;
-  conflicts: Conflicts;
-  evidence_ids: EvidenceIds;
-  id: Id1;
-  key: Key;
-  observed_at: ObservedAt;
-  owner: Owner;
-  revision: Revision;
-  value: JsonValue;
-}
-export interface ScopeRegisterCommand {
-  arguments: ScopeRegisterArgs;
-  expected_revision: ExpectedRevision1;
-  operation: Operation1;
-  project_id: ProjectId2;
-  request_id: RequestId1;
-  run_id?: RunId1;
-  schema_version: SchemaVersion1;
-}
-export interface ScopeRegisterArgs {
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ProjectRegisterArgs".
+ */
+export interface ProjectRegisterArgs {
+  repository_root: RepositoryRoot;
   scope: Scope;
-}
-export interface PermissionGrantCommand {
-  arguments: PermissionGrantArgs;
-  expected_revision: ExpectedRevision2;
-  operation: Operation2;
-  project_id: ProjectId4;
-  request_id: RequestId2;
-  run_id?: RunId2;
-  schema_version: SchemaVersion2;
-}
-export interface PermissionGrantArgs {
-  grant: PermissionGrant;
-}
-export interface PermissionGrant {
-  expires_at: ExpiresAt;
-  id: Id3;
-  operations: Operations;
-  project_id: ProjectId3;
-  provider: ProviderBoundary;
-  relative_paths: RelativePaths;
-  revoked_at?: RevokedAt;
-  root_identity: RootIdentity;
-  synthetic_fixture_ids: SyntheticFixtureIds;
   test_origins: TestOrigins1;
 }
-export interface ProviderBoundary {
-  authorized?: Authorized;
-  data_classes?: DataClasses;
-  provider?: Provider;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Scope".
+ */
+export interface Scope {
+  activities: Activities;
+  assessment_date: AssessmentDate3;
+  customer_types: CustomerTypes;
+  environment: Environment;
+  establishment: Establishment;
+  exclusions: Exclusions2;
+  id: Id23;
+  included_scenarios: IncludedScenarios;
+  jurisdictions: Jurisdictions1;
+  markets: Markets;
+  permission_id: PermissionId7;
+  project_id: ProjectId31;
+  revision: Revision16;
+  roles: Roles1;
+  size_and_sector: SizeAndSector;
 }
-export interface PermissionRevokeCommand {
-  arguments: PermissionRevokeArgs;
-  expected_revision: ExpectedRevision3;
-  operation: Operation3;
-  project_id: ProjectId5;
-  request_id: RequestId3;
-  run_id?: RunId3;
-  schema_version: SchemaVersion3;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ProjectRegisterCommand".
+ */
+export interface ProjectRegisterCommand {
+  arguments: ProjectRegisterArgs;
+  expected_revision: ExpectedRevision13;
+  operation: Operation12;
+  project_id: ProjectId32;
+  request_id: RequestId15;
+  run_id?: RunId20;
+  schema_version: SchemaVersion16;
 }
-export interface PermissionRevokeArgs {
-  permission_id: PermissionId1;
-}
-export interface RegistryAcceptCommand {
-  arguments: RegistryAcceptArgs;
-  expected_revision: ExpectedRevision4;
-  operation: Operation4;
-  project_id: ProjectId6;
-  request_id: RequestId4;
-  run_id?: RunId4;
-  schema_version: SchemaVersion4;
-}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "RegistryAcceptArgs".
+ */
 export interface RegistryAcceptArgs {
   candidate_digest: CandidateDigest;
-  reviewer: Reviewer;
+  reviewer: Reviewer4;
 }
-export interface AuditStartCommand {
-  arguments: AuditStartArgs;
-  expected_revision: ExpectedRevision5;
-  operation: Operation5;
-  project_id: ProjectId7;
-  request_id: RequestId5;
-  run_id?: RunId5;
-  schema_version: SchemaVersion5;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "RegistryAcceptCommand".
+ */
+export interface RegistryAcceptCommand {
+  arguments: RegistryAcceptArgs;
+  expected_revision: ExpectedRevision14;
+  operation: Operation13;
+  project_id: ProjectId33;
+  request_id: RequestId16;
+  run_id?: RunId21;
+  schema_version: SchemaVersion17;
 }
-export interface AuditStartArgs {
-  budgets: Budgets;
-  check_ids: CheckIds;
-  manifest_id: ManifestId;
-  permission_id: PermissionId2;
-  scope_id: ScopeId;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "RequirementAssessment".
+ */
+export interface RequirementAssessment {
+  evidence_ids: EvidenceIds8;
+  gaps: Gaps4;
+  next_actions: NextActions;
+  obligation_disposition_ids: ObligationDispositionIds2;
+  rationale: Rationale4;
+  requirement: SourceRef;
+  review_ids: ReviewIds1;
+  state: State9;
 }
-export interface Budgets {
-  check_seconds: CheckSeconds;
-  run_seconds: RunSeconds;
-}
-export interface AuditCancelCommand {
-  arguments: AuditCancelArgs;
-  expected_revision: ExpectedRevision6;
-  operation: Operation6;
-  project_id: ProjectId8;
-  request_id: RequestId6;
-  run_id?: RunId6;
-  schema_version: SchemaVersion6;
-}
-export interface AuditCancelArgs {
-  reason: Reason;
-}
-export interface AuditResumeCommand {
-  arguments: AuditResumeArgs;
-  expected_revision: ExpectedRevision7;
-  operation: Operation7;
-  project_id: ProjectId9;
-  request_id: RequestId7;
-  run_id?: RunId7;
-  schema_version: SchemaVersion7;
-}
-export interface AuditResumeArgs {
-  manifest_id: ManifestId1;
-  permission_id: PermissionId3;
-}
-export interface ResultsImportCommand {
-  arguments: ResultsImportArgs;
-  expected_revision: ExpectedRevision8;
-  operation: Operation8;
-  project_id: ProjectId11;
-  request_id: RequestId8;
-  run_id?: RunId9;
-  schema_version: SchemaVersion8;
-}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ResultsImportArgs".
+ */
 export interface ResultsImportArgs {
   attempt: CheckAttempt;
 }
-export interface CheckAttempt {
-  actual: unknown;
-  check_id: CheckId;
-  check_version: CheckVersion;
-  errors: Errors;
-  evidence_ids: EvidenceIds1;
-  exclusions: Exclusions1;
-  expected: unknown;
-  id: Id4;
-  inconsistent_with: InconsistentWith;
-  manifest_id: ManifestId2;
-  outcome: Outcome;
-  project_id: ProjectId10;
-  retry_of?: RetryOf;
-  run_id: RunId8;
-  state: State;
-  tool_and_rule_versions: ToolAndRuleVersions;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ResultsImportCommand".
+ */
+export interface ResultsImportCommand {
+  arguments: ResultsImportArgs;
+  expected_revision: ExpectedRevision15;
+  operation: Operation14;
+  project_id: ProjectId34;
+  request_id: RequestId17;
+  run_id?: RunId22;
+  schema_version: SchemaVersion18;
 }
-export interface EvidenceImportCommand {
-  arguments: EvidenceImportArgs;
-  expected_revision: ExpectedRevision9;
-  operation: Operation9;
-  project_id: ProjectId13;
-  request_id: RequestId9;
-  run_id?: RunId11;
-  schema_version: SchemaVersion9;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "RevalidationBundle".
+ */
+export interface RevalidationBundle {
+  declarations: RevalidationInput;
+  effective_applicability_decisions: EffectiveApplicabilityDecisions;
+  evidence: Evidence2;
+  family_screenings: FamilyScreenings1;
+  gaps: Gaps5;
+  input_digest: InputDigest;
+  manifest: InputManifest;
+  next_actions: NextActions1;
+  obligation_dispositions: ObligationDispositions;
+  project_id: ProjectId36;
+  requirement_assessments: RequirementAssessments;
+  run: AuditRun;
+  schema_version: SchemaVersion20;
+  synthetic: Synthetic7;
 }
-export interface EvidenceImportArgs {
-  content: Content;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "RevalidationInput".
+ */
+export interface RevalidationInput {
+  applicability_decisions?: ApplicabilityDecisions;
+  controls?: Controls;
+  declaration_manifest_id: DeclarationManifestId;
+  declaration_run_id: DeclarationRunId;
+  evidence?: Evidence1;
+  evidence_reviews?: EvidenceReviews;
+  family_screenings?: FamilyScreenings;
+  obligations?: Obligations;
+  project_id: ProjectId35;
+  requirements?: Requirements;
+  schema_version: SchemaVersion19;
+  scope: Scope;
+  source_reviews?: SourceReviews;
+  source_targets?: SourceTargets;
+  sources?: Sources;
+  synthetic: Synthetic6;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "SelectedEvidence".
+ */
+export interface SelectedEvidence {
+  evidence: Evidence;
+  path?: Path1;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "SourceTarget".
+ */
+export interface SourceTarget {
+  family: Family2;
+  id: Id24;
+  intended_identifier?: IntendedIdentifier1;
+  intended_type: IntendedType1;
+  intended_url: IntendedUrl1;
+  jurisdiction: Jurisdiction1;
+  language: Language2;
+  publisher: Publisher2;
+  revision: Revision17;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "SelectedSource".
+ */
+export interface SelectedSource {
+  charset?: Charset;
+  file?: SourceFile | null;
+  media_type: MediaType1;
+  source: LegalSource;
+  target_id: TargetId;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "RunCompletion".
+ */
+export interface RunCompletion {
+  files: Files;
+  run_id: RunId23;
+  schema_version: SchemaVersion21;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "RunRelation".
+ */
+export interface RunRelation {
+  created_at: CreatedAt;
+  creating_request_id: CreatingRequestId;
+  operation: Operation15;
+  parent_run_id?: ParentRunId1;
+  project_id: ProjectId37;
+  run_id: RunId24;
+  state: State10;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "SafeEvidence".
+ */
+export interface SafeEvidence {
+  blocked_reason?: BlockedReason1;
+  content_text?: ContentText;
   evidence: Evidence;
 }
-export interface Evidence {
-  attempt_id?: AttemptId;
-  availability: Availability;
-  browser_context?: BrowserContext;
-  captured_at: CapturedAt;
-  digest: Digest;
-  id: Id5;
-  kind: Kind;
-  manifest_id: ManifestId3;
-  media_type: MediaType;
-  project_id: ProjectId12;
-  provenance: Provenance;
-  redaction: Redaction;
-  retention_until?: RetentionUntil;
-  run_id: RunId10;
-  source_refs: SourceRefs;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScopeRegisterArgs".
+ */
+export interface ScopeRegisterArgs {
+  scope: Scope;
 }
-export interface LegalRefreshCommand {
-  arguments: LegalRefreshArgs;
-  expected_revision: ExpectedRevision10;
-  operation: Operation10;
-  project_id: ProjectId14;
-  request_id: RequestId10;
-  run_id?: RunId12;
-  schema_version: SchemaVersion10;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScopeRegisterCommand".
+ */
+export interface ScopeRegisterCommand {
+  arguments: ScopeRegisterArgs;
+  expected_revision: ExpectedRevision16;
+  operation: Operation16;
+  project_id: ProjectId38;
+  request_id: RequestId18;
+  run_id?: RunId25;
+  schema_version: SchemaVersion22;
 }
-export interface LegalRefreshArgs {
-  source_target_ids: SourceTargetIds;
-}
-export interface FindingDiscussCommand {
-  arguments: FindingDiscussArgs;
-  expected_revision: ExpectedRevision11;
-  operation: Operation11;
-  project_id: ProjectId15;
-  request_id: RequestId11;
-  run_id?: RunId13;
-  schema_version: SchemaVersion11;
-}
-export interface FindingDiscussArgs {
-  context_manifest_id: ContextManifestId;
-  finding_assessment_id: FindingAssessmentId;
-  message: Message;
-}
-export interface PatchProposeCommand {
-  arguments: PatchProposeArgs;
-  expected_revision: ExpectedRevision12;
-  operation: Operation12;
-  project_id: ProjectId16;
-  request_id: RequestId12;
-  run_id?: RunId14;
-  schema_version: SchemaVersion13;
-}
-export interface PatchProposeArgs {
-  reply: AgentReplyEnvelope;
-}
-export interface AgentReplyEnvelope {
-  context_manifest_id: ContextManifestId1;
-  conversation_id: ConversationId;
-  finding_assessment_id: FindingAssessmentId1;
-  message: Message1;
-  proposal?: TextPatch | null;
-  schema_version: SchemaVersion12;
-}
-export interface TextPatch {
-  kind: Kind1;
-  preimage_digest: PreimageDigest;
-  proposed_postimage: ProposedPostimage;
-  relative_path: RelativePath;
-  retest_ids: RetestIds;
-}
-export interface PatchApplyCommand {
-  arguments: PatchApplyArgs;
-  expected_revision: ExpectedRevision13;
-  operation: Operation13;
-  project_id: ProjectId17;
-  request_id: RequestId13;
-  run_id?: RunId15;
-  schema_version: SchemaVersion14;
-}
-export interface PatchApplyArgs {
-  permission_id: PermissionId4;
-  proposal_id: ProposalId;
-}
-export interface ChecksRetestCommand {
-  arguments: ChecksRetestArgs;
-  expected_revision: ExpectedRevision14;
-  operation: Operation14;
-  project_id: ProjectId18;
-  request_id: RequestId14;
-  run_id?: RunId16;
-  schema_version: SchemaVersion15;
-}
-export interface ChecksRetestArgs {
-  check_ids: CheckIds1;
-  manifest_id: ManifestId4;
-  permission_id: PermissionId5;
-}
-export interface InputsRefreshCommand {
-  arguments: InputsRefreshArgs;
-  expected_revision: ExpectedRevision15;
-  operation: Operation15;
-  project_id: ProjectId19;
-  request_id: RequestId15;
-  run_id?: RunId17;
-  schema_version: SchemaVersion16;
-}
-export interface InputsRefreshArgs {
-  finding_assessment_ids: FindingAssessmentIds;
-  obligation_disposition_ids: ObligationDispositionIds;
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Snapshot".
+ */
+export interface Snapshot {
+  actions: Actions;
+  attempts: Attempts;
+  current_assessments: CurrentAssessments;
+  cursor: Cursor1;
+  finding_assessments: FindingAssessments;
+  findings: Findings;
+  obligation_dispositions: ObligationDispositions1;
+  project_id: ProjectId39;
+  relations_revision: RelationsRevision;
+  run: AuditRun;
+  schema_version: SchemaVersion23;
+  terminal: Terminal;
 }
