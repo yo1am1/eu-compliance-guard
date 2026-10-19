@@ -32,7 +32,8 @@ complexity:
 ## Objective
 
 Validated contracts and offline report. The Owner approved implementation and
-starting Test on 2026-10-19. Test and story acceptance remain pending.
+starting Test on 2026-10-19. The Test report passes all twelve offline criteria;
+final test/bolt and story acceptance remain pending.
 
 ## Stories Included
 
@@ -51,7 +52,7 @@ Simple Construction; installed definition: `/home/user/.specsmd/aidlc/templates/
 
 - ✅ **1. Plan**: Approved → implementation-plan.md.
 - ✅ **2. Implement**: Approved → source/docs + implementation-walkthrough.md.
-- ⏳ **3. Test**: In progress → tests + test-walkthrough.md, including make check.
+- ⏳ **3. Test**: Verified; awaiting final human validation → test-walkthrough.md.
 
 Execute in this order, stopping for human validation after each stage before
 advancing/completing. Plan and implementation are accepted; Test is authorized.
@@ -63,8 +64,8 @@ Requires: none. Enables: [002-legal-revalidation-cli](../002-legal-revalidation-
 
 ## Success Criteria
 
-- [ ] All included story criteria verified and make check passes.
-- [ ] Changes reviewed; historical reports/specs and unrelated work preserved.
+- [x] All included story criteria verified and make check passes.
+- [x] Changes reviewed; historical reports/specs and unrelated work preserved.
 - [ ] All three stage checkpoints accepted.
 
 ## Approval Gate

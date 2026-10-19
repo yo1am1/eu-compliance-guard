@@ -101,4 +101,5 @@ Source identity and evidence sufficiency remain supplied reviewer attestations;
 offline real-law freshness is unverified. Format/page detection is conservative,
 PDF identity needs manual review, and processing budgets are cooperative. No live
 law, scanner/provider execution, OS-policy change or containment proof is claimed.
-The separate Test walkthrough and final acceptance have not been performed.
+The separate [Test walkthrough](test-walkthrough.md) records subsequent verification;
+final test/bolt acceptance remains pending.

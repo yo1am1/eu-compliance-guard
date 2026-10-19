@@ -2,7 +2,8 @@
 
 Status: approved by the Owner for construction, following approval of
 [requirements](requirements.md) on 2026-10-18. This describes the full planned MVP;
-its first offline reporting slice is implemented, awaiting the Implement checkpoint.
+its first offline reporting slice is implemented and approved, with Test verified
+and awaiting final bolt acceptance.
 Retrieval and predecessor comparison below remain future work. No current law or
 legal corpus was verified for this design. Historical `specs/**` remains unchanged.
 

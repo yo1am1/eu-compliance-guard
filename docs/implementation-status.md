@@ -137,3 +137,26 @@ no story, bolt or MVP completion is asserted. No live-law, scanner or provider r
 real containment verification, global installation or OS-policy change occurred.
 Offline freshness and reviewer identity remain unverified; source-page detection
 is conservative and budgets impose cooperative checks rather than hard containment.
+
+## Bolt 001 Test verification — 2026-10-19
+
+The Owner approved Implement and starting Test, and clarified that audit reports
+must clearly state what is wrong and the applicable legal point. The report now
+starts with an actionable summary joining each reviewed deficiency or question to
+the declared project requirement/location, source identifier and exact provision,
+evidence rationale, applicability/reviewer and next action. It distinguishes
+reviewed evidence insufficiency from unresolved support and legal violations.
+
+`make check` passes all 130 tests. Five new boundary tests cover actual 32-file and
+64 MiB aggregate limits, remaining bounded collections, and exact nested/aggregate
+item limits. Four new renderer tests include a private offline insufficiency run
+with a fictional article next to the project issue. Independent read-only review
+verified all twelve acceptance criteria, CLI/history/privacy and the final report.
+The wheel/sdist and isolated built-wheel offline example also passed after these
+changes. No real laws or project compliance conclusions were established by fixtures.
+
+The [Test report](../memory-bank/bolts/001-legal-revalidation-cli/test-walkthrough.md)
+is ready for final human acceptance. Bolt/stories remain incomplete until that
+approval and the required completion procedure. Official retrieval, revalidation
+and the portable skill remain the next bolts; automatic repository inspection is
+still deferred. Existing teammate panes/conversations remain in the same Orca tab.

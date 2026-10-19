@@ -2,7 +2,7 @@
 unit: 001-legal-revalidation-cli
 intent: 001-read-only-legal-revalidation
 created: 2026-10-18T19:06:25Z
-last_updated: 2026-10-19T08:34:22Z
+last_updated: 2026-10-19T08:42:46Z
 ---
 
 # Construction log: Legal revalidation CLI
@@ -16,7 +16,7 @@ Three sequential simple-construction bolts: 001 contracts/offline reporting (sto
 
 ## Current bolt structure
 
-- ⏳ [001](../../../../bolts/001-legal-revalidation-cli/bolt.md): Test in progress; Plan and Implement approved.
+- ⏳ [001](../../../../bolts/001-legal-revalidation-cli/bolt.md): Test verified, awaiting final human acceptance; Plan and Implement approved.
 - [ ] [002](../../../../bolts/002-legal-revalidation-cli/bolt.md): planned; depends on 001.
 - [ ] [003](../../../../bolts/003-legal-revalidation-cli/bolt.md): planned; depends on 002.
 
@@ -37,6 +37,11 @@ Three sequential simple-construction bolts: 001 contracts/offline reporting (sto
 The Owner approved Implement and starting Test at 2026-10-19T08:34:22Z. Acceptance
 now explicitly checks the clear issue → project location → exact legal point →
 evidence → next action chain, with missing support labelled as a review gap.
+
+At 2026-10-19T08:42:46Z, Test verification passed all twelve offline criteria and
+all 130 tests plus contract/type checks. The early issue/citation summary and exact
+capacity-boundary regressions were independently reviewed. Wheel/sdist checks and
+the built-wheel example passed. The test walkthrough is ready for final acceptance.
 
 Original/current bolts: 3. Completed: 0. In progress: 1. Not started: 2.
 No replanning has occurred. Test is authorized; final test/bolt acceptance retains

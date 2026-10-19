@@ -75,6 +75,12 @@ with exact artifact digests. Evidence bodies are not copied or rendered; the
 remaining metadata and attestations are private too. Incomplete directories lack
 a valid completion marker; retry under a new path. Keep reports out of Git.
 
+The report starts with what needs attention: each reviewed deficiency or unanswered
+question is shown beside its project requirement/location, declared legal
+identifier and article/paragraph, evidence rationale and next review action.
+Missing applicability or legal support stays a review gap; it is not presented as
+an established violation. The example's laws and conclusions are explicitly fictional.
+
 Exit 0 means artifacts were published, including an explicitly partial report.
 Exit 2 means invalid input, capacity or file/output failure; interruption exits 130.
 The example contains one supported fictional mapping and unresolved coverage,
@@ -91,8 +97,9 @@ Network is disabled by default; `--offline` is explicit. `--fetch-official` and
 
 [Specifications v2](specs_v2/README.md) record the approved three-bolt sequence:
 offline declarations/reporting, official-source retrieval, then predecessor
-revalidation and the portable skill/release. Bolt 001 implementation is awaiting
-its human checkpoint before the separate Test stage.
+revalidation and the portable skill/release. Bolt 001 implementation is approved;
+its [Test report](memory-bank/bolts/001-legal-revalidation-cli/test-walkthrough.md)
+passes all twelve offline acceptance criteria and awaits final bolt acceptance.
 
 Scanners, Graphify, the dashboard, and authorized fix/retest automation remain later
 layers. They do not require a PC vulnerability audit to begin the legal workflow.

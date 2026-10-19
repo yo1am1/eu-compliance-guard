@@ -7,8 +7,8 @@ Owner on 2026-10-18. It does not replace or modify the historical `specs/**` fil
 [design](design.md), [system context](system-context.md) and
 [construction unit](../memory-bank/intents/001-read-only-legal-revalidation/units/001-legal-revalidation-cli/unit-brief.md)
 have completed inception. Bolt 001 has an approved implementation plan and its
-offline reporting slice is implemented, awaiting human validation before Test.
-Implementation acceptance and MVP completion remain pending.
+offline reporting slice is implemented and approved. Its Test report verifies all
+twelve offline acceptance criteria; final bolt acceptance and MVP completion remain pending.
 
 ## Recovered baseline
 
@@ -71,14 +71,16 @@ All six stories belong to one deployable CLI unit. The bolts are sequential:
    compare retained runs, deliver the portable skill/examples, and verify packaging.
 
 The [story index](../memory-bank/story-index.md) records each story and its state.
-Bolt 001 awaits its Implement checkpoint; bolts 002 and 003 remain planned and
+Bolt 001 awaits final Test/bolt acceptance; bolts 002 and 003 remain planned and
 dependent on prior completion. The [implementation walkthrough](../memory-bank/bolts/001-legal-revalidation-cli/implementation-walkthrough.md)
 records the first slice and verification limits.
+The [Test report](../memory-bank/bolts/001-legal-revalidation-cli/test-walkthrough.md)
+records 130 passing tests and the clear issue-to-provision reporting checks.
 Live legal review and corpus acceptance remain distinct from software verification.
 
 ## Outstanding acceptance
 
-Implementation acceptance, subsequent construction stage checkpoints, official
+Final bolt acceptance, subsequent construction stage checkpoints, official
 retrieval, predecessor revalidation, portable skill and full MVP release checks
 remain pending. The first offline synthetic CLI example is runnable from the
 checkout and built wheel. No current
