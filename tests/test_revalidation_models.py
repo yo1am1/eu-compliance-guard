@@ -447,6 +447,28 @@ class RevalidationModelTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             m.RevalidationBundle.model_validate(payload)
 
+    def test_explicit_source_dependencies_need_admitted_material_and_allow_cycles(self):
+        payload = supported_payload()
+        dependency = deepcopy(payload["declarations"]["sources"][0])
+        dependency["source"]["id"] = "source-dependency"
+        payload["declarations"]["sources"].append(dependency)
+        review = deepcopy(payload["declarations"]["source_reviews"][0])
+        review["source_id"] = "source-dependency"
+        payload["declarations"]["source_reviews"].append(review)
+        for relation in ("related_source_ids", "act_chain", "case_law_refs", "national_overlay_ids", "overlay_ids"):
+            variant = deepcopy(payload)
+            declared = variant["declarations"]
+            parent = (declared["sources"][0]["source"] if relation == "related_source_ids"
+                      else declared["obligations"][0] if relation == "overlay_ids"
+                      else declared["source_reviews"][0])
+            parent[relation] = ["source-dependency"]
+            declared["sources"][1]["source"]["related_source_ids"] = ["source-example"]
+            with self.subTest(relation=relation):
+                m.RevalidationBundle.model_validate(variant)
+                declared["sources"][1]["file"] = None
+                with self.assertRaises(ValidationError):
+                    m.RevalidationBundle.model_validate(variant)
+
     def test_requirement_support_needs_its_own_dependencies(self):
         payload = json.loads(json.dumps(supported_payload()))
         selected = deepcopy(payload["declarations"]["evidence"][0])

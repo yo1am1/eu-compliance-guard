@@ -1320,21 +1320,32 @@ class RevalidationBundle(Record):
         source_reviews = {(item.source_id, item.assessment_date): item for item in declared.source_reviews}
 
         def admitted_source(source_id: str) -> bool:
-            selected = selected_sources[source_id]
-            source = selected.source
-            target = targets[selected.target_id]
-            review = source_reviews.get((source_id, declared.scope.assessment_date))
-            return bool(
-                selected.file and observed_files.get(selected.file.path) == source.content_digest
-                and selected.media_type.lower() in ("text/plain", "text/html", "application/xhtml+xml")
-                and (selected.charset is None or selected.charset.lower() == "utf-8")
-                and source.type == target.intended_type and source.url == target.intended_url
-                and source.identifier == target.intended_identifier and source.publisher == target.publisher
-                and source.language == target.language and source.jurisdiction == target.jurisdiction
-                and review and review.state == "reviewed_for_assessment"
-                and review.reviewer and review.reviewer.strip() and review.last_successful_verification
-                and not review.gaps and all(review.review_notes.get(topic, "").strip()
-                                           for topic in get_args(SourceReviewTopic)))
+            pending = [source_id]
+            seen = set()
+            while pending:
+                identity = pending.pop()
+                if identity in seen:
+                    continue
+                seen.add(identity)
+                selected = selected_sources[identity]
+                source = selected.source
+                target = targets[selected.target_id]
+                review = source_reviews.get((identity, declared.scope.assessment_date))
+                if not (
+                        selected.file and observed_files.get(selected.file.path) == source.content_digest
+                        and selected.media_type.lower() in ("text/plain", "text/html", "application/xhtml+xml")
+                        and (selected.charset is None or selected.charset.lower() == "utf-8")
+                        and source.type == target.intended_type and source.url == target.intended_url
+                        and source.identifier == target.intended_identifier and source.publisher == target.publisher
+                        and source.language == target.language and source.jurisdiction == target.jurisdiction
+                        and review and review.state == "reviewed_for_assessment"
+                        and review.reviewer and review.reviewer.strip() and review.last_successful_verification
+                        and not review.gaps and all(review.review_notes.get(topic, "").strip()
+                                                   for topic in get_args(SourceReviewTopic))):
+                    return False
+                pending.extend([*source.related_source_ids, *review.act_chain,
+                                *review.case_law_refs, *review.national_overlay_ids])
+            return True
 
         def retained_evidence(identity: str) -> bool:
             item = evidence[identity]
@@ -1392,6 +1403,7 @@ class RevalidationBundle(Record):
                     or not decision.condition_answers or not all(answer.strip() for answer in decision.condition_answers)
                     or not decision.exception_answers or not all(answer.strip() for answer in decision.exception_answers)
                     or not all(admitted_evidence(identity) for identity in decision.evidence_ids)
+                    or not all(admitted_source(identity) for identity in obligation.overlay_ids)
                     or not all(pin in decision.provisions for pin in obligation.source_provisions)):
                 raise ValueError("resolved effective decision lacks accountable review")
         for disposition in dispositions.values():
@@ -1415,6 +1427,7 @@ class RevalidationBundle(Record):
                 if method.outcome == "passed" and (
                         decision.applicability != "applicable" or decision.gaps
                         or not method.review_ids
+                        or not all(admitted_source(identity) for identity in obligations[disposition.obligation_id].overlay_ids)
                         or not obligations[disposition.obligation_id].source_provisions
                         or any(pin.source_id is None or not admitted_source(pin.source_id)
                                or (obligations[disposition.obligation_id].classification == "duty"
