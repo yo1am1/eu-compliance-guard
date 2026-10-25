@@ -385,6 +385,23 @@ export type IntendedType =
 export type IntendedUrl = string;
 export type Language1 = string;
 export type Publisher1 = string;
+export type Admission = ("accepted" | "needs_review" | "rejected") | null;
+export type AdmissionReason = string | null;
+export type ArtifactPath = string | null;
+export type BytesRead = number;
+export type Charset = string | null;
+export type Comparison = "same_bytes" | "different_bytes" | "no_prior_source" | "not_compared";
+export type Digest1 = string | null;
+export type EndedAt1 = string;
+export type FinalUrl = string | null;
+export type MediaType = string | null;
+/**
+ * @maxItems 3
+ */
+export type Redirects = [] | [string] | [string, string] | [string, string, string];
+export type RequestedUrl = string;
+export type StartedAt1 = string;
+export type Status = number | null;
 export type SourceTargetId1 = string;
 export type State5 = "retrieved" | "retrieval_failed" | "translation_unverified";
 /**
@@ -520,11 +537,11 @@ export type BrowserContext = {
   [k: string]: string;
 } | null;
 export type CapturedAt = string;
-export type Digest1 = string;
+export type Digest2 = string;
 export type Id15 = string;
 export type Kind2 = string;
 export type ManifestId5 = string;
-export type MediaType = string;
+export type MediaType1 = string;
 export type ProjectId18 = string;
 export type Provenance2 = "declared" | "documented" | "observed" | "independently_verified";
 export type Redaction1 = "safe" | "blocked" | "unknown";
@@ -763,7 +780,7 @@ export type BrowserState = {
   [k: string]: string;
 } | null;
 export type ConfigDigest = string;
-export type Digest2 = string;
+export type Digest3 = string;
 export type EnvironmentIdentity = string;
 /**
  * @maxItems 1000
@@ -1348,6 +1365,11 @@ export type IntendedUrl1 = string;
 export type Jurisdiction1 = string;
 export type Language2 = string;
 export type Publisher2 = string;
+/**
+ * @maxItems 4
+ */
+export type RedirectHosts =
+  [] | [string] | [string, string] | [string, string, string] | [string, string, string, string];
 export type Revision17 = number;
 /**
  * @maxItems 16
@@ -1487,8 +1509,8 @@ export type Sources =
       SelectedSource,
       SelectedSource
     ];
-export type Charset = string | null;
-export type MediaType1 = string;
+export type Charset1 = string | null;
+export type MediaType2 = string;
 export type TargetId = string;
 export type Synthetic6 = boolean;
 /**
@@ -1534,206 +1556,280 @@ export type ProjectId36 = string;
  * @maxItems 200
  */
 export type RequirementAssessments = RequirementAssessment[];
+/**
+ * @maxItems 16
+ */
+export type RetrievedSources =
+  | []
+  | [LegalSource]
+  | [LegalSource, LegalSource]
+  | [LegalSource, LegalSource, LegalSource]
+  | [LegalSource, LegalSource, LegalSource, LegalSource]
+  | [LegalSource, LegalSource, LegalSource, LegalSource, LegalSource]
+  | [LegalSource, LegalSource, LegalSource, LegalSource, LegalSource, LegalSource]
+  | [LegalSource, LegalSource, LegalSource, LegalSource, LegalSource, LegalSource, LegalSource]
+  | [LegalSource, LegalSource, LegalSource, LegalSource, LegalSource, LegalSource, LegalSource, LegalSource]
+  | [
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource
+    ]
+  | [
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource
+    ]
+  | [
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource
+    ]
+  | [
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource
+    ]
+  | [
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource
+    ]
+  | [
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource
+    ]
+  | [
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource
+    ]
+  | [
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource,
+      LegalSource
+    ];
 export type SchemaVersion20 = 1;
+/**
+ * @maxItems 16
+ */
+export type SourceAttempts =
+  | []
+  | [SourceAttempt]
+  | [SourceAttempt, SourceAttempt]
+  | [SourceAttempt, SourceAttempt, SourceAttempt]
+  | [SourceAttempt, SourceAttempt, SourceAttempt, SourceAttempt]
+  | [SourceAttempt, SourceAttempt, SourceAttempt, SourceAttempt, SourceAttempt]
+  | [SourceAttempt, SourceAttempt, SourceAttempt, SourceAttempt, SourceAttempt, SourceAttempt]
+  | [SourceAttempt, SourceAttempt, SourceAttempt, SourceAttempt, SourceAttempt, SourceAttempt, SourceAttempt]
+  | [
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt
+    ]
+  | [
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt
+    ]
+  | [
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt
+    ]
+  | [
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt
+    ]
+  | [
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt
+    ]
+  | [
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt
+    ]
+  | [
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt
+    ]
+  | [
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt
+    ]
+  | [
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt,
+      SourceAttempt
+    ];
 export type Synthetic7 = boolean;
 /**
  * @minItems 4
- * @maxItems 20
+ * @maxItems 36
  */
-export type Files =
-  | [SourceFile, SourceFile, SourceFile, SourceFile]
-  | [SourceFile, SourceFile, SourceFile, SourceFile, SourceFile]
-  | [SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile]
-  | [SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile]
-  | [SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile]
-  | [SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile, SourceFile]
-  | [
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile
-    ]
-  | [
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile
-    ]
-  | [
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile
-    ]
-  | [
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile
-    ]
-  | [
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile
-    ]
-  | [
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile
-    ]
-  | [
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile
-    ]
-  | [
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile
-    ]
-  | [
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile
-    ]
-  | [
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile
-    ]
-  | [
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile,
-      SourceFile
-    ];
+export type Files = [SourceFile, SourceFile, SourceFile, SourceFile, ...SourceFile[]];
 export type RunId23 = string;
 export type SchemaVersion21 = 1;
 export type CreatedAt = string;
@@ -2222,9 +2318,32 @@ export interface SourceAttempt {
   language: Language1;
   last_successful_source?: SourceRef | null;
   publisher: Publisher1;
+  retrieval?: RetrievalProvenance | null;
   retrieved_source?: SourceRef | null;
   source_target_id: SourceTargetId1;
   state: State5;
+}
+/**
+ * Safe per-attempt metadata; response headers, cookies and bodies are never retained here.
+ *
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "RetrievalProvenance".
+ */
+export interface RetrievalProvenance {
+  admission?: Admission;
+  admission_reason?: AdmissionReason;
+  artifact_path?: ArtifactPath;
+  bytes_read: BytesRead;
+  charset?: Charset;
+  comparison: Comparison;
+  digest?: Digest1;
+  ended_at: EndedAt1;
+  final_url?: FinalUrl;
+  media_type?: MediaType;
+  redirects: Redirects;
+  requested_url: RequestedUrl;
+  started_at: StartedAt1;
+  status?: Status;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -2334,11 +2453,11 @@ export interface Evidence {
   availability: Availability;
   browser_context?: BrowserContext;
   captured_at: CapturedAt;
-  digest: Digest1;
+  digest: Digest2;
   id: Id15;
   kind: Kind2;
   manifest_id: ManifestId5;
-  media_type: MediaType;
+  media_type: MediaType1;
   project_id: ProjectId18;
   provenance: Provenance2;
   redaction: Redaction1;
@@ -2481,7 +2600,7 @@ export interface FindingDiscussCommand {
 export interface InputManifest {
   browser_state?: BrowserState;
   config_digest: ConfigDigest;
-  digest: Digest2;
+  digest: Digest3;
   environment_identity: EnvironmentIdentity;
   exclusions: Exclusions1;
   fact_digest: FactDigest;
@@ -2772,8 +2891,10 @@ export interface RevalidationBundle {
   obligation_dispositions: ObligationDispositions;
   project_id: ProjectId36;
   requirement_assessments: RequirementAssessments;
+  retrieved_sources?: RetrievedSources;
   run: AuditRun;
   schema_version: SchemaVersion20;
+  source_attempts?: SourceAttempts;
   synthetic: Synthetic7;
 }
 /**
@@ -2819,6 +2940,7 @@ export interface SourceTarget {
   jurisdiction: Jurisdiction1;
   language: Language2;
   publisher: Publisher2;
+  redirect_hosts?: RedirectHosts;
   revision: Revision17;
 }
 /**
@@ -2826,9 +2948,9 @@ export interface SourceTarget {
  * via the `definition` "SelectedSource".
  */
 export interface SelectedSource {
-  charset?: Charset;
+  charset?: Charset1;
   file?: SourceFile | null;
-  media_type: MediaType1;
+  media_type: MediaType2;
   source: LegalSource;
   target_id: TargetId;
 }

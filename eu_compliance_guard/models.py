@@ -83,6 +83,8 @@ ISODate = Annotated[str, Field(json_schema_extra={"format": "date"}), AfterValid
 Timestamp = Annotated[str, Field(max_length=40, json_schema_extra={"format": "date-time"}), AfterValidator(_timestamp)]
 RelativePath = Annotated[str, Field(min_length=1, max_length=1024), AfterValidator(_relative_path)]
 HttpURL = Annotated[str, Field(max_length=4096), AfterValidator(_http_url)]
+HostName = Annotated[str, Field(min_length=1, max_length=253, pattern=r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$")]
+MediaType = Annotated[str, Field(min_length=3, max_length=256, pattern=r"^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")]
 Value = Annotated[JsonValue, AfterValidator(_json_value)]
 Ids = Annotated[list[Id], Field(max_length=1000)]
 Texts = Annotated[list[Text], Field(max_length=1000)]
@@ -180,6 +182,38 @@ class LegalSource(Record):
         return self
 
 
+class RetrievalProvenance(Record):
+    """Safe per-attempt metadata; response headers, cookies and bodies are never retained here."""
+    requested_url: HttpURL
+    final_url: HttpURL | None = None
+    redirects: Annotated[list[HttpURL], Field(max_length=3)]
+    started_at: Timestamp
+    ended_at: Timestamp
+    status: Annotated[int, Field(ge=100, le=599)] | None = None
+    media_type: MediaType | None = None
+    charset: Name | None = None
+    bytes_read: Annotated[int, Field(ge=0, le=16 * 1024 * 1024)]
+    digest: Digest | None = None
+    artifact_path: RelativePath | None = None
+    admission: Literal["accepted", "needs_review", "rejected"] | None = None
+    admission_reason: Name | None = None
+    comparison: Literal["same_bytes", "different_bytes", "no_prior_source", "not_compared"]
+
+    @model_validator(mode="after")
+    def consistent(self) -> RetrievalProvenance:
+        if datetime.fromisoformat(self.ended_at) < datetime.fromisoformat(self.started_at):
+            raise ValueError("retrieval ends before it starts")
+        if self.final_url is not None and self.final_url != (self.redirects[-1] if self.redirects else self.requested_url):
+            raise ValueError("final URL must end the recorded redirect chain")
+        if (self.admission is None) != (self.admission_reason is None):
+            raise ValueError("content admission and reason must be supplied together")
+        if self.artifact_path is not None and (self.digest is None or self.artifact_path != "sources/" + self.digest.removeprefix("sha256:") + ".bin"):
+            raise ValueError("retained retrieval artifact must be named by its digest")
+        if self.comparison in ("same_bytes", "different_bytes") and self.digest is None:
+            raise ValueError("byte comparison requires a retrieved digest")
+        return self
+
+
 class SourceAttempt(Record):
     id: Id
     source_target_id: Id
@@ -193,6 +227,7 @@ class SourceAttempt(Record):
     retrieved_source: SourceRef | None = None
     last_successful_source: SourceRef | None = None
     failure: SafeError | None = None
+    retrieval: RetrievalProvenance | None = None
 
     @model_validator(mode="after")
     def retrieval_state(self) -> SourceAttempt:
@@ -202,6 +237,16 @@ class SourceAttempt(Record):
             raise ValueError("unsuccessful attempt requires a safe failure reason")
         if self.state == "retrieval_failed" and self.retrieved_source is not None:
             raise ValueError("failed retrieval cannot invent a retrieved source")
+        if self.retrieval is not None:
+            retrieval = self.retrieval
+            if retrieval.requested_url != self.intended_url:
+                raise ValueError("retrieval provenance must start at the intended URL")
+            retained = (retrieval.final_url is not None and retrieval.status == 200 and retrieval.digest is not None
+                        and retrieval.artifact_path is not None and retrieval.admission in ("accepted", "needs_review"))
+            if (self.retrieved_source is not None) != retained:
+                raise ValueError("retrieved source requires retained accepted or reviewable bytes")
+            if self.state == "retrieval_failed" and retrieval.comparison in ("same_bytes", "different_bytes"):
+                raise ValueError("failed retrieval cannot be compared as fresh bytes")
         return self
 
 
@@ -1001,12 +1046,14 @@ class SourceTarget(Record):
     intended_type: SourceType
     language: Name
     jurisdiction: Name
+    # Explicitly approved redirect destinations; retrieval also requires the code registry.
+    redirect_hosts: Annotated[list[HostName], Field(max_length=4)] = Field(default_factory=list)
 
 
 class SelectedSource(Record):
     target_id: Id
     source: LegalSource
-    media_type: Annotated[str, Field(min_length=3, max_length=256, pattern=r"^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")]
+    media_type: MediaType
     charset: Name | None = None
     file: SourceFile | None = None
 
@@ -1273,6 +1320,9 @@ class RevalidationBundle(Record):
     family_screenings: Annotated[list[FamilyScreening], Field(min_length=11, max_length=11)]
     gaps: Texts
     next_actions: Texts
+    # One attempt per fetched target; retrieved bytes are unreviewed candidates, never declared sources.
+    source_attempts: Annotated[list[SourceAttempt], Field(max_length=16)] = Field(default_factory=list)
+    retrieved_sources: Annotated[list[LegalSource], Field(max_length=16)] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def membership(self) -> RevalidationBundle:
@@ -1318,6 +1368,41 @@ class RevalidationBundle(Record):
         selected_evidence = {item.evidence.id: item for item in declared.evidence}
         targets = {item.id: item for item in declared.source_targets}
         source_reviews = {(item.source_id, item.assessment_date): item for item in declared.source_reviews}
+        attempts = _unique_records(self.source_attempts)
+        _unique_records(self.source_attempts, lambda item: item.source_target_id)
+        retrieved = _unique_records(self.retrieved_sources)
+        if set(retrieved) & set(source_by_id):
+            raise ValueError("retrieved candidate identity collides with a declared source")
+        referenced = set()
+        for attempt in attempts.values():
+            target = targets.get(attempt.source_target_id)
+            retrieval = attempt.retrieval
+            if target is None or retrieval is None or (
+                    attempt.intended_url, attempt.intended_identifier, attempt.publisher, attempt.intended_type, attempt.language
+                    ) != (target.intended_url, target.intended_identifier, target.publisher, target.intended_type, target.language):
+                raise ValueError("source attempt must record provenance for its declared target")
+            prior = None
+            if attempt.last_successful_source is not None:
+                _require_pin(attempt.last_successful_source, source_by_id)
+                if selected_sources[attempt.last_successful_source.id].target_id != target.id:
+                    raise ValueError("last successful source belongs to another target")
+                prior = source_by_id[attempt.last_successful_source.id]
+            expected = ("not_compared" if attempt.retrieved_source is None else "no_prior_source" if prior is None
+                        else "same_bytes" if retrieval.digest == prior.content_digest else "different_bytes")
+            if retrieval.comparison != expected:
+                raise ValueError("retrieval comparison disagrees with the declared source")
+            if attempt.retrieved_source is not None:
+                _require_pin(attempt.retrieved_source, retrieved)
+                source = retrieved[attempt.retrieved_source.id]
+                if ((source.type, source.publisher, source.identifier, source.language, source.jurisdiction)
+                        != (target.intended_type, target.publisher, target.intended_identifier, target.language, target.jurisdiction)
+                        or source.url != retrieval.final_url or source.content_digest != retrieval.digest
+                        or source.retrieved_at != retrieval.ended_at or source.provisions or source.related_source_ids):
+                    raise ValueError("retrieved candidate must mirror its target and provenance without reviewed provisions")
+                referenced.add(source.id)
+        if referenced != set(retrieved):
+            raise ValueError("every retrieved candidate needs exactly one attempt")
+        changed_targets = {item.source_target_id for item in attempts.values() if item.retrieval.comparison == "different_bytes"}
 
         def admitted_source(source_id: str) -> bool:
             pending = [source_id]
@@ -1332,7 +1417,8 @@ class RevalidationBundle(Record):
                 target = targets[selected.target_id]
                 review = source_reviews.get((identity, declared.scope.assessment_date))
                 if not (
-                        selected.file and observed_files.get(selected.file.path) == source.content_digest
+                        selected.target_id not in changed_targets
+                        and selected.file and observed_files.get(selected.file.path) == source.content_digest
                         and selected.media_type.lower() in ("text/plain", "text/html", "application/xhtml+xml")
                         and (selected.charset is None or selected.charset.lower() == "utf-8")
                         and source.type == target.intended_type and source.url == target.intended_url
@@ -1506,6 +1592,7 @@ class RevalidationBundle(Record):
                     or not all(admitted_source(pin.id) for pin in item.source_refs)):
                 raise ValueError("resolved screening lacks accountable admitted review")
         if self.run.state == "completed" and (self.gaps or self.run.gaps or not requirements or not obligations
+                or self.source_attempts or self.retrieved_sources
                 or any(item.gaps or item.state in ("unresolved", "conflicting") for item in self.requirement_assessments)
                 or any(item.gaps or item.applicability == "unresolved" for item in decisions.values())
                 or any(item.manual_review in ("pending", "unresolved")
@@ -1524,7 +1611,7 @@ class RevalidationBundle(Record):
 class RunCompletion(Record):
     schema_version: SchemaVersion
     run_id: Id
-    files: Annotated[list[SourceFile], Field(min_length=4, max_length=20)]
+    files: Annotated[list[SourceFile], Field(min_length=4, max_length=36)]
 
     @model_validator(mode="after")
     def artifact_paths(self) -> RunCompletion:
