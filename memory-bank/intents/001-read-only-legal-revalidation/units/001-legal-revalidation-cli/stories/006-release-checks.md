@@ -21,7 +21,7 @@ As a project owner, I want to verify contracts and reproducible delivery, so tha
 - [ ] **AC-2**: Given synthetic regressions, when running checks, then invalid references, unsafe URLs/redirects, retrieval failures, missing reviews/evidence, changed inputs/source bytes and history preservation are exercised, including input/download/duration/collection bounds.
 - [ ] **AC-3**: Given wheel/sdist and the documented offline workflow, when inspecting/executing, then needed CLI/contracts/skill/example assets are available through the documented distribution route, the offline report/revalidation example succeeds, and credentials, private evidence, caches and installed dependencies are absent from archives.
 - [ ] **AC-4**: Given results, when documenting delivery, then unit/fake checks and any separately authorized live smoke results are distinguished; neither is called a real legal audit or containment proof.
-- [ ] **AC-5**: Given a completed development change and current authorization, when publishing during construction, then the exact stage is reviewed, local author/committer identity verified, the contributing agent credited and each change committed/pushed individually without rewriting published history. This planning dispatch itself performs no commit/push.
+- [ ] **AC-5**: Given a completed development change and current authorization, when publishing during construction, then the exact stage is reviewed, local author/committer identity verified, no co-author or agent session trailers added, and each change committed/pushed individually without rewriting published history. This planning dispatch itself performs no commit/push.
 
 ## Technical Notes
 

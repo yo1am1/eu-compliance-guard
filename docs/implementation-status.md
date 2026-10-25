@@ -189,3 +189,10 @@ their sandbox binary is unavailable, so `make check` could not complete here.
 That module is unchanged. No live official-source request, real legal assessment
 or OS-policy change occurred. Predecessor revalidation and the portable skill
 (Bolt 003) remain pending.
+
+## Commit attribution — 2026-10-25
+
+Owner correction: commits carry no `Co-authored-by` or agent session trailers.
+Commits not yet merged into `main` were rewritten to remove those lines; their trees
+and author/committer are unchanged. `main` history was deliberately left unchanged.
+AGENTS.md, the coding standards and story 006 AC-5 now state the rule.

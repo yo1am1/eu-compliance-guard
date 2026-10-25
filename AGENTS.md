@@ -29,8 +29,7 @@ not an operational compliance audit.
 - Before committing, verify both the effective author and committer are Yehor Trepalin
   (`yo1am1`), using `110065476+yo1am1@users.noreply.github.com`. Configure this locally
   in this repository; do not change the laptop's global Git identity.
-- Credit the agent that actually contributed using its native `Co-authored-by`
-  trailer. For Codex: `Co-authored-by: Codex <noreply@openai.com>`. Credit Claude when
-  it contributes, using its verified native trailer. Keep the user as primary author.
+- Do not add `Co-authored-by` or agent session trailers (such as `Claude-Session`)
+  to commit messages. The user is the sole author and committer.
 - Preserve unrelated work. Do not amend, force-push, or rewrite published history
   without an explicit Owner correction request. Push under current authorization.
