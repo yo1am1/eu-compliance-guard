@@ -41,9 +41,18 @@ class RevalidationCliTests(unittest.TestCase):
             self.assertIn("report.md and bundle.json", stdout)
             self.assertEqual(stderr, "")
 
-    def test_future_arguments_reject_before_workflow_import_or_any_input_reads(self):
-        for future in (["--fetch-official"], ["--fetch-official=true"], ["--previous", "PRIVATE-SECRET"],
-                       ["--previous=PRIVATE-SECRET"], ["--help", "--fetch-official"]):
+    def test_fetch_official_delegates_only_when_explicit(self):
+        run = Mock(return_value=m.RevalidationBundle.model_validate(bundle_payload()))
+        code, stdout, stderr = self.call_main(
+            ["revalidate", "--input", "declarations.json", "--output", "new-run", "--fetch-official"], run)
+        self.assertEqual((code, stderr), (0, ""))
+        run.assert_called_once_with("declarations.json", "new-run", fetch_official=True)
+        self.assertIn("not a compliance verdict", stdout)
+
+    def test_future_and_conflicting_arguments_reject_before_workflow_import_or_any_input_reads(self):
+        for future in (["--offline", "--fetch-official"], ["--fetch-official", "--offline"], ["--fetch-official=true"],
+                       ["--previous", "PRIVATE-SECRET"], ["--previous=PRIVATE-SECRET"], ["--help", "--previous", "x"],
+                       ["--fetch-official", "--previous", "PRIVATE-SECRET"]):
             stdout, stderr = io.StringIO(), io.StringIO()
             with patch("builtins.open", side_effect=AssertionError("must reject before reads")), \
                     patch("pathlib.Path.read_bytes", side_effect=AssertionError("must reject before reads")), \
@@ -94,8 +103,11 @@ class RevalidationCliTests(unittest.TestCase):
             result = self.package_cli(*arguments)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("revalidate" if len(arguments) == 1 else "--offline", result.stdout)
-        result = self.package_cli("revalidate", "--input", "PRIVATE-SECRET", "--output", "PRIVATE-SECRET", "--fetch-official")
+        self.assertIn("--fetch-official", self.package_cli("revalidate", "--help").stdout)
+        result = self.package_cli("revalidate", "--input", "PRIVATE-SECRET", "--output", "PRIVATE-SECRET",
+                                  "--offline", "--fetch-official")
         self.assertEqual(result.returncode, 2)
+        self.assertIn("invalid-arguments", result.stderr)
         self.assertNotIn("PRIVATE-SECRET", result.stderr)
 
     @staticmethod

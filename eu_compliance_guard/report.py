@@ -1,4 +1,4 @@
-"""Pure, bounded Markdown projection of validated offline revalidation records."""
+"""Pure, bounded Markdown projection of validated revalidation records."""
 
 import json
 import unicodedata
@@ -45,10 +45,14 @@ def render_report(bundle: m.RevalidationBundle) -> str:
         emit()
 
     declared = bundle.declarations
-    emit("# Offline requirements-to-law revalidation")
+    fetched = bool(bundle.source_attempts)
+    emit("# Requirements-to-law revalidation with selected official-source retrieval" if fetched
+         else "# Offline requirements-to-law revalidation")
     emit()
     if bundle.synthetic:
         emit("**FICTIONAL / SYNTHETIC DATA, INCLUDING MIXED DECLARATIONS. Every conclusion below is labelled fictional; none establishes real EU duties.**")
+    elif fetched:
+        emit("**Recorded local declarations and unauthenticated reviewer attestations. Retrieved official bytes are unreviewed candidates; retrieval establishes neither binding status, completeness, applicability nor currency.**")
     else:
         emit("**Recorded local declarations and unauthenticated reviewer attestations. Offline legal freshness remains unverified.**")
     emit()
@@ -237,6 +241,39 @@ def render_report(bundle: m.RevalidationBundle) -> str:
         emit()
     for review in declared.source_reviews:
         record("Source review and seven review dimensions", review)
+    emit("## Official-source retrieval attempts")
+    emit()
+    if not fetched:
+        emit("No retrieval was requested; no network operation occurred.")
+        emit()
+    else:
+        emit("Each attempt records which bytes an approved host served at retrieval time. Official hosting establishes neither binding status, completeness, applicability nor currency for the assessment date; retrieved candidates need an accountable source review before any use.")
+        emit()
+    for attempt in bundle.source_attempts:
+        retrieval = attempt.retrieval
+        emit(f"### {label}Retrieval attempt")
+        emit()
+        field("Source target", attempt.source_target_id)
+        field("Attempt", attempt.id)
+        field("State", attempt.state)
+        field("Intended type, publisher and identifier", f"{attempt.intended_type}; {attempt.publisher}; {attempt.intended_identifier or 'not supplied'}")
+        field("Requested URL", retrieval.requested_url)
+        field("Validated redirects", retrieval.redirects)
+        field("Final URL", retrieval.final_url)
+        field("Started and ended", f"{retrieval.started_at}; {retrieval.ended_at}")
+        field("HTTP status", retrieval.status)
+        field("Media type and charset", f"{retrieval.media_type or 'not recorded'}; {retrieval.charset or 'not recorded'}")
+        field("Bytes read", retrieval.bytes_read)
+        field("Content digest", retrieval.digest)
+        field("Retained artifact", retrieval.artifact_path)
+        field("Content screening", f"{retrieval.admission}; {retrieval.admission_reason}" if retrieval.admission else None)
+        field("Comparison with declared source", retrieval.comparison)
+        field("Declared source (historical fallback only)", f"{attempt.last_successful_source.id}@{attempt.last_successful_source.revision}" if attempt.last_successful_source else None)
+        field("Retrieved candidate", f"{attempt.retrieved_source.id}@{attempt.retrieved_source.revision}" if attempt.retrieved_source else None)
+        field("Failure", f"{attempt.failure.code}: {attempt.failure.safe_message}" if attempt.failure else None)
+        emit()
+    for source in bundle.retrieved_sources:
+        record("Retrieved candidate source (unreviewed, no provisions)", source)
     emit("## Evidence metadata and accountable reviews")
     emit()
     for selected in declared.evidence:
