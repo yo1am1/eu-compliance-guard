@@ -19,8 +19,9 @@ Show where the project's legal revalidation stands, in one short card.
   `declarations.scope.assessment_date`, `requirement_assessments[].state`,
   `obligation_dispositions[].applicability`, `len(gaps)`, and
   `source_attempts[].state` with `retrieval.comparison`.
-- Compare `.eu-compliance-guard/declarations.json` with the run's `input.json`.
-  If they differ, the run is out of date for the current declarations.
+- Declarations changed since the run when `sha256sum .eu-compliance-guard/declarations.json`
+  differs from the bundle's `input_digest` (`sha256:<hex>`). Do not compare against the
+  run's `input.json`: it is a normalized copy, so its bytes always differ.
 
 ## Output
 
