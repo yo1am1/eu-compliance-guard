@@ -38,7 +38,9 @@ containment.
 | AC-4 | `test_failures_never_invent_content_or_freshness`; safe-failure mapping in `test_slow_trickle_and_errors_become_safe_failures`; `test_unstoppable_helper_fails_the_run_without_output` |
 | AC-5 | `test_login_challenge_pages_are_rejected_and_uncertain_text_needs_review`; `test_guidance_candidate_cannot_become_binding_duty`; `test_changed_bytes_withdraw_declared_support_and_attempts_block_completion`; `test_offline_default_and_unusable_output_perform_no_network`; CLI conflict tests |
 
-## Not run
+## Live smoke check
 
-No live official-source smoke check was run. It needs a separately prepared
-declaration and explicit Owner authorization (design: opt-in smoke check).
+On 2026-10-25 the Owner asked for an end-to-end real test. The opt-in live check and
+its findings are in the [live smoke report](live-smoke-report.md). EUR-Lex HTML is
+blocked by a WAF challenge, which is recorded as a safe failure. EDPB and
+Commission pages were retrieved.
