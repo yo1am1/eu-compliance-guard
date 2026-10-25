@@ -90,8 +90,16 @@ Offline real-source freshness remains unverified; PDF bytes require manual revie
 Processing budgets are cooperative, without a hard CPU/filesystem deadline or
 containment guarantee.
 
-Network is disabled by default; `--offline` is explicit. `--fetch-official` and
-`--previous` currently fail with exit 2 before input reads or output creation.
+Network is disabled by default; `--offline` is explicit. `--fetch-official` opts in
+to bounded GETs of each declared source target. Only five exact official hosts are
+allowed, over HTTPS on port 443. DNS answers must be public, and the connection is
+pinned to a validated address. TLS is verified. Up to three validated redirects
+are followed, with 8 MiB per response and 20 s per target. Fictional fixture
+targets are never contacted. Each target gets a recorded attempt, and accepted bytes
+are retained as unreviewed candidates. Retrieval never establishes binding status,
+completeness, applicability or currency. `--offline` and `--fetch-official`
+conflict. `--previous` still fails with exit 2 before input reads or output creation.
+Tests use fake transports only; no live smoke check has been run.
 
 ## Next deliverables
 

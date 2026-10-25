@@ -170,3 +170,22 @@ script errors. Unit and intent remain open because two bolts are unfinished.
 The final Test stage was recorded in bolt metadata after verifying the cascade.
 The 130-test acceptance evidence remains unchanged; no new application code or
 live-source operation was run for this lifecycle update.
+
+## Bolt 002 official-source retrieval — 2026-10-25
+
+On the Owner's direction to proceed, Bolt 002 Plan, Implement and Test were recorded
+on branch `claude/bolt-002-official-retrieval`. All three await Owner validation.
+`--fetch-official` now performs bounded opt-in retrieval through `sources.py`,
+which applies the fixed host registry, pinned DNS/TLS, validated redirects and
+the design bounds, using a disposable spawned helper. Attempts and unreviewed
+candidate sources are retained in the bundle and run directory, and the report
+lists them. See the [plan](../memory-bank/bolts/002-legal-revalidation-cli/implementation-plan.md),
+[implementation walkthrough](../memory-bank/bolts/002-legal-revalidation-cli/implementation-walkthrough.md)
+and [test report](../memory-bank/bolts/002-legal-revalidation-cli/test-walkthrough.md).
+
+151 tests pass outside `test_execution.py`, and the contract drift and TypeScript
+checks pass. In this container the existing executor tests fail or hang because
+their sandbox binary is unavailable, so `make check` could not complete here.
+That module is unchanged. No live official-source request, real legal assessment
+or OS-policy change occurred. Predecessor revalidation and the portable skill
+(Bolt 003) remain pending.
