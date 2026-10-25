@@ -3,12 +3,12 @@ id: 002-legal-revalidation-cli
 unit: 001-legal-revalidation-cli
 intent: 001-read-only-legal-revalidation
 type: simple-construction-bolt
-status: planned
+status: in-progress
 stories: [003-official-source-retrieval]
 created: 2026-10-18T19:01:39Z
-started: null
+started: 2026-10-25T01:30:00Z
 completed: null
-current_stage: null
+current_stage: plan
 stages_completed: []
 requires_bolts: [001-legal-revalidation-cli]
 enables_bolts: [003-legal-revalidation-cli]
@@ -25,7 +25,7 @@ complexity:
 
 ## Objective
 
-Official-source retrieval. Planned only; included stories remain unimplemented.
+Official-source retrieval. Plan recorded in [implementation-plan.md](implementation-plan.md); story 003 remains unimplemented until Implement.
 
 ## Stories Included
 
@@ -41,7 +41,7 @@ Simple Construction; installed definition: `/home/user/.specsmd/aidlc/templates/
 
 ## Stages
 
-- [ ] **1. Plan**: Pending → implementation-plan.md; confirm changes, bounds, fixtures and acceptance checks.
+- [ ] **1. Plan**: Recorded 2026-10-25, awaiting Owner validation → implementation-plan.md; confirm changes, bounds, fixtures and acceptance checks.
 - [ ] **2. Implement**: Pending → source/docs + implementation-walkthrough.md.
 - [ ] **3. Test**: Pending → tests + test-walkthrough.md, including make check.
 
