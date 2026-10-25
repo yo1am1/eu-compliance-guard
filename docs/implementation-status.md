@@ -196,3 +196,18 @@ Owner correction: commits carry no `Co-authored-by` or agent session trailers.
 Commits not yet merged into `main` were rewritten to remove those lines; their trees
 and author/committer are unchanged. `main` history was deliberately left unchanged.
 AGENTS.md, the coding standards and story 006 AC-5 now state the rule.
+
+## Claude Code plugin interface — 2026-10-25
+
+Owner direction: package the project more like a Claude Code plugin, with an
+interface inspired by ponytail 5.3.2 (DietrichGebert/ponytail, reviewed at its
+2026-10-18 head) and adapted for this workflow. The repository now carries
+`.claude-plugin/plugin.json` and `marketplace.json`. It ships six skills (`eucg`
+mode with lite/full/strict/off levels, `eucg-review`, `eucg-audit`, `eucg-gaps`,
+`eucg-status`, `eucg-help`) and a standard-library SessionStart hook. The skills
+drive the existing CLI and keep its limits: no invented reviews, no network
+without consent, private runs outside the repository and no verdicts. These
+plugin skills take the place of the single `skills/legal-revalidation/SKILL.md`
+planned for Bolt 003. Predecessor comparison and release checks remain in Bolt 003.
+`claude plugin validate .` passed, and 10 synthetic plugin/hook tests pass. No
+real project was audited and the plugin was not installed globally.

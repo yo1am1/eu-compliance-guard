@@ -29,6 +29,38 @@ legal registry, API, scanner integration and dashboard remain pending. `frontend
 currently contains the generated contract and build metadata; `npm run build` is
 not an implemented UI milestone.
 
+## Claude Code plugin
+
+The repository is also a Claude Code plugin. Its interface is inspired by
+[ponytail](https://github.com/DietrichGebert/ponytail) and adapted for read-only
+legal revalidation:
+
+```text
+/plugin install eu-compliance-guard --marketplace yo1am1/eu-compliance-guard
+```
+
+On older Claude Code versions, run `/plugin marketplace add yo1am1/eu-compliance-guard`,
+then `/plugin install eu-compliance-guard@eu-compliance-guard`.
+The CLI needs `uv` (preferred) or Python 3.12+ with Pydantic.
+
+| Command | What it does |
+| --- | --- |
+| `/eucg [lite\|full\|strict\|off]` | Mode: notices EU legal touchpoints while coding and keeps declarations/gaps explicit |
+| `/eucg-review [target]` | Maps a diff to the eleven candidate legal families and the facts to declare |
+| `/eucg-audit [--fetch-official]` | Prepares `.eu-compliance-guard/declarations.json`, runs the private report and ranks what needs attention |
+| `/eucg-gaps` | Ledger of open review gaps from the latest run |
+| `/eucg-status` | The latest run at a glance |
+| `/eucg-help` | Reference card |
+
+A SessionStart hook (standard-library Python) adds the active level, the CLI
+command for the machine and a fixed-format summary of the latest run. It only
+activates in projects that have a `.eu-compliance-guard/` directory. Run output
+goes to `${XDG_STATE_HOME:-~/.local/state}/eu-compliance-guard/<project>/`, never
+into the repository. Set the default level with `EUCG_DEFAULT_MODE` or
+`~/.config/eu-compliance-guard/config.json` (`{"defaultMode": "lite"}`).
+The skills never invent reviewers or decisions. They never use the network
+without consent for that run, and they never state a compliance verdict.
+
 ## Local checks
 
 Prerequisites: Python 3.12+, uv, Node.js, npm, and make. Install the locked dependencies:
