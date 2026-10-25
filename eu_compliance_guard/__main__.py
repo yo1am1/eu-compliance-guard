@@ -6,6 +6,7 @@ import sys
 _ERROR_CODES = {
     "invalid-input", "unsafe-path", "capacity-exceeded", "io-failed",
     "output-exists", "privacy-unavailable", "budget-exceeded", "invalid-output", "retrieval-failed",
+    "incomplete-run", "corrupt-run",
 }
 
 
@@ -25,10 +26,15 @@ def main(argv: list[str] | None = None) -> int:
     network.add_argument("--offline", action="store_true", help="Use selected local files only (also the default)")
     network.add_argument("--fetch-official", action="store_true",
                          help="Also GET each declared source target from the fixed official-host registry")
+    view = commands.add_parser("view", help="Write and optionally open a static HTML view of a verified run", allow_abbrev=False)
+    view.add_argument("--run", required=True, help="Existing run directory with a valid completion marker")
+    view.add_argument("--open", action="store_true", help="Open the view in the default browser")
     arguments = sys.argv[1:] if argv is None else argv
     if any(argument.split("=", 1)[0] == "--previous" for argument in arguments):
         parser.error("unsupported future argument")
     args = parser.parse_args(arguments)
+    if args.command == "view":
+        return _view(args.run, args.open)
     try:
         from .revalidation import run
         bundle = run(args.input, args.output, fetch_official=True) if args.fetch_official else run(args.input, args.output)
@@ -44,6 +50,24 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print(f"Run {bundle.run.id}: processing state {bundle.run.state}; report.md and bundle.json retained.")
     print("Processing state is not a compliance verdict.")
+    return 0
+
+
+def _view(run_dir: str, open_browser: bool) -> int:
+    try:
+        from .view import write_view
+        path = write_view(run_dir)
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'view-failed'}: run view failed", file=sys.stderr)
+        return 2
+    print(path)
+    if open_browser:
+        import webbrowser
+        if not webbrowser.open(path.as_uri()):
+            print("eu-compliance-guard: no-browser: open the file above manually", file=sys.stderr)
     return 0
 
 
