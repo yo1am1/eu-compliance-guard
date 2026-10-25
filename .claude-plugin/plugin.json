@@ -1,0 +1,13 @@
+{
+  "name": "eu-compliance-guard",
+  "version": "0.1.0",
+  "description": "Read-only EU legal revalidation for coding agents: map project changes to candidate EU obligations, keep declarations and gaps explicit, and produce private traceable reports. Never a compliance verdict.",
+  "author": {
+    "name": "Yehor Trepalin",
+    "url": "https://github.com/yo1am1"
+  },
+  "homepage": "https://github.com/yo1am1/eu-compliance-guard",
+  "repository": "https://github.com/yo1am1/eu-compliance-guard",
+  "license": "MIT",
+  "keywords": ["eu-law", "gdpr", "compliance", "legal-review", "read-only"]
+}

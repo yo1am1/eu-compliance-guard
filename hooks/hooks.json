@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/eucg_session.py\"",
+            "timeout": 15,
+            "statusMessage": "Loading EU Compliance Guard..."
+          }
+        ]
+      }
+    ]
+  }
+}
