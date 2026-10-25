@@ -211,3 +211,14 @@ plugin skills take the place of the single `skills/legal-revalidation/SKILL.md`
 planned for Bolt 003. Predecessor comparison and release checks remain in Bolt 003.
 `claude plugin validate .` passed, and 10 synthetic plugin/hook tests pass. No
 real project was audited and the plugin was not installed globally.
+
+The Owner then asked for real UI inside Claude Code and a button to open results in
+the browser, following ponytail's band. The plugin now has a hooks module
+(`hooks/band/register.tsx`, contract `types/index.d.ts`) that draws a band above the
+prompt. It shows the latest run summary and has Audit / Review diff / Gaps / Open
+report / Help buttons. A new `view` CLI command verifies a run and writes an
+escaped, script-free HTML page beside it, then opens it in the browser. Checks:
+`claude plugin validate .` passes, `claude plugin test .` passes 4 band tests on
+all four surfaces, the band type-checks against Claude Code 2.1.310's API, and
+165 Python tests pass outside `test_execution.py`. The band has not been seen in
+an interactive local session yet.

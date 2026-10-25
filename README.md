@@ -52,6 +52,25 @@ The CLI needs `uv` (preferred) or Python 3.12+ with Pydantic.
 | `/eucg-status` | The latest run at a glance |
 | `/eucg-help` | Reference card |
 
+**Band above the prompt** (Claude Code 2.1.290 or later, terminal or desktop app). In
+projects with `.eu-compliance-guard/`, a band shows the latest completed run: its
+state, open gaps, supported requirements, assessment-date age and source attempts.
+Its buttons are **Audit**, **Review diff**, **Gaps**, **Open report** and **Help**,
+and `–` folds it to one line. It reads run data as counts and fixed-format fields
+only. The module is `hooks/band/register.tsx`, tested with `claude plugin test .`.
+
+**Open report in the browser.** The button runs the plugin CLI's `view` command:
+
+```sh
+python -m eu_compliance_guard view --run <run dir> --open
+```
+
+It first verifies the run's completion marker and every artifact digest. It then
+writes a static HTML page to `<parent>/views/<run>.html` (0700/0600) and opens it
+with the default browser. The page has no scripts and loads nothing, and every
+value is escaped. The run directory itself is never changed. In a cloud session
+there is no local browser, so the page is only written and its path is shown.
+
 A SessionStart hook (standard-library Python) adds the active level, the CLI
 command for the machine and a fixed-format summary of the latest run. It only
 activates in projects that have a `.eu-compliance-guard/` directory. Run output
