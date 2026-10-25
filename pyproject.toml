@@ -32,6 +32,7 @@ include = [
     "/.claude-plugin",
     "/skills",
     "/hooks",
+    "/types",
     "/licenses",
     "/pyproject.toml",
     "/uv.lock",

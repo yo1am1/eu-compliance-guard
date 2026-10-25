@@ -53,13 +53,13 @@ def _safe(value) -> str:
 def latest_run(project: Path) -> str:
     """Fixed-format summary of the newest run with a completion marker, or a fixed notice."""
     try:
-        runs = [path for path in state_dir(project).iterdir()
-                if not path.is_symlink() and path.is_dir() and (path / "complete.json").is_file()]
+        runs = [path for path in state_dir(project).iterdir() if path.name.startswith("run-")
+                and not path.is_symlink() and path.is_dir() and (path / "complete.json").is_file()]
     except OSError:
         runs = []
     if not runs:
         return "No completed run yet; use /eucg-audit."
-    newest = max(runs, key=lambda path: (path / "complete.json").stat().st_mtime_ns)
+    newest = max(runs, key=lambda path: path.name)  # Run names carry their UTC start time, as the band reads them.
     try:
         with open(newest / "bundle.json", "rb") as handle:
             raw = handle.read(MAX_BUNDLE_BYTES + 1)

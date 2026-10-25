@@ -9,5 +9,12 @@
   "homepage": "https://github.com/yo1am1/eu-compliance-guard",
   "repository": "https://github.com/yo1am1/eu-compliance-guard",
   "license": "MIT",
-  "keywords": ["eu-law", "gdpr", "compliance", "legal-review", "read-only"]
+  "keywords": [
+    "eu-law",
+    "gdpr",
+    "compliance",
+    "legal-review",
+    "read-only"
+  ],
+  "types": "./types/index.d.ts"
 }

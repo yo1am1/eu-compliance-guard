@@ -30,6 +30,13 @@ write files or run the CLI.
 | **eucg-status** | `/eucg-status` | The latest run at a glance. |
 | **eucg-help** | `/eucg-help` | This card. |
 
+## Band and report view
+
+In Claude Code (terminal or desktop app), a band above the prompt shows the latest
+run: state, gaps, supported requirements and assessment age. It has buttons for
+Audit, Review diff, Gaps, Open report and Help, plus `–` to fold it. Open report
+writes a static HTML view of the verified run and opens it in your browser.
+
 ## CLI
 
 `python -m eu_compliance_guard revalidate --input <declarations.json> --output <new run dir> [--offline | --fetch-official]`
@@ -38,6 +45,8 @@ write files or run the CLI.
   official hosts, and only with your consent for that run.
 - Runs are private (0700/0600) and immutable. Use a new directory per run.
 - Exit 0: report written, possibly partial. Exit 2: invalid input or output.
+- `python -m eu_compliance_guard view --run <run dir> [--open]` writes
+  `<parent>/views/<run>.html` from a verified run (the run itself is unchanged).
 
 ## Limits
 

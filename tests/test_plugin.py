@@ -41,6 +41,8 @@ class PluginLayoutTests(unittest.TestCase):
         self.assertEqual((plugin["name"], plugin["version"]), ("eu-compliance-guard", version))
         self.assertEqual([(item["name"], item["source"]) for item in market["plugins"]], [("eu-compliance-guard", "./")])
         self.assertNotIn("hooks", plugin)  # hooks/hooks.json is the default location; listing it again would duplicate.
+        self.assertEqual(plugin["types"], "./types/index.d.ts")
+        self.assertTrue((ROOT / plugin["types"]).is_file())
 
     def test_every_skill_has_matching_frontmatter_and_is_in_help(self):
         self.assertEqual(sorted(path.name for path in (ROOT / "skills").iterdir()), sorted(SKILLS))
@@ -71,10 +73,12 @@ class PluginLayoutTests(unittest.TestCase):
         [hook] = entry["hooks"]
         self.assertIn("${CLAUDE_PLUGIN_ROOT}/hooks/eucg_session.py", hook["command"])
         self.assertLessEqual(hook["timeout"], 15)
+        self.assertEqual(config["modules"], ["./band/register.tsx"])
+        self.assertTrue((ROOT / "hooks/band/register.tsx").is_file())
 
     def test_sdist_includes_plugin_files(self):
         include = tomllib.loads((ROOT / "pyproject.toml").read_text())["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
-        for path in ("/.claude-plugin", "/skills", "/hooks"):
+        for path in ("/.claude-plugin", "/skills", "/hooks", "/types"):
             self.assertIn(path, include)
 
 

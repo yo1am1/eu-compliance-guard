@@ -33,5 +33,8 @@ sources: <r> retrieved (<same> same bytes, <changed> changed) · <f> failed · <
 gaps: <N> · declarations changed since run: <yes|no>
 ```
 
+If the user wants the full picture, offer the browser view:
+`<cli> view --run <run dir> --open` (or the band's Open report button).
+
 Close with one line: the most urgent next action from `next_actions`, then
 `Processing state is not a compliance verdict.`
