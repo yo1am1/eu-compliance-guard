@@ -9,7 +9,7 @@ created: 2026-10-18T19:01:39Z
 started: 2026-10-25T01:30:00Z
 completed: null
 current_stage: test
-stages_completed: [plan, implement, test]
+stages_completed: []
 requires_bolts: [001-legal-revalidation-cli]
 enables_bolts: [003-legal-revalidation-cli]
 requires_units: []
