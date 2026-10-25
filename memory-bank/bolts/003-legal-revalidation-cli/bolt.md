@@ -27,6 +27,16 @@ complexity:
 
 History/revalidation, portable skill and release. Planned only; included stories remain unimplemented.
 
+## v3 plugin and UI branch — 2026-10-25
+
+Owner direction: the Claude Code plugin interface is Bolt 003 work (v3) and lives on
+its own branch, `claude/bolt-003-plugin-ui`, built on the Bolt 002 retrieval branch.
+It delivers story 005's portable instructions as a plugin (`/eucg` mode, review,
+audit, gaps, status and help skills, plus a SessionStart hook), with a band above
+the prompt and a browser view of verified runs. Story 004 (predecessor revalidation)
+and story 006 (release checks) are not started. No stage of this bolt has been
+validated by the Owner, and no story is marked complete.
+
 ## Stories Included
 
 - [ ] [004-revalidation](../../intents/001-read-only-legal-revalidation/units/001-legal-revalidation-cli/stories/004-revalidation.md): Compare retained assessments and invalidate review claims (Must).
