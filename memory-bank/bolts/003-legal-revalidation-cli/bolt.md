@@ -3,12 +3,12 @@ id: 003-legal-revalidation-cli
 unit: 001-legal-revalidation-cli
 intent: 001-read-only-legal-revalidation
 type: simple-construction-bolt
-status: planned
+status: in-progress
 stories: [004-revalidation, 005-portable-skill-and-example, 006-release-checks]
 created: 2026-10-18T19:01:39Z
-started: null
+started: 2026-10-27T10:37:33Z
 completed: null
-current_stage: null
+current_stage: test
 stages_completed: []
 requires_bolts: [002-legal-revalidation-cli]
 enables_bolts: []
@@ -25,7 +25,11 @@ complexity:
 
 ## Objective
 
-History/revalidation, portable skill and release. Planned only; included stories remain unimplemented.
+History/revalidation, portable plugin skills and release. Implementation and checks
+are recorded in [implementation-plan.md](implementation-plan.md),
+[implementation-walkthrough.md](implementation-walkthrough.md) and
+[test-walkthrough.md](test-walkthrough.md). Owner stage acceptance remains pending;
+no story or bolt is marked complete.
 
 ## v3 plugin and UI branch — 2026-10-25
 
@@ -38,6 +42,11 @@ and story 006 (release checks) are not started. No stage of this bolt has been
 validated by the Owner, and no story is marked complete.
 
 ## Stories Included
+
+Continuation on 2026-10-27: predecessor comparison and release verification are
+implemented and recorded; the six plugin skills cover the portable instructions.
+The Owner directed continuation of this branch. Earlier stage acceptance and
+formal bolt completion remain pending.
 
 - [ ] [004-revalidation](../../intents/001-read-only-legal-revalidation/units/001-legal-revalidation-cli/stories/004-revalidation.md): Compare retained assessments and invalidate review claims (Must).
 - [ ] [005-portable-skill-and-example](../../intents/001-read-only-legal-revalidation/units/001-legal-revalidation-cli/stories/005-portable-skill-and-example.md): Ship portable instructions and an offline example (Must).

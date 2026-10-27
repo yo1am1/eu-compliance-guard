@@ -181,8 +181,9 @@ offline declarations/reporting, official-source retrieval, then predecessor
 revalidation and the portable skill/release. Bolt 001 implementation is approved;
 its [Test report](memory-bank/bolts/001-legal-revalidation-cli/test-walkthrough.md)
 passes all twelve offline acceptance criteria and is accepted. Bolt 001 is complete;
-retrieval and plugin checks are recorded on this branch. Predecessor comparison is
-implemented; final release verification and Owner acceptance remain pending.
+retrieval and plugin checks are recorded on this branch. Predecessor comparison and
+[release verification](memory-bank/bolts/003-legal-revalidation-cli/test-walkthrough.md)
+are implemented and recorded; Owner stage and MVP acceptance remain pending.
 
 Scanners, Graphify, the dashboard, and authorized fix/retest automation remain later
 layers. They do not require a PC vulnerability audit to begin the legal workflow.

@@ -222,3 +222,29 @@ escaped, script-free HTML page beside it, then opens it in the browser. Checks:
 all four surfaces, the band type-checks against Claude Code 2.1.310's API, and
 165 Python tests pass outside `test_execution.py`. The band has not been seen in
 an interactive local session yet.
+
+## Predecessor comparison and release checks — 2026-10-27
+
+On the Owner's direction, the latest plugin/UI branch was pulled and predecessor
+comparison implemented in `ed11d8f`. `--previous` verifies one explicitly selected
+retained run and creates a linked successor with `comparison.json`, observed
+comparison evidence and historical freshness overlays. Relevant dependency changes
+withdraw effective review support; original declarations and every predecessor
+byte are retained. Missing observations remain unknown; matching bytes renew
+neither legal currency nor reviewer approval. Incomplete dependency attribution
+withdraws support conservatively. Family screenings renew after any known change.
+
+All 197 tests pass with schema/type drift checks and TypeScript compilation.
+Claude plugin validation and all four band tests pass. Wheel/sdist builds,
+archive inspection and the isolated installed-wheel first-run/successor/static-view
+workflow pass outside the checkout with packaged fictional data, valid marker
+digests and private modes. See the [Test walkthrough](../memory-bank/bolts/003-legal-revalidation-cli/test-walkthrough.md).
+Technical implementation and release checks are recorded; formal stage and MVP
+acceptance remain pending. No current-law or real-project audit was performed.
+
+No live source/provider/scanner, interactive UI, global installation or host-policy
+work ran. Historical `specs/**` remain unchanged. The plugin validator warns about
+the missing marketplace icon. Native Herdr is unavailable in this session; work
+used one writer, without hidden teammates. Two pre-existing local planning edits
+remain in Git stash. The next authorized work is the separate recommender audit,
+system improvements and Streamlit MVP.
