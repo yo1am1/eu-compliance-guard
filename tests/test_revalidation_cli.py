@@ -51,8 +51,7 @@ class RevalidationCliTests(unittest.TestCase):
 
     def test_future_and_conflicting_arguments_reject_before_workflow_import_or_any_input_reads(self):
         for future in (["--offline", "--fetch-official"], ["--fetch-official", "--offline"], ["--fetch-official=true"],
-                       ["--previous", "PRIVATE-SECRET"], ["--previous=PRIVATE-SECRET"], ["--help", "--previous", "x"],
-                       ["--fetch-official", "--previous", "PRIVATE-SECRET"]):
+                       ["--previous"]):
             stdout, stderr = io.StringIO(), io.StringIO()
             with patch("builtins.open", side_effect=AssertionError("must reject before reads")), \
                     patch("pathlib.Path.read_bytes", side_effect=AssertionError("must reject before reads")), \
@@ -63,6 +62,13 @@ class RevalidationCliTests(unittest.TestCase):
             self.assertEqual(caught.exception.code, 2)
             self.assertNotIn("PRIVATE-SECRET", stderr.getvalue())
             self.assertEqual(stdout.getvalue(), "")
+
+    def test_previous_delegates_explicit_path(self):
+        run = Mock(return_value=m.RevalidationBundle.model_validate(bundle_payload()))
+        code, _, stderr = self.call_main(
+            ["revalidate", "--input", "in", "--output", "out", "--previous", "prior", "--fetch-official"], run)
+        self.assertEqual((code, stderr), (0, ""))
+        run.assert_called_once_with("in", "out", fetch_official=True, previous="prior")
 
     def test_parse_errors_do_not_echo_untrusted_arguments(self):
         for arguments in (["PRIVATE-SECRET"], ["revalidate", "--input", "PRIVATE-SECRET"],

@@ -14,7 +14,6 @@ import stat
 
 from . import models as m, revalidation as r
 
-MAX_MARKER_BYTES = 64 * 1024
 CSS = """
 :root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--line:#e4e1d8;--card:#fff;--warn:#9a5b00;--warnbg:#fff4df;--bad:#a1271b;--badbg:#fde9e6;--ok:#2d6a3e;--okbg:#e6f3e9}
 @media (prefers-color-scheme:dark){:root{--bg:#161614;--fg:#ecebe6;--muted:#a3a29b;--line:#34332f;--card:#1f1e1c;--warn:#f0b35a;--warnbg:#3a2a12;--bad:#f08a7e;--badbg:#3d1915;--ok:#8fd19e;--okbg:#17301e}}
@@ -46,9 +45,10 @@ def _tag(value: str) -> str:
 def _table(headers: list[str], rows: list[list[str]], empty: str) -> str:
     if not rows:
         return f'<p class="muted">{escape(empty)}</p>'
-    head = "".join(f"<th>{escape(item)}</th>" for item in headers)
+    head = "".join(f'<th scope="col">{escape(item)}</th>' for item in headers)
     body = "".join("<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>" for row in rows)
-    return f'<div class="scroll"><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>'
+    name = escape(", ".join(headers), quote=True)
+    return f'<div class="scroll" tabindex="0" role="region" aria-label="{name}"><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>'
 
 
 def _list(items: list[str]) -> str:
@@ -98,6 +98,19 @@ def render_html(bundle: m.RevalidationBundle) -> str:
                     for item in bundle.source_attempts]
     family_rows = [[escape(item.family), _tag(item.applicability), escape(item.reviewer or "—"), _list(item.gaps)]
                    for item in bundle.family_screenings]
+    comparison_html = ""
+    if bundle.comparison is not None:
+        comparison_html = (
+            "<h2>Predecessor comparison</h2>"
+            f'<p>Historical run <code>{escape(bundle.comparison.previous_run_id)}</code>. '
+            "Matching recorded inputs renew neither legal currency nor reviewer approval.</p>"
+            + _table(["Dependency", "ID or path", "Previous digest", "Current digest"],
+                [[escape(item.kind), escape(item.identity), escape(item.before or "not present"),
+                  escape(item.after or "not present")] for item in bundle.comparison.changes],
+                "Recorded dependencies unchanged.")
+            + _table(["Historical disposition", "Freshness", "Changed dependencies", "Review actions and uncertainty"],
+                [[escape(item.obligation_disposition_id), _tag(item.freshness), _list(item.changed_dependencies),
+                  _list(item.reasons)] for item in bundle.current_assessments], "No historical dispositions."))
     banner = ("FICTIONAL / SYNTHETIC DATA. Every conclusion below is fictional and establishes no real EU duty."
               if bundle.synthetic else "Recorded declarations and self-attested reviews. Not a compliance verdict.")
     parts = [
@@ -123,6 +136,7 @@ def render_html(bundle: m.RevalidationBundle) -> str:
         "<h2>Official-source retrieval</h2>",
         "<p class=\"muted\">Official hosting establishes neither binding status, completeness, applicability nor currency.</p>",
         _table(["Target", "State", "URL", "HTTP", "Compared", "Failure"], attempt_rows, "No retrieval was requested for this run."),
+        comparison_html,
         "<h2>Eleven candidate legal families</h2>",
         _table(["Family", "Applicability", "Reviewer", "Gaps"], family_rows, ""),
         '<p class="muted">Generated from the verified run bundle. Processing state describes report assembly only; '
@@ -134,31 +148,11 @@ def render_html(bundle: m.RevalidationBundle) -> str:
 
 def verify_run(run_dir: str | os.PathLike) -> m.RevalidationBundle:
     """Accept a run only when its marker and every listed artifact digest match."""
-    r._primitives()
+    from .history import load_run
     try:
-        with r._parent(Path(run_dir) / "complete.json") as (fd, _):
-            marker_file = r._read_file(fd, "complete.json", limit=MAX_MARKER_BYTES, retain=True)
-            if marker_file.availability != "available":
-                raise ViewError("incomplete-run")
-            marker = m.parse_record(m.RunCompletion, marker_file.content)
-            files = {}
-            for item in marker.files:
-                observed = r._read_file(fd, item.path, limit=r.MAX_FILE_BYTES * 2, retain=item.path == "bundle.json")
-                if observed.availability != "available" or observed.digest != item.digest:
-                    raise ViewError("corrupt-run")
-                files[item.path] = observed
-            bundle = m.parse_record(m.RevalidationBundle, files["bundle.json"].content)
-    except FileNotFoundError:
-        raise ViewError("incomplete-run") from None
-    except (OSError, r.RevalidationError):
-        raise ViewError("unsafe-path") from None
-    except ValueError as error:
-        if isinstance(error, ViewError):
-            raise
-        raise ViewError("corrupt-run") from None
-    if bundle.run.id != marker.run_id:
-        raise ViewError("corrupt-run")
-    return bundle
+        return load_run(run_dir)[0]
+    except r.RevalidationError as error:
+        raise ViewError(error.code) from None
 
 
 def write_view(run_dir: str | os.PathLike) -> Path:

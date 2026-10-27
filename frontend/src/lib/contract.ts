@@ -283,6 +283,21 @@ export type ProjectId12 = string;
 export type Revision8 = number;
 export type Statement = string;
 export type Synthetic1 = boolean;
+export type After = string | null;
+export type Before = string | null;
+export type Identity = string;
+export type Kind1 = string;
+/**
+ * @maxItems 1000
+ */
+export type Changes = DependencyChange[];
+/**
+ * @maxItems 200
+ */
+export type HistoricalDispositionIds = string[];
+export type PreviousBundleDigest = string;
+export type PreviousManifestId = string;
+export type PreviousRunId = string;
 export type NextCursor = string | null;
 export type OriginRunId2 = string;
 export type ProjectId13 = string;
@@ -484,7 +499,7 @@ export type RunId8 = string;
 export type EvidenceIds4 = string[];
 export type FromId = string;
 export type Id14 = string;
-export type Kind1 = string;
+export type Kind2 = string;
 export type Origin = "structural" | "static_inferred" | "semantic" | "ambiguous" | "unknown";
 /**
  * @maxItems 1000
@@ -539,7 +554,7 @@ export type BrowserContext = {
 export type CapturedAt = string;
 export type Digest2 = string;
 export type Id15 = string;
-export type Kind2 = string;
+export type Kind3 = string;
 export type ManifestId5 = string;
 export type MediaType1 = string;
 export type ProjectId18 = string;
@@ -995,6 +1010,10 @@ export type ProjectId34 = string;
 export type RequestId17 = string;
 export type RunId22 = string | null;
 export type SchemaVersion18 = 1;
+/**
+ * @maxItems 200
+ */
+export type CurrentAssessments = CurrentAssessment[];
 /**
  * @maxItems 200
  */
@@ -1518,7 +1537,7 @@ export type Synthetic6 = boolean;
  */
 export type EffectiveApplicabilityDecisions = ApplicabilityDecision[];
 /**
- * @maxItems 200
+ * @maxItems 201
  */
 export type Evidence2 = Evidence[];
 /**
@@ -1827,7 +1846,7 @@ export type SourceAttempts =
 export type Synthetic7 = boolean;
 /**
  * @minItems 4
- * @maxItems 36
+ * @maxItems 37
  */
 export type Files = [SourceFile, SourceFile, SourceFile, SourceFile, ...SourceFile[]];
 export type RunId23 = string;
@@ -1849,7 +1868,7 @@ export type RunId25 = string | null;
 export type SchemaVersion22 = 1;
 export type Actions = PatchProposal[];
 export type Attempts = CheckAttempt[];
-export type CurrentAssessments = CurrentAssessment[];
+export type CurrentAssessments1 = CurrentAssessment[];
 export type Cursor1 = string;
 export type FindingAssessments = FindingAssessment[];
 export type Findings = Finding[];
@@ -2229,6 +2248,27 @@ export interface SourceFile {
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "DependencyChange".
+ */
+export interface DependencyChange {
+  after: After;
+  before: Before;
+  identity: Identity;
+  kind: Kind1;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "DependencyComparison".
+ */
+export interface DependencyComparison {
+  changes: Changes;
+  historical_disposition_ids: HistoricalDispositionIds;
+  previous_bundle_digest: PreviousBundleDigest;
+  previous_manifest_id: PreviousManifestId;
+  previous_run_id: PreviousRunId;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
  * via the `definition` "DetailPage".
  */
 export interface DetailPage {
@@ -2412,7 +2452,7 @@ export interface GraphRelationship {
   evidence_ids: EvidenceIds4;
   from_id: FromId;
   id: Id14;
-  kind: Kind1;
+  kind: Kind2;
   origin: Origin;
   provenance: Provenance1;
   source_paths: SourcePaths;
@@ -2455,7 +2495,7 @@ export interface Evidence {
   captured_at: CapturedAt;
   digest: Digest2;
   id: Id15;
-  kind: Kind2;
+  kind: Kind3;
   manifest_id: ManifestId5;
   media_type: MediaType1;
   project_id: ProjectId18;
@@ -2880,6 +2920,8 @@ export interface ResultsImportCommand {
  * via the `definition` "RevalidationBundle".
  */
 export interface RevalidationBundle {
+  comparison?: DependencyComparison | null;
+  current_assessments?: CurrentAssessments;
   declarations: RevalidationInput;
   effective_applicability_decisions: EffectiveApplicabilityDecisions;
   evidence: Evidence2;
@@ -3012,7 +3054,7 @@ export interface ScopeRegisterCommand {
 export interface Snapshot {
   actions: Actions;
   attempts: Attempts;
-  current_assessments: CurrentAssessments;
+  current_assessments: CurrentAssessments1;
   cursor: Cursor1;
   finding_assessments: FindingAssessments;
   findings: Findings;

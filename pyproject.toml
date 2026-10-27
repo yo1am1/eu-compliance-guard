@@ -20,6 +20,7 @@ packages = ["eu_compliance_guard"]
 
 [tool.hatch.build.targets.sdist]
 include = [
+    "/README.md",
     "/eu_compliance_guard",
     "/frontend/src",
     "/frontend/scripts",

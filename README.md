@@ -3,7 +3,7 @@
 Tools and portable agent instructions for revalidating project requirements against
 applicable EU law, using current official sources and traceable evidence.
 
-**Status: the first offline reporting slice is implemented; the broader MVP is pending.**
+**Status: offline reporting, official-source retrieval and the Claude Code plugin are implemented; broader MVP acceptance is pending.**
 No real compliance audit has run. This repository preserves the work originally
 started in [agentic-setup](https://github.com/yo1am1/agentic-setup).
 
@@ -24,8 +24,9 @@ started in [agentic-setup](https://github.com/yo1am1/agentic-setup).
   plus schema/type drift checks.
 - Preserved requirements, design, research, implementation plan, and team reviews.
 
-Official-source fetching, predecessor comparison, the portable skill, a reviewed
-legal registry, API, scanner integration and dashboard remain pending. `frontend/`
+Predecessor comparison now retains changed dependencies and historical freshness
+overlays, invalidating affected effective reviews. A reviewed legal registry,
+API, scanner integration and dashboard remain pending. `frontend/`
 currently contains the generated contract and build metadata; `npm run build` is
 not an implemented UI milestone.
 
@@ -113,6 +114,10 @@ eucg_example_dir=$(mktemp -d /tmp/eucg-example.XXXXXX)
 uv run --locked python -m eu_compliance_guard revalidate \
   --input fixtures/revalidation-synthetic.json \
   --output "$eucg_example_dir/run-001" --offline
+uv run --locked python -m eu_compliance_guard revalidate \
+  --input fixtures/revalidation-synthetic.json \
+  --previous "$eucg_example_dir/run-001" \
+  --output "$eucg_example_dir/run-002" --offline
 ```
 
 Keep the task variable in the same shell. The output parent must already exist,
@@ -149,8 +154,25 @@ are followed, with 8 MiB per response and 20 s per target. Fictional fixture
 targets are never contacted. Each target gets a recorded attempt, and accepted bytes
 are retained as unreviewed candidates. Retrieval never establishes binding status,
 completeness, applicability or currency. `--offline` and `--fetch-official`
-conflict. `--previous` still fails with exit 2 before input reads or output creation.
-Tests use fake transports only; no live smoke check has been run.
+conflict. Tests use fake transports only. A separately authorized historical
+[live smoke check](memory-bank/bolts/002-legal-revalidation-cli/live-smoke-report.md)
+records EUR-Lex challenge failures and variable page bytes; it establishes no legal conclusions.
+
+`--previous` takes one explicitly selected retained run directory. Its completion
+marker, listed artifact digests, declarations, manifest and required source bytes
+are verified before comparison or retrieval. A corrupt, incomplete, cross-project
+or symlinked predecessor fails with exit 2. Versioned semantic edits require an
+increased revision; source retrieval timestamps alone do not change content.
+The successor retains `comparison.json`, its evidence metadata and freshness
+overlays, and links the parent run without changing any predecessor file.
+
+Relevant changes make historical reviews stale and withdraw affected effective
+support; original declarations remain visible. Missing evidence or failed/offline
+refresh means unknown freshness. Known change takes precedence when both occur.
+Matching downloaded bytes can establish only matching recorded inputs, never
+current law or renewed reviewer approval. Incomplete dependency attribution
+withdraws support conservatively; family screenings are renewed after any known
+change because their dependency lists are incomplete.
 
 ## Next deliverables
 
@@ -159,7 +181,8 @@ offline declarations/reporting, official-source retrieval, then predecessor
 revalidation and the portable skill/release. Bolt 001 implementation is approved;
 its [Test report](memory-bank/bolts/001-legal-revalidation-cli/test-walkthrough.md)
 passes all twelve offline acceptance criteria and is accepted. Bolt 001 is complete;
-official-source retrieval is the next planned slice.
+retrieval and plugin checks are recorded on this branch. Predecessor comparison is
+implemented; final release verification and Owner acceptance remain pending.
 
 Scanners, Graphify, the dashboard, and authorized fix/retest automation remain later
 layers. They do not require a PC vulnerability audit to begin the legal workflow.

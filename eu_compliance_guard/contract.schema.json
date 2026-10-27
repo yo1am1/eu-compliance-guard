@@ -1732,6 +1732,106 @@
       "title": "DeclaredRequirement",
       "type": "object"
     },
+    "DependencyChange": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "After"
+        },
+        "before": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Before"
+        },
+        "identity": {
+          "maxLength": 8192,
+          "title": "Identity",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "identity",
+        "before",
+        "after"
+      ],
+      "title": "DependencyChange",
+      "type": "object"
+    },
+    "DependencyComparison": {
+      "additionalProperties": false,
+      "properties": {
+        "changes": {
+          "items": {
+            "$ref": "#/$defs/DependencyChange"
+          },
+          "maxItems": 1000,
+          "title": "Changes",
+          "type": "array"
+        },
+        "historical_disposition_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 200,
+          "title": "Historical Disposition Ids",
+          "type": "array"
+        },
+        "previous_bundle_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Previous Bundle Digest",
+          "type": "string"
+        },
+        "previous_manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Previous Manifest Id",
+          "type": "string"
+        },
+        "previous_run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Previous Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "previous_run_id",
+        "previous_manifest_id",
+        "previous_bundle_digest",
+        "historical_disposition_ids",
+        "changes"
+      ],
+      "title": "DependencyComparison",
+      "type": "object"
+    },
     "DetailPage": {
       "additionalProperties": false,
       "properties": {
@@ -5047,6 +5147,25 @@
     "RevalidationBundle": {
       "additionalProperties": false,
       "properties": {
+        "comparison": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DependencyComparison"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "current_assessments": {
+          "items": {
+            "$ref": "#/$defs/CurrentAssessment"
+          },
+          "maxItems": 200,
+          "title": "Current Assessments",
+          "type": "array"
+        },
         "declarations": {
           "$ref": "#/$defs/RevalidationInput"
         },
@@ -5062,7 +5181,7 @@
           "items": {
             "$ref": "#/$defs/Evidence"
           },
-          "maxItems": 200,
+          "maxItems": 201,
           "title": "Evidence",
           "type": "array"
         },
@@ -5307,7 +5426,7 @@
           "items": {
             "$ref": "#/$defs/SourceFile"
           },
-          "maxItems": 36,
+          "maxItems": 37,
           "minItems": 4,
           "title": "Files",
           "type": "array"

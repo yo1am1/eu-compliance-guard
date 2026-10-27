@@ -170,6 +170,19 @@ def render_report(bundle: m.RevalidationBundle) -> str:
     record("Run", bundle.run)
     emit("[Normalized declarations](input.json) · [Manifest](manifest.json) · [Validated bundle](bundle.json) · [Completion marker](complete.json)")
     emit()
+    if bundle.comparison is not None:
+        emit("## Predecessor comparison and renewed review actions")
+        emit()
+        field("Historical run", bundle.comparison.previous_run_id)
+        field("Historical bundle digest", bundle.comparison.previous_bundle_digest)
+        emit("[Retained dependency comparison](comparison.json)")
+        emit()
+        for change in bundle.comparison.changes:
+            record("Dependency change", change)
+        if not bundle.comparison.changes:
+            emit("Recorded dependencies unchanged; this renews neither legal currency nor reviewer approval.")
+        for overlay in bundle.current_assessments:
+            record("Historical claim freshness", overlay)
     emit("## Declared scope, jurisdictions and exclusions")
     emit()
     record("Scope", declared.scope, exclude={"roles", "size_and_sector", "activities"})

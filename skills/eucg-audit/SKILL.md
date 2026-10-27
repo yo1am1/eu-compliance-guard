@@ -6,7 +6,7 @@ description: >
   run the private offline report (or, with explicit consent, the official-source
   fetch), and present what needs attention, ranked. Use for "eucg audit",
   "run the compliance report", "revalidate against EU law", /eucg-audit.
-argument-hint: "[--fetch-official]"
+argument-hint: "[--fetch-official] [--previous <run-directory>]"
 ---
 
 Produce the project's traceable revalidation report. The report states what is
@@ -46,6 +46,14 @@ mkdir -p -m 700 "$state"
 - `--fetch-official` replaces `--offline` only when the user said yes to network
   access for this run. It GETs only the declared targets on the fixed registry.
   Fetched bytes are unreviewed candidates.
+- For revalidation, pass the explicitly selected retained run directory with
+  `--previous <run-directory>` and always choose a new output directory. Do not
+  discover history or choose a predecessor silently. The CLI verifies it and
+  retains `comparison.json`, comparison evidence and historical freshness overlays.
+- Increase revisions when changing versioned semantic records and update their
+  explicit pins. Never invent renewed reviewer approval to clear a stale result.
+  Explain stale dependencies and unknown freshness separately; unchanged bytes
+  renew neither legal currency nor reviewer approval. Historical files stay intact.
 - Exit 2: show the safe error code (for example `invalid-input`), fix the
   declarations and retry under a new run directory. Never overwrite a run.
 

@@ -1305,6 +1305,33 @@ class RevalidationInput(Record):
         return self
 
 
+class DependencyChange(Record):
+    kind: Name
+    identity: Text
+    before: Digest | None
+    after: Digest | None
+
+    @model_validator(mode="after")
+    def different(self) -> DependencyChange:
+        if self.before == self.after:
+            raise ValueError("dependency change needs different digests")
+        return self
+
+
+class DependencyComparison(Record):
+    previous_run_id: Id
+    previous_manifest_id: Id
+    previous_bundle_digest: Digest
+    historical_disposition_ids: Annotated[list[Id], Field(max_length=200)]
+    changes: Annotated[list[DependencyChange], Field(max_length=1000)]
+
+    @model_validator(mode="after")
+    def unique_dependencies(self) -> DependencyComparison:
+        _require_ids(self.historical_disposition_ids, dict.fromkeys(self.historical_disposition_ids))
+        _unique_records(self.changes, lambda item: (item.kind, item.identity))
+        return self
+
+
 class RevalidationBundle(Record):
     schema_version: SchemaVersion
     project_id: Id
@@ -1313,7 +1340,7 @@ class RevalidationBundle(Record):
     run: AuditRun
     manifest: InputManifest
     declarations: RevalidationInput
-    evidence: Annotated[list[Evidence], Field(max_length=200)]
+    evidence: Annotated[list[Evidence], Field(max_length=201)]
     obligation_dispositions: Annotated[list[ObligationDisposition], Field(max_length=200)]
     requirement_assessments: Annotated[list[RequirementAssessment], Field(max_length=200)]
     effective_applicability_decisions: Annotated[list[ApplicabilityDecision], Field(max_length=200)]
@@ -1323,6 +1350,8 @@ class RevalidationBundle(Record):
     # One attempt per fetched target; retrieved bytes are unreviewed candidates, never declared sources.
     source_attempts: Annotated[list[SourceAttempt], Field(max_length=16)] = Field(default_factory=list)
     retrieved_sources: Annotated[list[LegalSource], Field(max_length=16)] = Field(default_factory=list)
+    comparison: DependencyComparison | None = None
+    current_assessments: Annotated[list[CurrentAssessment], Field(max_length=200)] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def membership(self) -> RevalidationBundle:
@@ -1334,13 +1363,46 @@ class RevalidationBundle(Record):
                 or self.manifest.scope_revision != declared.scope.revision
                 or self.manifest.fixture_digest != self.input_digest):
             raise ValueError("bundle project/synthetic/run/manifest mismatch")
-        if self.run.state not in ("partial", "completed") or self.run.parent_run_id is not None:
-            raise ValueError("offline bundle requires a finished first run")
+        if self.run.state not in ("partial", "completed"):
+            raise ValueError("bundle requires a finished run")
         evidence = _unique_records(self.evidence)
         expected_evidence = {item.evidence.id: item.evidence for item in declared.evidence}
-        if set(evidence) != set(expected_evidence):
+        proof_ids = set(evidence) - set(expected_evidence)
+        if self.comparison is None:
+            if self.run.parent_run_id is not None or self.current_assessments or proof_ids:
+                raise ValueError("first run cannot contain predecessor claims")
+        else:
+            comparison = self.comparison
+            if (self.run.parent_run_id != comparison.previous_run_id or self.run.id == comparison.previous_run_id
+                    or self.manifest.id == comparison.previous_manifest_id or len(proof_ids) != 1):
+                raise ValueError("comparison predecessor/proof mismatch")
+            proof = evidence[next(iter(proof_ids))]
+            if (proof.project_id != self.project_id or proof.run_id != self.run.id
+                    or proof.manifest_id != self.manifest.id or proof.kind != "dependency_comparison"
+                    or proof.digest != content_digest(canonical_json(comparison))
+                    or proof.provenance != "observed" or proof.availability != "available"
+                    or proof.redaction != "safe" or proof.media_type != "application/json"
+                    or proof.attempt_id is not None or proof.source_refs != ["comparison.json"]
+                    or proof.browser_context is not None):
+                raise ValueError("comparison proof must describe retained comparison metadata")
+            overlays = _unique_records(self.current_assessments, lambda item: item.obligation_disposition_id)
+            _unique_records(self.current_assessments)
+            changed_keys = {f"{item.kind}:{item.identity}" for item in comparison.changes}
+            if set(overlays) != set(comparison.historical_disposition_ids):
+                raise ValueError("comparison must cover every historical disposition")
+            for overlay in overlays.values():
+                if (overlay.project_id != self.project_id or overlay.historical_run_id != comparison.previous_run_id
+                        or overlay.expected_manifest_id != comparison.previous_manifest_id
+                        or overlay.observed_manifest_id != self.manifest.id
+                        or overlay.comparison_evidence_ids != [proof.id] or not overlay.reasons):
+                    raise ValueError("historical freshness overlay membership mismatch")
+                if (bool(overlay.changed_dependencies) != (overlay.freshness == "stale")
+                        or not set(overlay.changed_dependencies) <= changed_keys):
+                    raise ValueError("stale overlay needs retained changed dependencies")
+        if not set(expected_evidence) <= set(evidence):
             raise ValueError("bundle must retain every declared evidence record")
-        for item in evidence.values():
+        for identity in expected_evidence:
+            item = evidence[identity]
             if (item.project_id != self.project_id or item.run_id != self.run.id
                     or item.manifest_id != self.manifest.id):
                 raise ValueError("output evidence membership mismatch")
@@ -1600,7 +1662,8 @@ class RevalidationBundle(Record):
                               or method.missing_evidence for method in item.required_method_dispositions)
                        for item in dispositions.values())
                 or any(not admitted_source(identity) or not source.synthetic for identity, source in source_by_id.items())
-                or any(not admitted_evidence(identity) for identity in evidence)
+                or any(not admitted_evidence(identity) for identity in expected_evidence)
+                or any(item.freshness != "current_for_recorded_inputs" for item in self.current_assessments)
                 or any(item.gaps or item.applicability == "unresolved" for item in self.family_screenings)):
             raise ValueError("completed processing cannot hide open gaps")
         if len(self.manifest.source_files) > 32 or self.manifest.browser_state is not None or self.manifest.graph_digest is not None:
@@ -1611,7 +1674,7 @@ class RevalidationBundle(Record):
 class RunCompletion(Record):
     schema_version: SchemaVersion
     run_id: Id
-    files: Annotated[list[SourceFile], Field(min_length=4, max_length=36)]
+    files: Annotated[list[SourceFile], Field(min_length=4, max_length=37)]
 
     @model_validator(mode="after")
     def artifact_paths(self) -> RunCompletion:
@@ -1620,6 +1683,6 @@ class RunCompletion(Record):
         if not required <= files.keys():
             raise ValueError("completion marker is missing required artifacts")
         for path, file in files.items():
-            if path not in required and path != "sources/" + file.digest.removeprefix("sha256:") + ".bin":
+            if path not in required | {"comparison.json"} and path != "sources/" + file.digest.removeprefix("sha256:") + ".bin":
                 raise ValueError("completion marker contains a nongenerated artifact path")
         return self

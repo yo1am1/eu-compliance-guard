@@ -38,6 +38,10 @@ ERRORS = {
     "budget-exceeded": "The cooperative processing budget was exceeded.",
     "invalid-output": "The assembled output could not be validated.",
     "retrieval-failed": "The official-source retrieval helper could not be stopped safely.",
+    "incomplete-run": "The selected predecessor is incomplete.",
+    "corrupt-run": "The retained run failed integrity validation.",
+    "wrong-project": "The predecessor belongs to another project or provenance class.",
+    "invalid-revision": "Changed semantic records need a new revision.",
 }
 FAMILY_DESCRIPTIONS = dict(zip(m.LEGAL_FAMILIES, (
     "GDPR: processing roles, lawful bases, transparency, minimization, rights, retention, security, vendors, transfers, accountability and risk assessments.",
@@ -764,6 +768,8 @@ def _publish(output_path, bundle: m.RevalidationBundle, observations: dict[str, 
              report: str, deadline: float, retrieved: dict[str, bytes] | None = None) -> None:
     artifacts = {"input.json": m.canonical_json(bundle.declarations), "manifest.json": m.canonical_json(bundle.manifest),
                  "bundle.json": m.canonical_json(bundle), "report.md": report.encode("utf-8")}
+    if bundle.comparison is not None:
+        artifacts["comparison.json"] = m.canonical_json(bundle.comparison)
     if len(artifacts["bundle.json"]) > m.MAX_REQUEST_BYTES or len(artifacts["report.md"]) > MAX_REPORT_BYTES:
         raise RevalidationError("capacity-exceeded")
     retained = {}
@@ -823,7 +829,7 @@ def _publish(output_path, bundle: m.RevalidationBundle, observations: dict[str, 
 
 
 def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_official: bool = False,
-        transport_factory=None) -> m.RevalidationBundle:
+        transport_factory=None, previous: str | os.PathLike | None = None) -> m.RevalidationBundle:
     """Assemble and publish a new private run; existing output is never overwritten.
 
     Only with fetch_official are the declared targets requested, under the fixed network policy.
@@ -832,8 +838,14 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
     _primitives()
     deadline = time.monotonic() + BUDGET_SECONDS
     try:
+        from . import history
+        prior = history.load_run(previous, deadline) if previous is not None else None
         with _parent(input_path) as (fd, name):
             declared, input_digest = _load(fd, name, deadline)
+            if prior is not None:
+                if (prior[0].project_id, prior[0].synthetic) != (declared.project_id, declared.synthetic):
+                    raise RevalidationError("wrong-project")
+                history.validate_revisions(prior[0], declared)
             observations = _observe(declared, fd, deadline)
         _check_budget(deadline)
         retrievals = None
@@ -851,6 +863,8 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
         timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         bundle = assemble(declared, observations, input_digest=input_digest, timestamp=timestamp,
                           run_id="run-" + uuid4().hex, manifest_id="manifest-" + uuid4().hex, retrievals=retrievals)
+        if prior is not None:
+            bundle = history.compare(prior[0], bundle, prior[1])
         try:
             report = render_report(bundle)
         except ValueError as error:

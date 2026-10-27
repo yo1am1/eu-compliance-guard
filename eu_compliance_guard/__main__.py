@@ -7,6 +7,7 @@ _ERROR_CODES = {
     "invalid-input", "unsafe-path", "capacity-exceeded", "io-failed",
     "output-exists", "privacy-unavailable", "budget-exceeded", "invalid-output", "retrieval-failed",
     "incomplete-run", "corrupt-run",
+    "wrong-project", "invalid-revision",
 }
 
 
@@ -22,6 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     revalidate = commands.add_parser("revalidate", help="Create a private revalidation report", allow_abbrev=False)
     revalidate.add_argument("--input", required=True, help="Explicit declaration JSON file")
     revalidate.add_argument("--output", required=True, help="New run directory under an existing private parent")
+    revalidate.add_argument("--previous", help="Explicit completed predecessor run directory; never modified")
     network = revalidate.add_mutually_exclusive_group()
     network.add_argument("--offline", action="store_true", help="Use selected local files only (also the default)")
     network.add_argument("--fetch-official", action="store_true",
@@ -30,14 +32,17 @@ def main(argv: list[str] | None = None) -> int:
     view.add_argument("--run", required=True, help="Existing run directory with a valid completion marker")
     view.add_argument("--open", action="store_true", help="Open the view in the default browser")
     arguments = sys.argv[1:] if argv is None else argv
-    if any(argument.split("=", 1)[0] == "--previous" for argument in arguments):
-        parser.error("unsupported future argument")
     args = parser.parse_args(arguments)
     if args.command == "view":
         return _view(args.run, args.open)
     try:
         from .revalidation import run
-        bundle = run(args.input, args.output, fetch_official=True) if args.fetch_official else run(args.input, args.output)
+        options = {}
+        if args.fetch_official:
+            options["fetch_official"] = True
+        if args.previous is not None:
+            options["previous"] = args.previous
+        bundle = run(args.input, args.output, **options)
     except KeyboardInterrupt:
         print("eu-compliance-guard: interrupted: report assembly interrupted", file=sys.stderr)
         return 130
