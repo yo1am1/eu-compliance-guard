@@ -248,3 +248,31 @@ the missing marketplace icon. Native Herdr is unavailable in this session; work
 used one writer, without hidden teammates. Two pre-existing local planning edits
 remain in Git stash. The next authorized work is the separate recommender audit,
 system improvements and Streamlit MVP.
+
+## Version 1.0.0 — 2026-11-03
+
+The Owner asked to review the latest commits and continue to a stable 1.0 MVP plugin.
+The Owner's 2026-10-27 predecessor revalidation (`ed11d8f`, `c392935`) was reviewed
+and kept. Those two commits carry `Co-authored-by: Codex` trailers, which the newer
+commit rule excludes; they were left as published.
+
+1.0.0 adds `init` and `check`. `check` gives located, value-free diagnostics, observed
+file digests, target fetchability, and with `--previous` the records needing a new
+revision. Cross-reference errors in the models now name their JSON location. 1.0.0
+also adds the `eu-compliance-guard` console command and keeps only Pydantic as a
+runtime dependency (FastAPI and Uvicorn are the optional `api` extra). The plugin
+audit flow now runs `init` → `check` → `revalidate` and covers manually downloaded
+official documents. Other changes:
+
+- the plugin CLI runs with `uv run --no-dev`, and the hook warns when uv is missing;
+- the plugin has an icon, and `make plugin-check` exists;
+- the README was rewritten and a changelog added;
+- the fake executor tests are hermetic.
+
+`make check` passes 205 tests, and the plugin validates with no icon warning and its
+4 band tests pass. A fresh end-to-end check installed the wheel and the plugin from
+GitHub through the marketplace, then ran every skill on a fictional project with the
+Owner's GDPR PDF. See the [1.0 end-to-end report](../memory-bank/bolts/003-legal-revalidation-cli/v1-e2e-report.md).
+The interactive band was not seen, and no live legal assessment was made. Owner
+acceptance of the MVP remains pending.
+

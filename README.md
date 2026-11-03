@@ -187,7 +187,12 @@ make plugin-check    # claude plugin validate . and the band tests (needs Claude
 ```
 
 After intentionally changing `eu_compliance_guard/models.py`, run `make contracts`
-and `make check`. The tests use synthetic data, fake transports and fake processes.
+and `make check`.
+
+To release, raise the version in `pyproject.toml`, `eu_compliance_guard/__init__.py` and
+`.claude-plugin/plugin.json` together (a test keeps them equal), add a `CHANGELOG.md`
+entry and run `uv lock`. `claude plugin update` only picks up a new version, so every
+fix ships under a new version number. The tests use synthetic data, fake transports and fake processes.
 They do not audit the machine, contact official sources or a model provider, or
 change OS policy.
 
