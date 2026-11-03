@@ -771,7 +771,7 @@ def _publish(output_path, bundle: m.RevalidationBundle, observations: dict[str, 
                  "bundle.json": m.canonical_json(bundle), "report.md": report.encode("utf-8")}
     if bundle.comparison is not None:
         artifacts["comparison.json"] = m.canonical_json(bundle.comparison)
-    if len(artifacts["bundle.json"]) > m.MAX_REQUEST_BYTES or len(artifacts["report.md"]) > MAX_REPORT_BYTES:
+    if len(artifacts["bundle.json"]) > m.MAX_BUNDLE_BYTES or len(artifacts["report.md"]) > MAX_REPORT_BYTES:
         raise RevalidationError("capacity-exceeded")
     retained = {}
     for selected in bundle.declarations.sources:

@@ -109,6 +109,30 @@ class HistoryTests(unittest.TestCase):
         self.assertIn("requirement:requirement-example", self.overlay(both).changed_dependencies)
         self.assertNotIn("decision:decision-example", self.overlay(both).changed_dependencies)
 
+    def test_documented_maximum_registers_publish_and_revalidate(self):
+        base_obligation = next(item for item in self.payload["obligations"] if item["id"] == "obligation-unmapped")
+        base_requirement = self.payload["requirements"][0]
+        while len(self.payload["obligations"]) < 200:
+            index = len(self.payload["obligations"])
+            obligation = deepcopy(base_obligation)
+            obligation["id"] = f"obligation-{index}"
+            requirement = deepcopy(base_requirement)
+            requirement.update(id=f"requirement-{index}", obligation_refs=[{"id": obligation["id"], "revision": 0}])
+            self.payload["obligations"].append(obligation)
+            self.payload["requirements"].append(requirement)
+        self.payload["requirements"] = self.payload["requirements"][:200]
+        self.save()
+        first = r.run(self.input, self.root / "max-1")
+        for requirement in self.payload["requirements"][2:]:
+            requirement.update(revision=1, statement=requirement["statement"] + " changed")
+        self.save()
+        second = r.run(self.input, self.root / "max-2", previous=self.root / "max-1")
+        self.assertEqual((len(first.obligation_dispositions), len(second.current_assessments)), (200, 200))
+        self.assertTrue(all(len(item.changed_dependencies) <= h.MAX_LISTED_CHANGES for item in second.current_assessments))
+        third = r.run(self.input, self.root / "max-3", previous=self.root / "max-2")
+        self.assertEqual(third.comparison.changes, [])
+        self.assertEqual(sum(item.state == "unresolved" for item in third.requirement_assessments), 199)
+
     def test_unrelated_requirement_does_not_invalidate_supported_mapping(self):
         self.payload["requirements"][1].update(revision=1, statement="FICTIONAL unrelated change")
         successor = self.successor()

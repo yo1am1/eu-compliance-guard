@@ -10,7 +10,7 @@ from . import models as m, revalidation as r
 def _parse(record, raw):
     r._check_json_depth(raw)
     json.loads(raw, object_pairs_hook=r._pairs, parse_float=r._finite, parse_constant=r._reject_constant)
-    return m.parse_record(record, raw)
+    return m.parse_record(record, raw, m.MAX_BUNDLE_BYTES)
 
 
 def load_run(path, deadline=None):
@@ -25,7 +25,7 @@ def load_run(path, deadline=None):
             files, total = {}, 0
             for item in marker.files:
                 limit = (r.MAX_REPORT_BYTES if item.path == "report.md" else r.MAX_FILE_BYTES
-                         if item.path.startswith("sources/") else m.MAX_REQUEST_BYTES)
+                         if item.path.startswith("sources/") else m.MAX_BUNDLE_BYTES)
                 observed = r._read_file(fd, item.path, limit=min(limit, r.MAX_TOTAL_BYTES - total),
                     retain=item.path in {"input.json", "manifest.json", "bundle.json", "comparison.json"}, deadline=deadline)
                 total += observed.size
@@ -215,6 +215,7 @@ def _dependencies(previous, current, identity):
     return keys, complete, source_ids, evidence_ids, target_ids
 
 
+MAX_LISTED_CHANGES = 20
 INVALIDATED_GAP = "Predecessor dependencies changed or incomplete; accountable review must be renewed."
 
 
@@ -297,6 +298,8 @@ def compare(previous, current, previous_digest):
                         and own and all(digest == attempt.retrieval.digest for digest in own))
         if not all(confirmed(target) for target in targets):
             reasons.append("Current source freshness is unknown: offline, failed, changed or unconfirmed retrieval.")
+        if len(relevant) > MAX_LISTED_CHANGES:
+            reasons.append(f"{len(relevant) - MAX_LISTED_CHANGES} more changed dependencies are listed in comparison.json.")
         freshness = "stale" if relevant else "unknown" if reasons else "current_for_recorded_inputs"
         if not reasons:
             reasons.append("Only recorded dependencies match; bytes renew neither legal currency nor reviewer approval.")
@@ -304,7 +307,8 @@ def compare(previous, current, previous_digest):
             project_id=current.project_id, historical_run_id=previous.run.id, obligation_disposition_id=disposition.id,
             expected_manifest_id=previous.manifest.id, observed_manifest_id=current.manifest.id,
             checked_at=current.run.ended_at, freshness=freshness, reasons=reasons,
-            changed_dependencies=[f"{kind}:{key}" for kind, key in relevant], comparison_evidence_ids=[proof.id]))
+            changed_dependencies=[f"{kind}:{key}" for kind, key in relevant[:MAX_LISTED_CHANGES]],
+            comparison_evidence_ids=[proof.id]))
         if freshness != "current_for_recorded_inputs":
             gaps.append(f"Historical obligation {identity}: {freshness}. " + " ".join(reasons))
     data = current.model_dump(mode="json")

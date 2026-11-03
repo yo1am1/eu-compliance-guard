@@ -421,7 +421,7 @@
             "maxLength": 8192,
             "type": "string"
           },
-          "maxItems": 1000,
+          "maxItems": 5000,
           "title": "Gaps",
           "type": "array"
         },
@@ -5199,7 +5199,7 @@
             "maxLength": 8192,
             "type": "string"
           },
-          "maxItems": 1000,
+          "maxItems": 5000,
           "title": "Gaps",
           "type": "array"
         },
@@ -5216,7 +5216,7 @@
             "maxLength": 8192,
             "type": "string"
           },
-          "maxItems": 1000,
+          "maxItems": 5000,
           "title": "Next Actions",
           "type": "array"
         },

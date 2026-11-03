@@ -14,6 +14,8 @@ from pydantic import (
 )
 
 MAX_REQUEST_BYTES = 4 * 1024 * 1024
+# A bundle repeats the declarations and adds one output per requirement and obligation.
+MAX_BUNDLE_BYTES = 16 * 1024 * 1024
 MAX_SEQUENCE = 2**53 - 1
 
 
@@ -88,6 +90,7 @@ MediaType = Annotated[str, Field(min_length=3, max_length=256, pattern=r"^[A-Za-
 Value = Annotated[JsonValue, AfterValidator(_json_value)]
 Ids = Annotated[list[Id], Field(max_length=1000)]
 Texts = Annotated[list[Text], Field(max_length=1000)]
+GapTexts = Annotated[list[Text], Field(max_length=5000)]
 
 Applicability = Literal["applicable", "not_applicable", "unresolved"]
 Outcome = Literal["passed", "observed_failure", "unresolved_review", "blocked", "not_tested", "lead"]
@@ -366,7 +369,7 @@ class AuditRun(Record):
     started_at: Timestamp | None = None
     ended_at: Timestamp | None = None
     terminal_sequence: Revision | None = None
-    gaps: Texts
+    gaps: GapTexts
     budgets: Budgets
 
     @model_validator(mode="after")
@@ -975,9 +978,9 @@ COMMAND_ADAPTER = TypeAdapter(Command)
 TRecord = TypeVar("TRecord", bound=Record)
 
 
-def parse_record(model: type[TRecord], payload: bytes | str) -> TRecord:
+def parse_record(model: type[TRecord], payload: bytes | str, limit: int = MAX_REQUEST_BYTES) -> TRecord:
     raw = payload.encode("utf-8") if isinstance(payload, str) else payload
-    if len(raw) > MAX_REQUEST_BYTES:
+    if len(raw) > limit:
         raise ValueError("record exceeds byte limit")
     return model.model_validate_json(raw)
 
@@ -1170,8 +1173,12 @@ def scope_facts(scope: Scope) -> list[Fact]:
     return facts
 
 
-def _collection_bounds(record: Record) -> None:
-    """Bound nested collections without counting model field names as data items."""
+def _collection_bounds(record: Record, *, list_limit: int = 1000, aggregate: int = 5000) -> None:
+    """Bound nested collections without counting model field names as data items.
+
+    The root's own lists are bounded by their declared max_length; the per-record limit
+    applies to nested records, where one entry could otherwise carry unbounded children.
+    """
     total = 0
     stack = [(record, 0)]
     while stack:
@@ -1181,12 +1188,12 @@ def _collection_bounds(record: Record) -> None:
         if isinstance(item, Record):
             values = [getattr(item, name) for name in type(item).model_fields]
             own_items = sum(len(value) for value in values if isinstance(value, (list, dict)))
-            if own_items > 1000:
+            if depth and own_items > 1000:
                 raise ValueError("record exceeds nested collection limit")
             stack.extend((value, depth + 1) for value in values)
         elif isinstance(item, (list, dict)):
             total += len(item)
-            if len(item) > 1000 or total > 5000:
+            if len(item) > list_limit or total > aggregate:
                 raise ValueError("record exceeds aggregate collection limit")
             values = item.values() if isinstance(item, dict) else item
             stack.extend((value, depth + 1) for value in values)
@@ -1365,8 +1372,8 @@ class RevalidationBundle(Record):
     requirement_assessments: Annotated[list[RequirementAssessment], Field(max_length=200)]
     effective_applicability_decisions: Annotated[list[ApplicabilityDecision], Field(max_length=200)]
     family_screenings: Annotated[list[FamilyScreening], Field(min_length=11, max_length=11)]
-    gaps: Texts
-    next_actions: Texts
+    gaps: GapTexts
+    next_actions: GapTexts
     # One attempt per fetched target; retrieved bytes are unreviewed candidates, never declared sources.
     source_attempts: Annotated[list[SourceAttempt], Field(max_length=16)] = Field(default_factory=list)
     retrieved_sources: Annotated[list[LegalSource], Field(max_length=16)] = Field(default_factory=list)
@@ -1375,7 +1382,7 @@ class RevalidationBundle(Record):
 
     @model_validator(mode="after")
     def membership(self) -> RevalidationBundle:
-        _collection_bounds(self)
+        _collection_bounds(self, list_limit=5000, aggregate=50000)
         declared = self.declarations
         if (self.project_id != declared.project_id or self.run.project_id != self.project_id
                 or self.synthetic != declared.synthetic or self.run.manifest_id != self.manifest.id
