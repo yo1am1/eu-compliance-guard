@@ -6,10 +6,18 @@ requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "licenses/*"]
 dependencies = [
-    "fastapi==0.143.1",
     "pydantic==2.14.1",
+]
+
+[project.optional-dependencies]
+# The planned local API; the CLI and Claude Code plugin need only Pydantic.
+api = [
+    "fastapi==0.143.1",
     "uvicorn==0.54.0",
 ]
+
+[project.scripts]
+eu-compliance-guard = "eu_compliance_guard.__main__:main"
 
 [build-system]
 requires = ["hatchling==1.32.4"]
@@ -44,4 +52,4 @@ include = [
 exclude = ["**/__pycache__", "**/*.pyc"]
 
 [dependency-groups]
-dev = ["httpx==0.28.1"]
+dev = ["fastapi==0.143.1", "httpx==0.28.1"]

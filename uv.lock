@@ -56,25 +56,34 @@ name = "eu-compliance-guard"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "fastapi" },
     { name = "pydantic" },
+]
+
+[package.optional-dependencies]
+api = [
+    { name = "fastapi" },
     { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "fastapi" },
     { name = "httpx" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "fastapi", specifier = "==0.143.1" },
+    { name = "fastapi", marker = "extra == 'api'", specifier = "==0.143.1" },
     { name = "pydantic", specifier = "==2.14.1" },
-    { name = "uvicorn", specifier = "==0.54.0" },
+    { name = "uvicorn", marker = "extra == 'api'", specifier = "==0.54.0" },
 ]
+provides-extras = ["api"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "httpx", specifier = "==0.28.1" }]
+dev = [
+    { name = "fastapi", specifier = "==0.143.1" },
+    { name = "httpx", specifier = "==0.28.1" },
+]
 
 [[package]]
 name = "fastapi"

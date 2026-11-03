@@ -2,7 +2,8 @@
 
 The application source uses the repository's MIT license. Dependency packages retain their own licenses; they are not relicensed by this application. Locked distributions retain their upstream license files. This source package does not bundle the virtual environment or node_modules.
 
-Direct runtime dependencies selected on 2026-10-15:
+Direct dependencies selected on 2026-10-15. Since 1.0.0 the CLI and plugin need
+only Pydantic at run time; FastAPI and Uvicorn are the optional `api` extra.
 
 | Dependency | Version | License | Source |
 | --- | --- | --- | --- |
