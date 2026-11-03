@@ -14,7 +14,7 @@ one ledger so that an unanswered gap can't quietly become an assumption.
 ## Find the run
 
 The latest run is the newest directory under
-`${XDG_STATE_HOME:-$HOME/.local/state}/eu-compliance-guard/<project>/` that contains
+the directory printed by `<cli> state-dir` that contains
 `complete.json`. A directory without it is incomplete; skip it and say so. If no
 run exists, say `No run yet. Use /eucg-audit.` and stop.
 

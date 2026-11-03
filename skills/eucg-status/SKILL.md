@@ -13,7 +13,7 @@ Show where the project's legal revalidation stands, in one short card.
 ## Read
 
 - Find the newest run under
-  `${XDG_STATE_HOME:-$HOME/.local/state}/eu-compliance-guard/<project>/` that has
+  the directory printed by `<cli> state-dir` that has
   `complete.json`. If there is none: `No run yet. Use /eucg-audit.`
 - From `bundle.json`, read: `run.id`, `run.ended_at`, `run.state`,
   `declarations.scope.assessment_date`, `requirement_assessments[].state`,

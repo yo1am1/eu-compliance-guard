@@ -2,9 +2,10 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 const PROJECT = '/work/shop'
-const STATE = '/state/eu-compliance-guard/shop'
+const STATE = '/state/eu-compliance-guard/shop-id'
 const RUN = `${STATE}/run-20261025T000000Z`
 const BUNDLE = JSON.stringify({
+  project_id: 'shop-id',
   synthetic: true,
   run: { id: 'run-abc', state: 'partial', ended_at: '2026-10-25T00:00:00Z' },
   declarations: { scope: { assessment_date: '2026-10-18' } },
@@ -22,7 +23,7 @@ const BAND = {
 type Dir = { name: string; kind: 'file' | 'dir' }
 
 // A small in-memory host: the project, the private state directory and one complete run.
-function host(on: On, { enabled = true, runs = true } = {}) {
+function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE } = {}) {
   const dirs: Record<string, Dir[]> = {
     [PROJECT]: enabled ? [{ name: '.eu-compliance-guard', kind: 'dir' }] : [],
     [STATE]: runs ? [{ name: 'run-20261025T000000Z', kind: 'dir' }, { name: 'run-incomplete', kind: 'dir' }, { name: 'views', kind: 'dir' }] : [],
@@ -33,15 +34,17 @@ function host(on: On, { enabled = true, runs = true } = {}) {
   const processes: (readonly string[])[] = []
   mock.env(on, { HOME: '/home/me', XDG_STATE_HOME: '/state' })
   mock.clock(on, { now: Date.parse('2026-10-25T12:00:00Z') })
-  on('session.repo', () => ({ value: { root: PROJECT, remote: null, internal: false, name: 'shop' } }))
-  on('session.cwd', () => ({ value: PROJECT }))
+  on('session.repo', () => ({ value: { root: '/work', remote: null, internal: false, name: 'monorepo' } }))
+  on('session.root', () => ({ value: root }))
+  on('session.cwd', () => ({ value: root }))
   on('fs.list', (_, e) => {
     const entries = dirs[e.path]
     if (entries === undefined) throw new Error('missing')
     return { value: entries.map(entry => ({ ...entry, size: 0, mtimeMs: 0, isLink: false })) }
   })
   on('fs.read', (_, e) => {
-    if (e.path === `${RUN}/bundle.json`) return { value: BUNDLE }
+    if (e.path === `${RUN}/bundle.json`) return { value: bundle }
+    if (e.path === `${PROJECT}/.eu-compliance-guard/declarations.json`) return { value: '{"project_id": "shop-id"}' }
     throw new Error('missing')
   })
   on('command.list', () => ({
@@ -54,6 +57,9 @@ function host(on: On, { enabled = true, runs = true } = {}) {
   })
   on('process.run', (_, e) => {
     processes.push(e.argv)
+    if (e.argv[0] === 'realpath') {
+      return { value: { exitCode: 0, stdout: `${e.argv[2]}\n`, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    }
     const isView = e.argv.includes('view')
     return { value: { exitCode: 0, stdout: isView ? '/state/eu-compliance-guard/shop/views/run-20261025T000000Z.html\n' : 'uv 0.9', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
@@ -89,6 +95,8 @@ test('buttons run the plugin skills and the report view through the plugin CLI',
   expect(view?.slice(-4)).toEqual(['view', '--run', RUN, '--open'])
   expect(view?.[0]).toBe('uv')
   expect(view).toContain('--no-dev')
+  expect(view).toContain('-P')
+  expect(processes.some(argv => argv[0] === 'realpath' && argv[2] === RUN)).toBe(true)
   expect(await ui.find({ type: 'Link' })).toBeDefined()
   await ui.unmount()
 })
@@ -116,5 +124,26 @@ test('without a run the band offers an audit', async ($, on) => {
   await ui.press({ key: 'fold' })
   expect(await ui.find({ key: 'audit' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /EU Compliance Guard · no completed run yet/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('the band follows the session root and refuses another project\'s run', async ($, on) => {
+  host(on, { root: '/work/other' })
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>engine</Text>
+  })
+  await $.session.start({ cwd: '/work/other', surface: 'desktop', isInteractive: true })
+  const outside = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await outside.find({ type: 'Text', text: /EU Compliance Guard/ })).toBeUndefined()
+  await outside.unmount()
+})
+
+test('a run written for another project_id is not shown as this project', async ($, on) => {
+  host(on, { bundle: BUNDLE.replace('"shop-id"', '"client-b"') })
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /belongs to another project/ })).toBeDefined()
+  expect(await ui.find({ key: 'report' })).toBeUndefined()
   await ui.unmount()
 })

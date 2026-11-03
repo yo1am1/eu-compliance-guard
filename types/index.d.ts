@@ -1,5 +1,6 @@
 export type RunSummary = {
   dir: string
+  projectId: string
   id: string
   state: string
   endedAt: string

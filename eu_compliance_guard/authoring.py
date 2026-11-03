@@ -17,6 +17,7 @@ from . import models as m, revalidation as r
 
 DEFAULT_PATH = ".eu-compliance-guard/declarations.json"
 MAX_PROBLEMS = 50
+ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 LOCATED = re.compile(r"^[a-z_]+(?:\[\d+\]|\[\])?[^:]{0,200}: ")
 
 
@@ -47,6 +48,43 @@ def init(path: str | os.PathLike, project_id: str, **options) -> Path:
         json.dump(record.model_dump(mode="json"), handle, indent=2, ensure_ascii=False)
         handle.write("\n")
     return path
+
+
+def project_id(path: str | os.PathLike) -> str:
+    """The declared project identifier, read without requiring the rest of the file to be valid."""
+    r._primitives()
+    try:
+        with r._parent(path) as (fd, name):
+            observed = r._read_file(fd, name, limit=m.MAX_REQUEST_BYTES, retain=True)
+    except OSError:
+        raise r.RevalidationError("unsafe-path") from None
+    if observed.availability != "available":
+        raise r.RevalidationError("unsafe-path")
+    try:
+        value = json.loads(observed.content).get("project_id")
+    except (ValueError, AttributeError):
+        raise r.RevalidationError("invalid-input") from None
+    if not isinstance(value, str) or not ID.match(value):
+        raise r.RevalidationError("invalid-input")
+    return value
+
+
+def state_dir(path: str | os.PathLike = DEFAULT_PATH, create: bool = True) -> Path:
+    """Private per-project run storage, keyed by the declared project_id and free of symlinks.
+
+    `${XDG_STATE_HOME:-~/.local/state}/eu-compliance-guard/<project_id>`; the session hook and the
+    band derive the same path. Missing directories are created 0700; existing ones are not changed.
+    """
+    base = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
+    directory = Path(os.path.realpath(base)) / "eu-compliance-guard" / project_id(path)
+    if create:
+        os.makedirs(directory.parent.parent, 0o700, exist_ok=True)
+        for part in (directory.parent, directory):
+            try:
+                os.mkdir(part, 0o700)
+            except FileExistsError:
+                pass
+    return directory
 
 
 def _location(loc) -> str:

@@ -13,7 +13,7 @@ Produce the project's traceable revalidation report. The report states what is
 declared, what is supported by named reviews, and every gap. It is never a verdict.
 
 Use the CLI command from the SessionStart context, written `<cli>` below, or
-`uv run --project "${CLAUDE_PLUGIN_ROOT}" --locked --no-dev python -m eu_compliance_guard`.
+`uv run --project "${CLAUDE_PLUGIN_ROOT}" --locked --no-dev python -P -m eu_compliance_guard`.
 
 ## 1. Declarations
 
@@ -49,21 +49,23 @@ a safe failure for it. When the user has downloaded the act (PDF or saved HTML):
 1. Put the file under `.eu-compliance-guard/sources/` and keep a source target for it.
 2. Add a `sources[]` entry: `target_id`, `media_type` (`application/pdf`, `text/html`
    or `text/plain`), `charset` (`null` for PDF, else `utf-8`), `file.path` relative
-   to the declarations file, and a `source` whose `type`, `url`, `identifier`,
+   to the declarations file, and a `source` with a stable `id`, `revision: 0`, and
+   `type`, `url`, `identifier`,
    `publisher`, `language` and `jurisdiction` equal the target's exactly. Set
    `retrieved_at` to when the user downloaded it (UTC), `provisions` to the
    article locators the obligations will cite (for example `Article 7`),
    `related_source_ids` to `[]`, and `synthetic` to `false`.
 3. Use the same SHA-256 for `file.digest` and `source.content_digest`. Run `check`:
    a wrong digest is reported with the observed value to copy.
-4. A PDF always stays "needs manual identity review" until a named human records
-   the source review. Do not write that review yourself.
+4. In 1.0 only text and HTML sources can support a mapping. A PDF can be declared and
+   reviewed, but it always stays a "needs manual identity review" gap. If the act should
+   support obligations, ask the user to also save the HTML version from EUR-Lex and
+   declare that file. Never write the source review yourself.
 
 ## 2. Run
 
 ```sh
-state="${XDG_STATE_HOME:-$HOME/.local/state}/eu-compliance-guard/$(basename "$PWD")"
-mkdir -p -m 700 "$state"
+state="$(<cli> state-dir)"   # private 0700 run storage, keyed by the declared project_id
 <cli> revalidate --input .eu-compliance-guard/declarations.json \
   --output "$state/run-$(date -u +%Y%m%dT%H%M%SZ)" --offline
 ```

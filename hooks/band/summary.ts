@@ -21,6 +21,7 @@ export function summarize(dir: string, text: string): RunSummary | null {
   const attempts = Array.isArray(bundle.source_attempts) ? bundle.source_attempts : []
   return {
     dir,
+    projectId: safe(bundle.project_id),
     id: safe(bundle.run.id),
     state: safe(bundle.run.state),
     endedAt: safe(bundle.run.ended_at),

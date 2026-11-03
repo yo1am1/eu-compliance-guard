@@ -53,11 +53,10 @@ not a complete corpus. Anything outside them stays a sector_national research ga
 ## Running the CLI
 
 The SessionStart context gives the exact command for this machine. Otherwise use
-`uv run --project "${CLAUDE_PLUGIN_ROOT}" --locked --no-dev python -m eu_compliance_guard`.
+`uv run --project "${CLAUDE_PLUGIN_ROOT}" --locked --no-dev python -P -m eu_compliance_guard`.
 
 ```sh
-state="${XDG_STATE_HOME:-$HOME/.local/state}/eu-compliance-guard/$(basename "$PWD")"
-mkdir -p -m 700 "$state"
+state="$(<cli> state-dir)"   # private 0700 run storage, keyed by the declared project_id
 <cli> revalidate --input .eu-compliance-guard/declarations.json \
   --output "$state/run-$(date -u +%Y%m%dT%H%M%SZ)" --offline
 ```

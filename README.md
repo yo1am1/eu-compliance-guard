@@ -60,8 +60,10 @@ the CLI command for this machine and a summary of the latest run. Set the defaul
 level with `EUCG_DEFAULT_MODE` or `~/.config/eu-compliance-guard/config.json`
 (`{"defaultMode": "lite"}`).
 
-Runs are stored in `${XDG_STATE_HOME:-~/.local/state}/eu-compliance-guard/<project>/`,
-outside the repository. Keep them out of Git.
+Runs are stored outside the repository in
+`${XDG_STATE_HOME:-~/.local/state}/eu-compliance-guard/<project_id>/`, keyed by the
+declared `project_id`. `eu-compliance-guard state-dir` prints and creates it with
+mode 0700. Keep runs out of Git.
 
 ## Command-line tool
 
@@ -73,12 +75,13 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `init --project-id <id> [--path <file>] [--assessment-date <date>] [--jurisdiction <j>]… [--synthetic]` | Write a valid starter declarations file; never overwrites |
 | `check [--input <file>] [--previous <run dir>] [--json]` | Validate declarations: each problem with its JSON location, the observed digest of every selected file, whether each source target can be fetched, and (with `--previous`) every record that needs a higher revision |
 | `revalidate --input <file> --output <new run dir> [--offline \| --fetch-official] [--previous <run dir>]` | Assemble and publish a private run |
+| `state-dir [--input <file>]` | Print and create (0700) the private run storage for the declared `project_id` |
 | `view --run <run dir> [--open]` | Verify a run and write `<parent>/views/<run>.html`; optionally open it |
 
 ```sh
 eu-compliance-guard init --project-id shop --jurisdiction EU --jurisdiction DE
 eu-compliance-guard check
-runs=$(mktemp -d)   # any existing private (0700) directory you own
+runs=$(eu-compliance-guard state-dir)   # private, symlink-free run storage
 eu-compliance-guard revalidate --input .eu-compliance-guard/declarations.json \
   --output "$runs/run-001" --offline
 eu-compliance-guard revalidate --input .eu-compliance-guard/declarations.json \
@@ -142,9 +145,10 @@ establishes neither binding status, completeness, applicability nor currency.
 
 EUR-Lex answers scripted clients with a bot challenge, which is recorded as a safe
 failure. Download the act yourself (PDF or HTML) and declare it as a selected
-source; `/eucg-audit` walks through this, and `check` reports the digest to use. A PDF
-stays "needs manual identity review" until a named reviewer records the source
-review. Some official pages, such as EDPB's, change bytes on every request, so
+source; `/eucg-audit` walks through this, and `check` reports the digest to use. In
+1.0, only text and HTML sources can support a mapping. A PDF can be declared and
+reviewed, but it always remains a "needs manual identity review" gap, so also save
+the HTML version of an act you want to rely on. Some official pages, such as EDPB's, change bytes on every request, so
 exact-byte comparison reports them as changed. See the
 [live smoke check](memory-bank/bolts/002-legal-revalidation-cli/live-smoke-report.md).
 

@@ -39,6 +39,9 @@ def main(argv: list[str] | None = None) -> int:
     check.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file to check")
     check.add_argument("--previous", help="Completed predecessor run; also check that changed records have new revisions")
     check.add_argument("--json", action="store_true", help="Print the result as JSON")
+    state = commands.add_parser("state-dir", help="Print (and create) the private run directory for a project",
+                                allow_abbrev=False)
+    state.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file naming the project")
     view = commands.add_parser("view", help="Write and optionally open a static HTML view of a verified run", allow_abbrev=False)
     view.add_argument("--run", required=True, help="Existing run directory with a valid completion marker")
     view.add_argument("--open", action="store_true", help="Open the view in the default browser")
@@ -48,6 +51,15 @@ def main(argv: list[str] | None = None) -> int:
         return _view(args.run, args.open)
     if args.command == "init":
         return _init(args)
+    if args.command == "state-dir":
+        try:
+            from .authoring import state_dir
+            print(state_dir(args.input))
+        except Exception as error:
+            code = getattr(error, "code", None)
+            print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'io-failed'}: state-dir failed", file=sys.stderr)
+            return 2
+        return 0
     if args.command == "check":
         return _check(args.input, args.json, args.previous)
     try:

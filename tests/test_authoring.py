@@ -145,6 +145,27 @@ class AuthoringTests(unittest.TestCase):
         missing = a.check(self.input, runs / "absent")
         self.assertIn("predecessor run is unusable (incomplete-run)", missing["errors"][0]["problem"])
 
+    def test_state_dir_is_private_keyed_by_project_id_and_symlink_free(self):
+        from unittest.mock import patch as env_patch
+        project = self.root / "app"
+        self.cli("init", "--project-id", "client-a", "--path", str(project / ".eu-compliance-guard/declarations.json"))
+        real = self.root / "real-state"
+        real.mkdir()
+        (self.root / "linked-state").symlink_to(real, target_is_directory=True)
+        with env_patch.dict("os.environ", {"XDG_STATE_HOME": str(self.root / "linked-state")}):
+            code, stdout, _ = self.cli("state-dir", "--input", str(project / ".eu-compliance-guard/declarations.json"))
+        expected = real.resolve() / "eu-compliance-guard/client-a"
+        self.assertEqual((code, stdout.strip()), (0, str(expected)))
+        self.assertEqual([oct(path.stat().st_mode & 0o777) for path in (expected.parent, expected)], ["0o700", "0o700"])
+        expected.chmod(0o750)
+        with env_patch.dict("os.environ", {"XDG_STATE_HOME": str(real)}):
+            self.assertEqual(a.state_dir(project / ".eu-compliance-guard/declarations.json"), expected)
+        self.assertEqual(expected.stat().st_mode & 0o777, 0o750)
+        (project / ".eu-compliance-guard/declarations.json").write_text('{"project_id": "../escape"}')
+        code, _, stderr = self.cli("state-dir", "--input", str(project / ".eu-compliance-guard/declarations.json"))
+        self.assertEqual(code, 2)
+        self.assertIn("invalid-input", stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

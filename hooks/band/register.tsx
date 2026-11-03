@@ -5,12 +5,11 @@ import type { Band } from '../../types'
 import { daysOld, summarize } from './summary'
 
 const LEVELS = ['lite', 'full', 'strict', 'off']
+const PROJECT_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/
 const EMPTY: Band = { isActive: false, level: 'full', stateDir: '', run: null, problem: null }
 const band = atom({ plugin: 'eu-compliance-guard', key: 'band' } as const, EMPTY)
 const isFolded = atom({ plugin: 'eu-compliance-guard', key: 'isFolded' } as const, false)
 const lastView = atom({ plugin: 'eu-compliance-guard', key: 'lastView' } as const, null)
-
-const base = (path: string) => path.replace(/\/+$/, '').split('/').pop() ?? path
 
 // The same default level the SessionStart hook reads: EUCG_DEFAULT_MODE, then the config file.
 async function readLevel($: EngineInterface, home: string): Promise<string> {
@@ -28,17 +27,28 @@ async function readLevel($: EngineInterface, home: string): Promise<string> {
 }
 
 // Finds the newest run (by its timestamped name) that has a completion marker, and summarizes it.
+// The declared project_id keys run storage, exactly as `eu-compliance-guard state-dir` and the session hook do.
+async function declaredProject($: EngineInterface, project: string): Promise<string | null> {
+  try {
+    const value = JSON.parse(await $.fs.read(`${project}/.eu-compliance-guard/declarations.json`))?.project_id
+    return typeof value === 'string' && PROJECT_ID.test(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
 async function refresh($: EngineInterface): Promise<void> {
   const home = (await $.env.get('HOME')) ?? ''
-  const repo = await $.session.repo().catch(() => null)
-  const project = repo?.root ?? (await $.session.cwd())
+  // The session's project root, like the hook's CLAUDE_PROJECT_DIR; a worktree is its own project.
+  const project = await $.session.root()
   const level = await readLevel($, home)
   const entries = await $.fs.list(project).catch(() => [])
   const isActive = level !== 'off' && entries.some(entry => entry.name === '.eu-compliance-guard' && entry.kind === 'dir')
-  const stateDir = `${(await $.env.get('XDG_STATE_HOME')) ?? `${home}/.local/state`}/eu-compliance-guard/${base(project)}`
+  const identity = isActive ? await declaredProject($, project) : null
+  const stateDir = identity ? `${(await $.env.get('XDG_STATE_HOME')) ?? `${home}/.local/state`}/eu-compliance-guard/${identity}` : ''
   let run = null
   let problem = null
-  if (isActive) {
+  if (identity !== null) {
     const runs = (await $.fs.list(stateDir).catch(() => []))
       .filter(entry => entry.kind === 'dir' && !entry.isLink && entry.name.startsWith('run-'))
       .map(entry => entry.name)
@@ -49,6 +59,10 @@ async function refresh($: EngineInterface): Promise<void> {
       if (!files.some(file => file.name === 'complete.json' && file.kind === 'file')) continue
       run = summarize(`${stateDir}/${name}`, await $.fs.read(`${stateDir}/${name}/bundle.json`).catch(() => ''))
       if (run === null) problem = 'latest run could not be summarized'
+      else if (run.projectId !== identity) {
+        run = null
+        problem = 'latest run belongs to another project'
+      }
       break
     }
   }
@@ -67,12 +81,16 @@ async function runSkill($: EngineInterface, name: string) {
 }
 
 // Writes the run's HTML view with the plugin's own CLI and opens it in the default browser.
-async function openReport($: EngineInterface, dir: string) {
+async function openReport($: EngineInterface, linked: string) {
   const root = $.plugin.root
+  // The CLI refuses symlinked path components; a home folder may be one (for example /home -> /var/home).
+  const resolved = await $.process.run(['realpath', '--', linked]).catch(() => undefined)
+  const dir = resolved?.exitCode === 0 && resolved.stdout.trim() !== '' ? resolved.stdout.trim() : linked
   const hasUv = await $.process.run(['uv', '--version']).then(r => r.exitCode === 0).catch(() => false)
+  // -P keeps the session's directory off sys.path, so a project's own package cannot stand in for the CLI.
   const argv = hasUv
-    ? ['uv', 'run', '--project', root, '--locked', '--no-dev', 'python', '-m', 'eu_compliance_guard', 'view', '--run', dir, '--open']
-    : ['python3', '-m', 'eu_compliance_guard', 'view', '--run', dir, '--open']
+    ? ['uv', 'run', '--project', root, '--locked', '--no-dev', 'python', '-P', '-m', 'eu_compliance_guard', 'view', '--run', dir, '--open']
+    : ['python3', '-P', '-m', 'eu_compliance_guard', 'view', '--run', dir, '--open']
   const result = await $.process
     .run(argv, { timeoutMs: 120_000, ...(hasUv ? {} : { env: { PYTHONPATH: root } }) })
     .catch(() => undefined)
@@ -127,7 +145,7 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Box flexDirection="row" gap={1}>
           <Text bold>EU Compliance Guard</Text>
-          <Text dimColor>level {b.level}</Text>
+          <Text dimColor>default level {b.level}</Text>
           {run?.synthetic ? <Text color="yellow">fictional data</Text> : null}
           {fold}
         </Box>
