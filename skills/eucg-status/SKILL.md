@@ -19,6 +19,9 @@ Show where the project's legal revalidation stands, in one short card.
   `declarations.scope.assessment_date`, `requirement_assessments[].state`,
   `obligation_dispositions[].applicability`, `len(gaps)`, and
   `source_attempts[].state` with `retrieval.comparison`.
+- Count sources: `retrieved` and `failed` from `source_attempts`; `same bytes` and `changed`
+  from their `retrieval.comparison`; `offline only` is each declared source
+  (`declarations.sources`) whose `target_id` has no attempt in this run.
 - Declarations changed since the run when `sha256sum .eu-compliance-guard/declarations.json`
   differs from the bundle's `input_digest` (`sha256:<hex>`). Do not compare against the
   run's `input.json`: it is a normalized copy, so its bytes always differ.
