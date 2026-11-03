@@ -10,6 +10,7 @@ import sys
 import tempfile
 import tomllib
 import unittest
+from unittest.mock import patch
 
 from eu_compliance_guard import revalidation as r
 
@@ -127,6 +128,30 @@ class SessionHookTests(unittest.TestCase):
         self.assertIn("level: strict", self.hook(EUCG_DEFAULT_MODE="STRICT"))
         self.assertIn("level: full", self.hook(EUCG_DEFAULT_MODE="ultra"))
         self.assertIn("level: lite", self.hook(EUCG_DEFAULT_MODE="lite"))
+
+    def test_cli_command_skips_dev_dependencies_and_missing_runtime_is_announced(self):
+        self.enable()
+        bin_dir = self.home / "bin"
+        bin_dir.mkdir()
+        (bin_dir / "uv").write_text("#!/bin/sh\n")
+        (bin_dir / "uv").chmod(0o755)
+        self.assertIn("--locked --no-dev python -m eu_compliance_guard", self.hook(PATH=str(bin_dir)))
+        import importlib.util as loader
+        spec = loader.spec_from_file_location("eucg_session_under_test", HOOK)
+        session = loader.module_from_spec(spec)
+        spec.loader.exec_module(session)
+        with patch.object(session.shutil, "which", return_value=None), \
+                patch.object(session.importlib.util, "find_spec", return_value=None):
+            self.assertIn("Setup needed: install uv", session.setup_notice())
+            self.assertTrue(session.cli_command().startswith("PYTHONPATH="))
+        with patch.object(session.shutil, "which", return_value="/usr/bin/uv"):
+            self.assertIsNone(session.setup_notice())
+
+    def test_audit_skill_uses_init_check_and_manual_source_flow(self):
+        audit = (ROOT / "skills/eucg-audit/SKILL.md").read_text()
+        for phrase in ("<cli> init --project-id", "<cli> check", "Manually downloaded official documents",
+                       "--previous <run-directory>", "--no-dev"):
+            self.assertIn(phrase, audit)
 
     def test_uses_payload_cwd_when_project_variable_is_absent(self):
         self.enable()

@@ -39,7 +39,9 @@ writes a static HTML view of the verified run and opens it in your browser.
 
 ## CLI
 
-`python -m eu_compliance_guard revalidate --input <declarations.json> --output <new run dir> [--offline | --fetch-official]`
+- `init --project-id <id>` writes a valid starter `.eu-compliance-guard/declarations.json` (never overwrites).
+- `check [--input <file>] [--json]` validates declarations with located problems, observed file digests and target fetchability.
+- `revalidate --input <declarations.json> --output <new run dir> [--offline | --fetch-official] [--previous <run dir>]`
 
 - Offline by default. `--fetch-official` GETs only the declared targets on five fixed
   official hosts, and only with your consent for that run.

@@ -71,7 +71,7 @@ async function openReport($: EngineInterface, dir: string) {
   const root = $.plugin.root
   const hasUv = await $.process.run(['uv', '--version']).then(r => r.exitCode === 0).catch(() => false)
   const argv = hasUv
-    ? ['uv', 'run', '--project', root, '--locked', 'python', '-m', 'eu_compliance_guard', 'view', '--run', dir, '--open']
+    ? ['uv', 'run', '--project', root, '--locked', '--no-dev', 'python', '-m', 'eu_compliance_guard', 'view', '--run', dir, '--open']
     : ['python3', '-m', 'eu_compliance_guard', 'view', '--run', dir, '--open']
   const result = await $.process
     .run(argv, { timeoutMs: 120_000, ...(hasUv ? {} : { env: { PYTHONPATH: root } }) })

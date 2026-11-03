@@ -88,6 +88,7 @@ test('buttons run the plugin skills and the report view through the plugin CLI',
   const view = processes.find(argv => argv.includes('view'))
   expect(view?.slice(-4)).toEqual(['view', '--run', RUN, '--open'])
   expect(view?.[0]).toBe('uv')
+  expect(view).toContain('--no-dev')
   expect(await ui.find({ type: 'Link' })).toBeDefined()
   await ui.unmount()
 })

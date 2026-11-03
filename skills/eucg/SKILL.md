@@ -53,7 +53,7 @@ not a complete corpus. Anything outside them stays a sector_national research ga
 ## Running the CLI
 
 The SessionStart context gives the exact command for this machine. Otherwise use
-`uv run --project "${CLAUDE_PLUGIN_ROOT}" --locked python -m eu_compliance_guard`.
+`uv run --project "${CLAUDE_PLUGIN_ROOT}" --locked --no-dev python -m eu_compliance_guard`.
 
 ```sh
 state="${XDG_STATE_HOME:-$HOME/.local/state}/eu-compliance-guard/$(basename "$PWD")"
@@ -62,7 +62,8 @@ mkdir -p -m 700 "$state"
   --output "$state/run-$(date -u +%Y%m%dT%H%M%SZ)" --offline
 ```
 
-Exit 0 means the report was written, possibly partial. Exit 2 means invalid input or
+Before a run, `<cli> check` validates the declarations and names each problem's
+JSON location. Exit 0 means the report was written, possibly partial. Exit 2 means invalid input or
 output (the stderr code is safe to show). Read `report.md` from the run directory.
 Its top section is the list of things that need attention.
 

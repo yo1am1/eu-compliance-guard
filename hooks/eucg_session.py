@@ -4,6 +4,7 @@ Standard library only. Silent unless the project has a .eu-compliance-guard/ dir
 Run data is summarized as counts and fixed-format fields only; gap text never enters
 the context. Any failure exits 0 without output so a session never breaks.
 """
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -37,8 +38,16 @@ def _project(payload: dict) -> Path:
 def cli_command() -> str:
     root = shlex.quote(str(ROOT))
     if shutil.which("uv"):
-        return f"uv run --project {root} --locked python -m eu_compliance_guard"
+        return f"uv run --project {root} --locked --no-dev python -m eu_compliance_guard"
     return f"PYTHONPATH={root} python3 -m eu_compliance_guard"
+
+
+def setup_notice() -> str | None:
+    """The CLI needs uv, or a python3 that already has Pydantic."""
+    if shutil.which("uv") or importlib.util.find_spec("pydantic"):
+        return None
+    return ("Setup needed: install uv (https://docs.astral.sh/uv/) so the plugin can run its CLI, "
+            "or install pydantic for python3. Tell the user before running any eucg command.")
 
 
 def state_dir(project: Path) -> Path:
@@ -97,6 +106,9 @@ def context(payload: dict) -> str | None:
              f"Private run directory: `{state_dir(project)}` (create with mode 0700; never inside the repository).",
              "Declarations: " + ("present." if declarations.is_file() else "missing; /eucg-audit can draft them."),
              latest_run(project)]
+    notice = setup_notice()
+    if notice:
+        lines.append(notice)
     return "\n".join(lines)
 
 
