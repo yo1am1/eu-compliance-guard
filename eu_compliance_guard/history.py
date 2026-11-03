@@ -226,17 +226,30 @@ def _reviewed_between(value, previous, current) -> bool:
                             <= datetime.fromisoformat(current.run.started_at))
 
 
-def _renewed(previous, current, identity) -> bool:
-    """The applicability decision and every evidence review are new revisions reviewed between the two runs."""
-    declared = current.declarations
-    prior = {(type(item).__name__, item.id): item for item in
-             [*previous.declarations.applicability_decisions, *previous.declarations.evidence_reviews]}
-    records = [item for item in declared.applicability_decisions if item.obligation.id == identity]
-    if not records:
-        return False
-    records += [item for item in declared.evidence_reviews if item.obligation.id == identity]
-    return all(_reviewed_between(item.reviewed_at, previous, current)
-               and item.revision > getattr(prior.get((type(item).__name__, item.id)), "revision", -1) for item in records)
+def _attestations(bundle) -> dict:
+    declared = bundle.declarations
+    records = {("decision", item.id): item for item in declared.applicability_decisions}
+    records.update((("evidence_review", item.id), item) for item in declared.evidence_reviews)
+    records.update((("family", item.family), item) for item in declared.family_screenings)
+    return records
+
+
+def _classify_attestations(previous, current) -> tuple[set, set]:
+    """Split new or changed review records into renewals and stale attestations.
+
+    A renewal is reviewed between the two runs (and is a higher revision where the record has
+    one); it is the review a withdrawal asks for, not a new change. Any other new or changed
+    review record cannot carry support, whatever obligation id it is attached to now.
+    """
+    before, after = _attestations(previous), _attestations(current)
+    renewals, stale = set(), set()
+    for key, item in after.items():
+        prior = before.get(key)
+        if prior is not None and prior.model_dump() == item.model_dump():
+            continue
+        newer = prior is None or not hasattr(item, "revision") or item.revision > prior.revision
+        (renewals if newer and _reviewed_between(item.reviewed_at, previous, current) else stale).add(key)
+    return renewals, stale
 
 
 def compare(previous, current, previous_digest):
@@ -257,6 +270,8 @@ def compare(previous, current, previous_digest):
         # Lost observations establish uncertainty; declared removals are compared independently.
         if key[0] != "evidence_availability" and not (key[0] == "file" and key not in after):
             changed.add(key)
+    renewals, stale_attestations = _classify_attestations(previous, current)
+    changed -= renewals
     comparison = m.DependencyComparison(previous_run_id=previous.run.id, previous_manifest_id=previous.manifest.id,
         previous_bundle_digest=previous_digest, historical_disposition_ids=[item.id for item in previous.obligation_dispositions],
         changes=changes)
@@ -273,17 +288,29 @@ def compare(previous, current, previous_digest):
     attempts = {item.source_target_id: item for item in current.source_attempts}
     overlays, invalidated, gaps = [], set(), []
     carried = {item.obligation.id for item in previous.effective_applicability_decisions if INVALIDATED_GAP in item.gaps}
+
+    def own_attestations(identity):
+        own = {("decision", item.id) for item in current.declarations.applicability_decisions if item.obligation.id == identity}
+        return own | {("evidence_review", item.id) for item in current.declarations.evidence_reviews if item.obligation.id == identity}
+
+    stale_review = "A new or changed review record is not dated between the predecessor run and this run; record a renewed review."
+    historical = {item.obligation_id for item in previous.obligation_dispositions}
+    for obligation in current.declarations.obligations:
+        # Obligations new to this comparison (including renamed or re-added ones) get no overlay but
+        # still cannot rest on review records that were not renewed in this window.
+        if obligation.id not in historical and own_attestations(obligation.id) & stale_attestations:
+            invalidated.add(obligation.id)
+            gaps.append(f"Obligation {obligation.id}: {stale_review}")
     for disposition in previous.obligation_dispositions:
         identity = disposition.obligation_id
         dependencies, complete, source_ids, evidence_ids, targets = _dependencies(previous, current, identity)
-        renewed = _renewed(previous, current, identity)
-        own = set()
-        if renewed:
-            # A renewal after the predecessor run is the review the staleness asked for, not a new change.
-            own = {("decision", item.id) for item in current.declarations.applicability_decisions if item.obligation.id == identity}
-            own |= {("evidence_review", item.id) for item in current.declarations.evidence_reviews if item.obligation.id == identity}
-        relevant = sorted((changed & dependencies if complete else changed) - own)
+        own = own_attestations(identity)
+        renewed = any(kind == "decision" for kind, _ in own) and own <= renewals
+        relevant = sorted(changed & dependencies if complete else changed)
         reasons = []
+        if own & stale_attestations:
+            reasons.append(stale_review)
+            invalidated.add(identity)
         if identity in carried and not renewed:
             # Invalidation persists across runs; rerunning without renewed reviews must not restore support.
             reasons.append("The predecessor already withdrew this support; it stays withdrawn until the applicability "
@@ -344,17 +371,12 @@ def compare(previous, current, previous_digest):
             assessment["gaps"].append("Mapped historical dependencies changed or incomplete; renew review.")
             assessment["next_actions"].append("Obtain accountable review of the changed dependency comparison.")
     withdrawn = {item.family for item in previous.family_screenings if FAMILY_WITHDRAWN_GAP in item.gaps}
-    prior_screenings = {item.family: item for item in previous.declarations.family_screenings}
-    declared_screenings = {item.family: item for item in current.declarations.family_screenings}
     for screening in data["family_screenings"]:
         family = screening["family"]
-        declared = declared_screenings.get(family)
-        # A renewal is a changed screening reviewed between the two runs.
-        renewed = bool(declared and _reviewed_between(declared.reviewed_at, previous, current) and (
-            family not in prior_screenings or declared.model_dump() != prior_screenings[family].model_dump()))
+        renewed = ("family", family) in renewals
         # shortcut: family attestations lack complete dependency lists; renew all after any known change.
-        others = changed - ({("family", family)} if renewed else set())
-        if screening["applicability"] != "unresolved" and (others or (family in withdrawn and not renewed)):
+        if screening["applicability"] != "unresolved" and (changed or (family in withdrawn and not renewed)
+                                                           or ("family", family) in stale_attestations):
             screening["applicability"] = "unresolved"
             screening["gaps"].append(FAMILY_WITHDRAWN_GAP)
             gaps.append(f"Family {family}: {FAMILY_WITHDRAWN_GAP}")

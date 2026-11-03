@@ -152,6 +152,73 @@ class HistoryTests(unittest.TestCase):
         self.save()
         self.assertEqual(family(r.run(self.input, self.root / "fam-4", previous=self.root / "fam-3")), "applicable")
 
+    def now(self):
+        import time
+        from datetime import datetime, timezone
+        time.sleep(0.01)
+        return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    def withdraw(self):
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        self.save()
+        return r.run(self.input, self.root / "w-2", previous=self.prior_path)
+
+    def test_obligation_and_family_renewed_together_are_restored_and_stay_restored(self):
+        decision = self.payload["applicability_decisions"][0]
+        self.payload["family_screenings"] = [{
+            "family": "gdpr", "synthetic": True, "scope": decision["scope"], "assessment_date": decision["assessment_date"],
+            "applicability": "applicable", "rationale": "Fictional screening.", "fact_refs": decision["fact_refs"],
+            "source_refs": [{"id": "source-example", "revision": 0}], "reviewer": "Fictional reviewer",
+            "reviewed_at": decision["reviewed_at"], "gaps": []}]
+        self.save()
+        self.prior = r.run(self.input, self.root / "w-1")
+        self.prior_path = self.root / "w-1"
+        family = lambda bundle: next(item for item in bundle.family_screenings if item.family == "gdpr").applicability
+        withdrawn = self.withdraw()
+        self.assertEqual((withdrawn.requirement_assessments[0].state, family(withdrawn)), ("unresolved", "unresolved"))
+        stamp = self.now()
+        for key in ("applicability_decisions", "evidence_reviews"):
+            for item in self.payload[key]:
+                if item["obligation"]["id"] == "obligation-example":
+                    item.update(revision=item["revision"] + 1, reviewed_at=stamp)
+        self.payload["family_screenings"][0].update(rationale="Fictional screening, renewed.", reviewed_at=stamp)
+        self.save()
+        renewed = r.run(self.input, self.root / "w-3", previous=self.root / "w-2")
+        self.assertEqual((renewed.requirement_assessments[0].state, family(renewed)), ("supported", "applicable"))
+        quiet = r.run(self.input, self.root / "w-4", previous=self.root / "w-3")
+        self.assertEqual((quiet.requirement_assessments[0].state, family(quiet)), ("supported", "applicable"))
+
+    def test_renamed_obligation_cannot_reuse_old_reviews(self):
+        self.withdraw()
+        self.payload = json.loads(json.dumps(self.payload).replace("obligation-example", "obligation-renamed"))
+        for key in ("applicability_decisions", "evidence_reviews"):
+            for item in self.payload[key]:
+                if item["obligation"]["id"] == "obligation-renamed":
+                    item["revision"] += 1
+        self.payload["requirements"][0]["revision"] = 2
+        self.save()
+        renamed = r.run(self.input, self.root / "w-3", previous=self.root / "w-2")
+        self.assertEqual(renamed.requirement_assessments[0].state, "unresolved")
+        self.assertIn("Obligation obligation-renamed: A new or changed review record", " ".join(renamed.gaps))
+
+    def test_removed_and_readded_obligation_cannot_reuse_old_reviews(self):
+        original = deepcopy(self.payload)
+        self.withdraw()
+        removed = deepcopy(self.payload)
+        removed["obligations"] = [item for item in removed["obligations"] if item["id"] != "obligation-example"]
+        removed["controls"] = [item for item in removed["controls"] if "obligation-example" not in item["obligation_ids"]]
+        for key in ("applicability_decisions", "evidence_reviews"):
+            removed[key] = [item for item in removed[key] if item["obligation"]["id"] != "obligation-example"]
+        removed["requirements"][0].update(revision=2, obligation_refs=[])
+        self.payload = removed
+        self.save()
+        r.run(self.input, self.root / "w-3", previous=self.root / "w-2")
+        self.payload = original
+        self.payload["requirements"][0].update(revision=3, statement="FICTIONAL changed requirement")
+        self.save()
+        readded = r.run(self.input, self.root / "w-4", previous=self.root / "w-3")
+        self.assertEqual(readded.requirement_assessments[0].state, "unresolved")
+
     def test_documented_maximum_registers_publish_and_revalidate(self):
         base_obligation = next(item for item in self.payload["obligations"] if item["id"] == "obligation-unmapped")
         base_requirement = self.payload["requirements"][0]
