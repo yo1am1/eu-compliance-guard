@@ -164,9 +164,11 @@ without changing any predecessor file.
 
 Relevant changes make historical reviews stale and withdraw affected support.
 Withdrawn support stays withdrawn in later runs. It is restored only when the
-obligation's applicability decision and every evidence review for it carry a
-`reviewed_at` later than the predecessor run. Those renewal edits are not counted as
-new changes. Offline and `--fetch-official` runs of the same tool version count as
+obligation's applicability decision and every evidence review for it are new
+revisions with a `reviewed_at` after the predecessor run and no later than the
+current run. Withdrawn family screenings follow the same rule. Those renewal edits
+are not counted as new changes. An attestation dated after the run that reads it is
+always a review gap. Offline and `--fetch-official` runs of the same tool version count as
 the same configuration.
 Missing evidence or an offline or failed refresh makes freshness unknown. Matching
 bytes establish only matching recorded inputs, never current law or renewed

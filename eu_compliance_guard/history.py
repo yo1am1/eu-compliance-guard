@@ -216,18 +216,27 @@ def _dependencies(previous, current, identity):
 
 
 MAX_LISTED_CHANGES = 20
+FAMILY_WITHDRAWN_GAP = "Predecessor withdrew this family screening; renew it with complete dependency attribution."
 INVALIDATED_GAP = "Predecessor dependencies changed or incomplete; accountable review must be renewed."
 
 
+def _reviewed_between(value, previous, current) -> bool:
+    """A review time after the predecessor run and no later than this run; future dates never count."""
+    return bool(value) and (datetime.fromisoformat(previous.run.ended_at) < datetime.fromisoformat(value)
+                            <= datetime.fromisoformat(current.run.started_at))
+
+
 def _renewed(previous, current, identity) -> bool:
-    """The obligation's applicability decision and every evidence review were reviewed after the predecessor run."""
-    after = datetime.fromisoformat(previous.run.ended_at)
+    """The applicability decision and every evidence review are new revisions reviewed between the two runs."""
     declared = current.declarations
+    prior = {(type(item).__name__, item.id): item for item in
+             [*previous.declarations.applicability_decisions, *previous.declarations.evidence_reviews]}
     records = [item for item in declared.applicability_decisions if item.obligation.id == identity]
     if not records:
         return False
     records += [item for item in declared.evidence_reviews if item.obligation.id == identity]
-    return all(item.reviewed_at and datetime.fromisoformat(item.reviewed_at) > after for item in records)
+    return all(_reviewed_between(item.reviewed_at, previous, current)
+               and item.revision > getattr(prior.get((type(item).__name__, item.id)), "revision", -1) for item in records)
 
 
 def compare(previous, current, previous_digest):
@@ -334,13 +343,21 @@ def compare(previous, current, previous_digest):
             assessment["state"] = "unresolved"
             assessment["gaps"].append("Mapped historical dependencies changed or incomplete; renew review.")
             assessment["next_actions"].append("Obtain accountable review of the changed dependency comparison.")
+    withdrawn = {item.family for item in previous.family_screenings if FAMILY_WITHDRAWN_GAP in item.gaps}
+    prior_screenings = {item.family: item for item in previous.declarations.family_screenings}
+    declared_screenings = {item.family: item for item in current.declarations.family_screenings}
     for screening in data["family_screenings"]:
+        family = screening["family"]
+        declared = declared_screenings.get(family)
+        # A renewal is a changed screening reviewed between the two runs.
+        renewed = bool(declared and _reviewed_between(declared.reviewed_at, previous, current) and (
+            family not in prior_screenings or declared.model_dump() != prior_screenings[family].model_dump()))
         # shortcut: family attestations lack complete dependency lists; renew all after any known change.
-        if changed and screening["applicability"] != "unresolved":
+        others = changed - ({("family", family)} if renewed else set())
+        if screening["applicability"] != "unresolved" and (others or (family in withdrawn and not renewed)):
             screening["applicability"] = "unresolved"
-            reason = f"Family {screening['family']}: comparison changed; renew family screening with complete dependency attribution."
-            screening["gaps"].append(reason)
-            gaps.append(reason)
+            screening["gaps"].append(FAMILY_WITHDRAWN_GAP)
+            gaps.append(f"Family {family}: {FAMILY_WITHDRAWN_GAP}")
     if gaps:
         data["gaps"].extend(gaps)
         data["next_actions"].append("Review comparison.json and renew affected reviews; preserve predecessor artifacts.")

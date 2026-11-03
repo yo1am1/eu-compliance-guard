@@ -93,7 +93,10 @@ class HistoryTests(unittest.TestCase):
         self.assertIn("stays withdrawn", " ".join(self.overlay(rerun).reasons))
         again = r.run(self.input, self.root / "again", previous=self.root / "rerun")
         self.assertEqual(again.requirement_assessments[0].state, "unresolved")
-        renewed_at = (datetime.fromisoformat(again.run.ended_at) + timedelta(seconds=1)).isoformat().replace("+00:00", "Z")
+        import time
+        time.sleep(0.01)  # The renewal happens after the stale run and before the next run.
+        renewed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        self.assertGreater(datetime.fromisoformat(renewed_at), datetime.fromisoformat(again.run.ended_at))
         for key in ("applicability_decisions", "evidence_reviews"):
             for item in self.payload[key]:
                 if item["obligation"]["id"] == "obligation-example":
@@ -108,6 +111,46 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(both.requirement_assessments[0].state, "unresolved")
         self.assertIn("requirement:requirement-example", self.overlay(both).changed_dependencies)
         self.assertNotIn("decision:decision-example", self.overlay(both).changed_dependencies)
+
+    def test_future_dated_reviews_never_establish_or_restore_support(self):
+        for key in ("applicability_decisions", "evidence_reviews"):
+            for item in self.payload[key]:
+                item["reviewed_at"] = "2099-01-01T00:00:00Z"
+        self.save()
+        first = r.run(self.input, self.root / "future-1")
+        self.assertEqual(first.requirement_assessments[0].state, "unresolved")
+        self.assertIn("Obligation obligation-example: applicability review dated after this run", first.gaps)
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        self.save()
+        r.run(self.input, self.root / "future-2", previous=self.root / "future-1")
+        rerun = r.run(self.input, self.root / "future-3", previous=self.root / "future-2")
+        self.assertEqual(rerun.requirement_assessments[0].state, "unresolved")
+
+    def test_withdrawn_family_screening_persists_until_renewed(self):
+        import time
+        from datetime import datetime, timezone
+        decision = self.payload["applicability_decisions"][0]
+        self.payload["family_screenings"] = [{
+            "family": "gdpr", "synthetic": True, "scope": decision["scope"], "assessment_date": decision["assessment_date"],
+            "applicability": "applicable", "rationale": "Fictional screening.", "fact_refs": decision["fact_refs"],
+            "source_refs": [{"id": "source-example", "revision": 0}], "reviewer": "Fictional reviewer",
+            "reviewed_at": decision["reviewed_at"], "gaps": []}]
+        self.save()
+        family = lambda bundle: next(item for item in bundle.family_screenings if item.family == "gdpr").applicability
+        first = r.run(self.input, self.root / "fam-1")
+        self.assertEqual(family(first), "applicable")
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        self.save()
+        self.assertEqual(family(r.run(self.input, self.root / "fam-2", previous=self.root / "fam-1")), "unresolved")
+        rerun = r.run(self.input, self.root / "fam-3", previous=self.root / "fam-2")
+        self.assertEqual(rerun.comparison.changes, [])
+        self.assertEqual(family(rerun), "unresolved")
+        self.assertIn(h.FAMILY_WITHDRAWN_GAP, next(item for item in rerun.family_screenings if item.family == "gdpr").gaps)
+        time.sleep(0.01)
+        self.payload["family_screenings"][0].update(rationale="Fictional screening, renewed.",
+                                                    reviewed_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
+        self.save()
+        self.assertEqual(family(r.run(self.input, self.root / "fam-4", previous=self.root / "fam-3")), "applicable")
 
     def test_documented_maximum_registers_publish_and_revalidate(self):
         base_obligation = next(item for item in self.payload["obligations"] if item["id"] == "obligation-unmapped")

@@ -93,6 +93,11 @@ class ContentAdmission:
     reason: str
 
 
+def _after_run(value: str | None, timestamp: str) -> bool:
+    """An attestation dated after the run that reads it cannot be an accountable review."""
+    return bool(value) and datetime.fromisoformat(value) > datetime.fromisoformat(timestamp)
+
+
 def _check_budget(deadline: float | None) -> None:
     if deadline is not None and time.monotonic() > deadline:
         raise RevalidationError("budget-exceeded")
@@ -492,6 +497,8 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
         review = source_reviews.get((source.id, declared.scope.assessment_date))
         if not review or review.state != "reviewed_for_assessment" or not review.reviewer or not review.reviewer.strip() or not review.last_successful_verification:
             problems.append("accountable source review missing for assessment date")
+        if review and _after_run(review.last_successful_verification, timestamp):
+            problems.append("source review dated after this run")
         if review:
             problems.extend("source review gap: " + gap for gap in review.gaps)
         for topic in get_args(m.SourceReviewTopic):
@@ -570,6 +577,8 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
                 problems.append("declared applicability remains unresolved")
             if not original.reviewer or not original.reviewer.strip() or not original.reviewed_at or not original.rationale.strip():
                 problems.append("accountable applicability reasoning missing")
+            if _after_run(original.reviewed_at, timestamp):
+                problems.append("applicability review dated after this run")
             if original.assessment_date != declared.scope.assessment_date:
                 problems.append("applicability assessment date mismatch")
             if not original.jurisdictions or any(j not in declared.scope.jurisdictions for j in original.jurisdictions):
@@ -620,7 +629,8 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
                 missing.append("Accountable evidence review missing.")
                 manual_states.append("pending")
             else:
-                accountable = bool(review.reviewer and review.reviewer.strip() and review.reviewed_at and review.rationale.strip())
+                accountable = bool(review.reviewer and review.reviewer.strip() and review.reviewed_at and review.rationale.strip()
+                                   and not _after_run(review.reviewed_at, timestamp))
                 if review.state == "insufficient" and accountable:
                     outcome = "observed_failure"
                     manual_states.append("unsupported")
@@ -684,6 +694,8 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
             if (not original.reviewer or not original.reviewer.strip() or not original.reviewed_at
                     or not original.rationale.strip() or original.assessment_date != declared.scope.assessment_date):
                 problems.append("Accountable family reasoning/date missing.")
+            if _after_run(original.reviewed_at, timestamp):
+                problems.append("Family screening dated after this run.")
             problems.extend(fact_problems(original.fact_refs))
             if not original.source_refs or any(source_gaps[pin.id] for pin in original.source_refs):
                 problems.append("Reviewed family sources unresolved.")
