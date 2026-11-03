@@ -17,6 +17,7 @@ from . import models as m, revalidation as r
 
 DEFAULT_PATH = ".eu-compliance-guard/declarations.json"
 MAX_PROBLEMS = 50
+FIELD = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 LOCATED = re.compile(r"^[a-z_]+(?:\[\d+\]|\[\])?[^:]{0,200}: ")
 
@@ -90,7 +91,9 @@ def state_dir(path: str | os.PathLike = DEFAULT_PATH, create: bool = True) -> Pa
 def _location(loc) -> str:
     text = ""
     for part in loc:
-        text += f"[{part}]" if isinstance(part, int) else ("." if text else "") + str(part)
+        # Model field names are plain identifiers; anything else is a key from the input, never printed.
+        name = str(part) if isinstance(part, str) and FIELD.match(part) else "(unknown field)"
+        text += f"[{part}]" if isinstance(part, int) else ("." if text else "") + name
     return text or "(document)"
 
 

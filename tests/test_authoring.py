@@ -166,6 +166,36 @@ class AuthoringTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("invalid-input", stderr)
 
+    def test_no_declared_string_value_ever_reaches_check_output(self):
+        marker = "LEAK-MARKER-\x1b[2J"
+
+        def leaves(node, path=()):
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    yield from leaves(value, (*path, key))
+            elif isinstance(node, list):
+                for index, value in enumerate(node):
+                    yield from leaves(value, (*path, index))
+            elif isinstance(node, str):
+                yield path
+
+        for path in list(leaves(self.payload)):
+            payload = deepcopy(self.payload)
+            parent = payload
+            for key in path[:-1]:
+                parent = parent[key]
+            parent[path[-1]] = marker
+            with self.subTest(path=path):
+                text = a.format_check(self.check(payload))
+                self.assertNotIn("LEAK-MARKER", text)
+                self.assertNotIn("\x1b", text)
+        payload = deepcopy(self.payload)
+        payload["scope"]["\x1b[2J" + SECRET] = 1
+        text = a.format_check(self.check(payload))
+        self.assertIn("scope.(unknown field)", text)
+        self.assertNotIn(SECRET, text)
+        self.assertNotIn("\x1b", text)
+
 
 if __name__ == "__main__":
     unittest.main()

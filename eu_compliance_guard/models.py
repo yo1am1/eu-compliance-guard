@@ -19,14 +19,22 @@ MAX_BUNDLE_BYTES = 16 * 1024 * 1024
 MAX_SEQUENCE = 2**53 - 1
 
 
+# Fixed messages: the standard library's errors quote the rejected value.
 def _date(value: str) -> str:
-    if date.fromisoformat(value).isoformat() != value:
+    try:
+        valid = date.fromisoformat(value).isoformat() == value
+    except ValueError:
+        valid = False
+    if not valid:
         raise ValueError("expected an ISO calendar date")
     return value
 
 
 def _timestamp(value: str) -> str:
-    parsed = datetime.fromisoformat(value)
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        raise ValueError("expected a UTC timestamp") from None
     if "T" not in value or parsed.utcoffset() != timedelta(0):
         raise ValueError("expected a UTC timestamp")
     return value
@@ -43,10 +51,13 @@ def _relative_path(value: str) -> str:
 def _http_url(value: str) -> str:
     if any(c.isspace() or ord(c) < 32 for c in value):
         raise ValueError("whitespace in URL")
-    parsed = urlsplit(value)
+    try:
+        parsed = urlsplit(value)
+        parsed.port  # Reject malformed ports, without resolving or accessing a destination.
+    except ValueError:
+        raise ValueError("expected an HTTP(S) URL with a valid host and port") from None
     if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username is not None or parsed.password is not None:
         raise ValueError("expected an HTTP(S) URL without credentials")
-    parsed.port  # Reject malformed ports, without resolving or accessing a destination.
     return value
 
 
