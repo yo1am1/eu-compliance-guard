@@ -55,6 +55,8 @@ class ExecutorTests(unittest.IsolatedAsyncioTestCase):
         self.request = ExecutionRequest("project", "run", "attempt", 3, Path("/usr/bin/true"), (), snapshot, output,
                                         Limits(seconds=.02, grace_seconds=.01, output_bytes=12))
         self.launcher = self.enterContext(patch("eu_compliance_guard.execution.asyncio.create_subprocess_exec", new_callable=AsyncMock))
+        # Fake processes never run the tools, so the host need not have them installed.
+        self.enterContext(patch("eu_compliance_guard.execution.shutil.which", side_effect=lambda name, path=None: f"/usr/bin/{name}"))
         self.fake = None
 
     def process(self, **options):
