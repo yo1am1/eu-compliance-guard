@@ -1,7 +1,8 @@
 [project]
 name = "eu-compliance-guard"
-version = "0.1.0"
-description = "Local EU audit evidence, executable checks, and agent integrations"
+version = "1.0.0"
+description = "Read-only EU requirements-to-law revalidation CLI and Claude Code plugin"
+readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "licenses/*"]
@@ -48,6 +49,7 @@ include = [
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",
     "/Makefile",
+    "/CHANGELOG.md",
 ]
 exclude = ["**/__pycache__", "**/*.pyc"]
 
