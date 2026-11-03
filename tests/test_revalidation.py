@@ -447,7 +447,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertFalse(output.exists())
         bundle = self.assemble()
         size = len(m.canonical_json(bundle))
-        with patch.object(m, "MAX_REQUEST_BYTES", size - 1), self.assertRaises(r.RevalidationError):
+        with patch.object(m, "MAX_BUNDLE_BYTES", size - 1), self.assertRaises(r.RevalidationError):
             r._publish(output, bundle, self.observations(), "report", r.time.monotonic() + 300)
         self.assertFalse(output.exists())
 

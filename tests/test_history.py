@@ -281,7 +281,7 @@ class HistoryTests(unittest.TestCase):
 
     def test_predecessor_bundle_byte_bound_and_safe_view_adapter(self):
         bundle_file = self.prior_path / "bundle.json"
-        bundle_file.write_bytes(bundle_file.read_bytes() + b" " * m.MAX_REQUEST_BYTES)
+        bundle_file.write_bytes(bundle_file.read_bytes() + b" " * m.MAX_BUNDLE_BYTES)
         with self.assertRaises(r.RevalidationError) as caught:
             self.successor()
         self.assertEqual(caught.exception.code, "capacity-exceeded")
