@@ -72,8 +72,9 @@ mkdir -p -m 700 "$state"
   access for this run. It GETs only the declared targets on the fixed registry.
   Fetched bytes are unreviewed candidates.
 - For revalidation, pass the explicitly selected retained run directory with
-  `--previous <run-directory>` and always choose a new output directory. Do not
-  discover history or choose a predecessor silently. The CLI verifies it and
+  `--previous <run-directory>` and always choose a new output directory. When `$state`
+  already holds a `run-*` directory with `complete.json`, offer the newest one to the
+  user as the predecessor and use it only once they agree. Never choose one silently. The CLI verifies it and
   retains `comparison.json`, comparison evidence and historical freshness overlays.
 - Increase revisions when changing versioned semantic records and update their
   explicit pins. Never invent renewed reviewer approval to clear a stale result.
