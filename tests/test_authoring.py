@@ -121,6 +121,30 @@ class AuthoringTests(unittest.TestCase):
         self.input.write_text(json.dumps(payload))
         self.assertEqual(self.cli("check", "--input", str(self.input))[0], 2)
 
+    def test_check_previous_names_records_needing_new_revisions(self):
+        from eu_compliance_guard import revalidation as r
+        runs = self.root / "runs"
+        runs.mkdir(mode=0o700)
+        self.input.write_text(json.dumps(self.payload))
+        r.run(self.input, runs / "run-001")
+        self.assertTrue(a.check(self.input, runs / "run-001")["valid"])
+        payload = deepcopy(self.payload)
+        payload["scope"]["roles"][0]["value"] = "changed fictional role"
+        self.input.write_text(json.dumps(payload))
+        report = a.check(self.input, runs / "run-001")
+        self.assertFalse(report["valid"])
+        located = {item["at"]: item["problem"] for item in report["errors"]}
+        fact_id = payload["scope"]["roles"][0]["id"]
+        self.assertIn(f"Fact {fact_id}", located)
+        self.assertIn("raise it to 1", located[f"Fact {fact_id}"])
+        self.assertIn("Scope scope-example", located)
+        self.assertNotIn("changed fictional role", json.dumps(report))
+        code, stdout, _ = self.cli("check", "--input", str(self.input), "--previous", str(runs / "run-001"))
+        self.assertEqual(code, 2)
+        self.assertIn(f"error   Fact {fact_id}: content changed but revision is still 0", stdout)
+        missing = a.check(self.input, runs / "absent")
+        self.assertIn("predecessor run is unusable (incomplete-run)", missing["errors"][0]["problem"])
+
 
 if __name__ == "__main__":
     unittest.main()

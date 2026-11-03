@@ -77,7 +77,9 @@ mkdir -p -m 700 "$state"
   user as the predecessor and use it only once they agree. Never choose one silently. The CLI verifies it and
   retains `comparison.json`, comparison evidence and historical freshness overlays.
 - Increase revisions when changing versioned semantic records and update their
-  explicit pins. Never invent renewed reviewer approval to clear a stale result.
+  explicit pins. A changed fact also changes the `scope` (and its activity) that
+  contains it. `<cli> check --previous <run-directory>` names every record that
+  still needs a higher revision before you run. Never invent renewed reviewer approval to clear a stale result.
   Explain stale dependencies and unknown freshness separately; unchanged bytes
   renew neither legal currency nor reviewer approval. Historical files stay intact.
 - Exit 2: show the safe error code (for example `invalid-input`), fix the

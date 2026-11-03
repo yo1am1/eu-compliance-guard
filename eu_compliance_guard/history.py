@@ -109,21 +109,35 @@ def _records(bundle):
     return records
 
 
-def validate_revisions(previous, declared):
-    """Versioned semantic records cannot be edited in place or roll backwards."""
+def revision_problems(previous, declared) -> list[str]:
+    """Each versioned record edited in place or rolled back, named by kind and identifier only."""
     old = previous.declarations
     groups = lambda value: [value.scope, *m.scope_facts(value.scope), *value.requirements,
         *value.source_targets, *(item.source for item in value.sources), *value.obligations,
         *value.controls, *value.applicability_decisions, *value.evidence_reviews]
     records = {(type(item).__name__, item.id): item for item in groups(old)}
+    problems = []
     for item in groups(declared):
         prior = records.get((type(item).__name__, item.id))
         if prior is None:
             continue
         exclude = {"retrieved_at"} if isinstance(item, m.LegalSource) else set()
-        if item.revision < prior.revision or (item.revision == prior.revision
-                and item.model_dump(exclude=exclude) != prior.model_dump(exclude=exclude)):
-            raise r.RevalidationError("invalid-revision")
+        if item.revision < prior.revision:
+            problem = f"{type(item).__name__} {item.id}: revision {item.revision} is lower than the predecessor's {prior.revision}"
+        elif item.revision == prior.revision and item.model_dump(exclude=exclude) != prior.model_dump(exclude=exclude):
+            problem = (f"{type(item).__name__} {item.id}: content changed but revision is still {item.revision}; "
+                       f"raise it to {prior.revision + 1} and update the pins that reference it")
+        else:
+            continue
+        if problem not in problems:
+            problems.append(problem)
+    return problems
+
+
+def validate_revisions(previous, declared):
+    """Versioned semantic records cannot be edited in place or roll backwards."""
+    if revision_problems(previous, declared):
+        raise r.RevalidationError("invalid-revision")
 
 
 def _dependencies(previous, current, identity):

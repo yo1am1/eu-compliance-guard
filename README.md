@@ -71,7 +71,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | Command | Purpose |
 | --- | --- |
 | `init --project-id <id> [--path <file>] [--assessment-date <date>] [--jurisdiction <j>]… [--synthetic]` | Write a valid starter declarations file; never overwrites |
-| `check [--input <file>] [--json]` | Validate declarations: each problem with its JSON location, the observed digest of every selected file, and whether each source target can be fetched |
+| `check [--input <file>] [--previous <run dir>] [--json]` | Validate declarations: each problem with its JSON location, the observed digest of every selected file, whether each source target can be fetched, and (with `--previous`) every record that needs a higher revision |
 | `revalidate --input <file> --output <new run dir> [--offline \| --fetch-official] [--previous <run dir>]` | Assemble and publish a private run |
 | `view --run <run dir> [--open]` | Verify a run and write `<parent>/views/<run>.html`; optionally open it |
 

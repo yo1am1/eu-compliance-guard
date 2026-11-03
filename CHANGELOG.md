@@ -23,7 +23,8 @@ First stable MVP of the read-only requirements-to-law revalidation workflow.
 - `view` writes a verified, script-free HTML view of a run and can open it in the browser.
 - `init` writes a valid starter declarations file. `check` reports each problem with
   its JSON location, the observed digest of every selected file, and whether each
-  source target can be fetched.
+  source target can be fetched. `check --previous` names every record whose content
+  changed without a higher revision.
 - `eu-compliance-guard` console command and `make plugin-check`.
 
 ### Changed

@@ -56,8 +56,11 @@ def _location(loc) -> str:
     return text or "(document)"
 
 
-def check(path: str | os.PathLike) -> dict:
-    """Validate a declaration and observe its selected files, reporting problems by location."""
+def check(path: str | os.PathLike, previous: str | os.PathLike | None = None) -> dict:
+    """Validate a declaration and observe its selected files, reporting problems by location.
+
+    With `previous`, also verify that run and name every record that needs a higher revision.
+    """
     errors, warnings, files, targets = [], [], [], []
     report = {"valid": False, "errors": errors, "warnings": warnings, "files": files, "targets": targets}
     r._primitives()
@@ -153,6 +156,18 @@ def check(path: str | os.PathLike) -> dict:
     uncertain = sum(item.basis in ("assumed", "unknown") for item in m.scope_facts(declared.scope))
     if uncertain:
         warnings.append({"at": "scope", "problem": f"{uncertain} fact occurrence(s) are assumed or unknown and stay review gaps"})
+    if previous is not None:
+        from . import history
+        try:
+            prior = history.load_run(previous)[0]
+        except r.RevalidationError as error:
+            errors.append({"at": "--previous", "problem": f"predecessor run is unusable ({error.code})"})
+        else:
+            if (prior.project_id, prior.synthetic) != (declared.project_id, declared.synthetic):
+                errors.append({"at": "--previous", "problem": "predecessor belongs to another project or synthetic class"})
+            for problem in history.revision_problems(prior, declared):
+                at, detail = problem.split(": ", 1)
+                errors.append({"at": at, "problem": detail})
     report["valid"] = not errors
     report["counts"] = {"requirements": len(declared.requirements), "obligations": len(declared.obligations),
                         "source_targets": len(declared.source_targets), "sources": len(declared.sources),

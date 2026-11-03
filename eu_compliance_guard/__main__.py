@@ -37,6 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     check = commands.add_parser("check", help="Validate declarations and selected files with located diagnostics",
                                 allow_abbrev=False)
     check.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file to check")
+    check.add_argument("--previous", help="Completed predecessor run; also check that changed records have new revisions")
     check.add_argument("--json", action="store_true", help="Print the result as JSON")
     view = commands.add_parser("view", help="Write and optionally open a static HTML view of a verified run", allow_abbrev=False)
     view.add_argument("--run", required=True, help="Existing run directory with a valid completion marker")
@@ -48,7 +49,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "init":
         return _init(args)
     if args.command == "check":
-        return _check(args.input, args.json)
+        return _check(args.input, args.json, args.previous)
     try:
         from .revalidation import run
         options = {}
@@ -86,11 +87,11 @@ def _init(args) -> int:
     return 0
 
 
-def _check(path: str, as_json: bool) -> int:
+def _check(path: str, as_json: bool, previous: str | None = None) -> int:
     import json
     from .authoring import check, format_check
     try:
-        report = check(path)
+        report = check(path, previous)
     except KeyboardInterrupt:
         return 130
     except Exception as error:
