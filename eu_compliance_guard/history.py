@@ -1,5 +1,6 @@
 """Verify one explicit predecessor and compare recorded dependencies without changing it."""
 
+from datetime import datetime
 from pathlib import Path
 import json
 
@@ -104,7 +105,11 @@ def _records(bundle):
     for selected in declared.sources:
         observed.setdefault(selected.target_id, selected.source.content_digest)
     records.update((("source_bytes", identity), digest) for identity, digest in observed.items())
-    records["runtime", "config"] = bundle.manifest.config_digest
+    # Offline and fetch runs of one tool version differ only in how sources were observed; fetched
+    # bytes are compared separately, so the network mode alone is not a changed dependency.
+    policies = {m.content_digest(r._json_bytes(policy)) for policy in (r.POLICY, r.fetch_policy())}
+    config = bundle.manifest.config_digest
+    records["runtime", "config"] = "policy:" + r.__version__ if config in policies else config
     records["runtime", "tools"] = bundle.manifest.tool_versions
     return records
 
@@ -210,6 +215,20 @@ def _dependencies(previous, current, identity):
     return keys, complete, source_ids, evidence_ids, target_ids
 
 
+INVALIDATED_GAP = "Predecessor dependencies changed or incomplete; accountable review must be renewed."
+
+
+def _renewed(previous, current, identity) -> bool:
+    """The obligation's applicability decision and every evidence review were reviewed after the predecessor run."""
+    after = datetime.fromisoformat(previous.run.ended_at)
+    declared = current.declarations
+    records = [item for item in declared.applicability_decisions if item.obligation.id == identity]
+    if not records:
+        return False
+    records += [item for item in declared.evidence_reviews if item.obligation.id == identity]
+    return all(item.reviewed_at and datetime.fromisoformat(item.reviewed_at) > after for item in records)
+
+
 def compare(previous, current, previous_digest):
     """Retain comparison proof and downgrade affected effective claims, leaving declarations intact."""
     before, after = _records(previous), _records(current)
@@ -243,11 +262,23 @@ def compare(previous, current, previous_digest):
     evidence = {item.id: item for item in current.evidence}
     attempts = {item.source_target_id: item for item in current.source_attempts}
     overlays, invalidated, gaps = [], set(), []
+    carried = {item.obligation.id for item in previous.effective_applicability_decisions if INVALIDATED_GAP in item.gaps}
     for disposition in previous.obligation_dispositions:
         identity = disposition.obligation_id
         dependencies, complete, source_ids, evidence_ids, targets = _dependencies(previous, current, identity)
-        relevant = sorted(changed & dependencies if complete else changed)
+        renewed = _renewed(previous, current, identity)
+        own = set()
+        if renewed:
+            # A renewal after the predecessor run is the review the staleness asked for, not a new change.
+            own = {("decision", item.id) for item in current.declarations.applicability_decisions if item.obligation.id == identity}
+            own |= {("evidence_review", item.id) for item in current.declarations.evidence_reviews if item.obligation.id == identity}
+        relevant = sorted((changed & dependencies if complete else changed) - own)
         reasons = []
+        if identity in carried and not renewed:
+            # Invalidation persists across runs; rerunning without renewed reviews must not restore support.
+            reasons.append("The predecessor already withdrew this support; it stays withdrawn until the applicability "
+                           "decision and every evidence review are reviewed after the predecessor run.")
+            invalidated.add(identity)
         if relevant:
             reasons.append("Recorded dependencies changed; renew dependent reviews.")
             invalidated.add(identity)
@@ -281,7 +312,7 @@ def compare(previous, current, previous_digest):
     for decision in data["effective_applicability_decisions"]:
         if decision["obligation"]["id"] in invalidated:
             decision.update(id=r._derived_id("unresolved", decision["obligation"]["id"]), applicability="unresolved")
-            decision["gaps"].append("Predecessor dependencies changed or incomplete; accountable review must be renewed.")
+            decision["gaps"].append(INVALIDATED_GAP)
     for disposition in data["obligation_dispositions"]:
         if disposition["obligation_id"] in invalidated:
             disposition.update(applicability="unresolved", manual_review="unresolved",

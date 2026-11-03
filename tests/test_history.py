@@ -81,6 +81,34 @@ class HistoryTests(unittest.TestCase):
         self.assertIn('tabindex="0" role="region"', html)
         self.assertNotIn("<script", html)
 
+    def test_withdrawn_support_persists_until_reviews_are_renewed_after_the_predecessor(self):
+        from datetime import datetime, timedelta, timezone
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        changed = self.successor("changed")
+        self.assertEqual(changed.requirement_assessments[0].state, "unresolved")
+        rerun = r.run(self.input, self.root / "rerun", previous=self.root / "changed")
+        self.assertEqual(rerun.comparison.changes, [])
+        self.assertEqual(rerun.requirement_assessments[0].state, "unresolved")
+        self.assertEqual(rerun.effective_applicability_decisions[0].applicability, "unresolved")
+        self.assertIn("stays withdrawn", " ".join(self.overlay(rerun).reasons))
+        again = r.run(self.input, self.root / "again", previous=self.root / "rerun")
+        self.assertEqual(again.requirement_assessments[0].state, "unresolved")
+        renewed_at = (datetime.fromisoformat(again.run.ended_at) + timedelta(seconds=1)).isoformat().replace("+00:00", "Z")
+        for key in ("applicability_decisions", "evidence_reviews"):
+            for item in self.payload[key]:
+                if item["obligation"]["id"] == "obligation-example":
+                    item.update(revision=item["revision"] + 1, reviewed_at=renewed_at)
+        self.save()
+        renewed = r.run(self.input, self.root / "renewed", previous=self.root / "again")
+        self.assertEqual(renewed.requirement_assessments[0].state, "supported")
+        self.assertEqual(renewed.effective_applicability_decisions[0].applicability, "applicable")
+        self.payload["requirements"][0].update(revision=2, statement="FICTIONAL changed again")
+        self.save()
+        both = r.run(self.input, self.root / "both", previous=self.root / "again")
+        self.assertEqual(both.requirement_assessments[0].state, "unresolved")
+        self.assertIn("requirement:requirement-example", self.overlay(both).changed_dependencies)
+        self.assertNotIn("decision:decision-example", self.overlay(both).changed_dependencies)
+
     def test_unrelated_requirement_does_not_invalidate_supported_mapping(self):
         self.payload["requirements"][1].update(revision=1, statement="FICTIONAL unrelated change")
         successor = self.successor()

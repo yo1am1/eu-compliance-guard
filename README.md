@@ -157,6 +157,11 @@ successor stores `comparison.json` and freshness overlays, and links the parent
 without changing any predecessor file.
 
 Relevant changes make historical reviews stale and withdraw affected support.
+Withdrawn support stays withdrawn in later runs. It is restored only when the
+obligation's applicability decision and every evidence review for it carry a
+`reviewed_at` later than the predecessor run. Those renewal edits are not counted as
+new changes. Offline and `--fetch-official` runs of the same tool version count as
+the same configuration.
 Missing evidence or an offline or failed refresh makes freshness unknown. Matching
 bytes establish only matching recorded inputs, never current law or renewed
 approval. Incomplete dependency attribution and any known change to family
