@@ -1133,24 +1133,32 @@ class RequirementAssessment(Record):
     next_actions: Texts
 
 
-def _unique_records(records: list, key=lambda item: item.id) -> dict:
+def _unique_records(records: list, key=lambda item: item.id, where: str = "") -> dict:
     indexed = {}
     for record in records:
         identity = key(record)
         if identity in indexed:
-            raise ValueError("duplicate record identity")
+            raise ValueError(f"{where}: duplicate record identity {identity}" if where else "duplicate record identity")
         indexed[identity] = record
     return indexed
 
 
-def _require_ids(ids: list[str], records: dict) -> None:
+# Optional `where` locations name JSON paths and declared identifiers, never values.
+def _require_ids(ids: list[str], records: dict, where: str = "") -> None:
     if len(ids) != len(set(ids)) or any(identity not in records for identity in ids):
-        raise ValueError("duplicate or dangling reference")
+        if not where:
+            raise ValueError("duplicate or dangling reference")
+        unknown = [identity for identity in ids if identity not in records]
+        raise ValueError(f"{where}: unknown reference {unknown[0]}" if unknown else f"{where}: duplicate reference")
 
 
-def _require_pin(pin: SourceRef, records: dict) -> None:
+def _require_pin(pin: SourceRef, records: dict, where: str = "") -> None:
     if pin.id not in records or pin.revision != records[pin.id].revision:
-        raise ValueError("missing or mismatched record revision")
+        if not where:
+            raise ValueError("missing or mismatched record revision")
+        if pin.id not in records:
+            raise ValueError(f"{where}: unknown reference {pin.id}")
+        raise ValueError(f"{where}: {pin.id} is pinned at revision {pin.revision} but declared at revision {records[pin.id].revision}")
 
 
 def scope_facts(scope: Scope) -> list[Fact]:
@@ -1202,17 +1210,18 @@ class RevalidationInput(Record):
     evidence: Annotated[list[SelectedEvidence], Field(max_length=200)] = Field(default_factory=list)
     evidence_reviews: Annotated[list[EvidenceReview], Field(max_length=200)] = Field(default_factory=list)
 
-    def validate_provisions(self, provisions: list[ProvisionRef]) -> None:
+    def validate_provisions(self, provisions: list[ProvisionRef], where: str = "") -> None:
         targets = {item.id for item in self.source_targets}
         sources = {item.source.id: item for item in self.sources}
-        for provision in provisions:
+        prefix = where + ": " if where else ""
+        for index, provision in enumerate(provisions):
             if provision.source_target_id not in targets:
-                raise ValueError("provision references missing source target")
+                raise ValueError(f"{prefix}provision {index} references missing source target")
             if provision.source_id is not None:
                 selected = sources.get(provision.source_id)
                 if (selected is None or selected.source.revision != provision.revision
                         or selected.target_id != provision.source_target_id):
-                    raise ValueError("provision source/target/revision mismatch")
+                    raise ValueError(f"{prefix}provision {index} source/target/revision mismatch")
 
     @model_validator(mode="after")
     def membership(self) -> RevalidationInput:
@@ -1227,65 +1236,76 @@ class RevalidationInput(Record):
             if fact.id in facts and canonical_json(fact) != canonical_json(facts[fact.id]):
                 raise ValueError("conflicting copies of fact identity")
             facts[fact.id] = fact
-        activities = _unique_records(self.scope.activities)
-        _unique_records(self.requirements)
-        targets = _unique_records(self.source_targets)
-        sources = _unique_records([item.source for item in self.sources])
-        obligations = _unique_records(self.obligations)
-        controls = _unique_records(self.controls)
-        evidence = _unique_records([item.evidence for item in self.evidence])
-        _unique_records(self.applicability_decisions)
-        _unique_records(self.applicability_decisions, lambda item: item.obligation.id)
-        _unique_records(self.evidence_reviews)
-        _unique_records(self.evidence_reviews, lambda item: (item.obligation.id, item.method))
-        _unique_records(self.source_reviews, lambda item: (item.source_id, item.source_revision, item.assessment_date))
-        _unique_records(self.family_screenings, lambda item: item.family)
-        records = [*self.requirements, *self.applicability_decisions, *self.evidence_reviews, *evidence.values()]
-        if any(item.project_id != self.project_id for item in records):
-            raise ValueError("cross-project declaration")
-        if any(item.run_id != self.declaration_run_id or item.manifest_id != self.declaration_manifest_id
-               for item in evidence.values()):
-            raise ValueError("evidence declaration namespace mismatch")
-        for selected in self.sources:
+        activities = _unique_records(self.scope.activities, where="scope.activities")
+        _unique_records(self.requirements, where="requirements")
+        targets = _unique_records(self.source_targets, where="source_targets")
+        sources = _unique_records([item.source for item in self.sources], where="sources[].source")
+        obligations = _unique_records(self.obligations, where="obligations")
+        controls = _unique_records(self.controls, where="controls")
+        evidence = _unique_records([item.evidence for item in self.evidence], where="evidence[].evidence")
+        _unique_records(self.applicability_decisions, where="applicability_decisions")
+        _unique_records(self.applicability_decisions, lambda item: item.obligation.id,
+                        where="applicability_decisions (one per obligation)")
+        _unique_records(self.evidence_reviews, where="evidence_reviews")
+        _unique_records(self.evidence_reviews, lambda item: (item.obligation.id, item.method),
+                        where="evidence_reviews (one per obligation and method)")
+        _unique_records(self.source_reviews, lambda item: (item.source_id, item.source_revision, item.assessment_date),
+                        where="source_reviews (one per source revision and date)")
+        _unique_records(self.family_screenings, lambda item: item.family, where="family_screenings (one per family)")
+        for name, items in (("requirements", self.requirements), ("applicability_decisions", self.applicability_decisions),
+                            ("evidence_reviews", self.evidence_reviews), ("evidence", [item.evidence for item in self.evidence])):
+            for index, item in enumerate(items):
+                if item.project_id != self.project_id:
+                    raise ValueError(f"{name}[{index}]: cross-project declaration (project_id differs from the envelope)")
+        for index, item in enumerate(self.evidence):
+            if (item.evidence.run_id != self.declaration_run_id
+                    or item.evidence.manifest_id != self.declaration_manifest_id):
+                raise ValueError(f"evidence[{index}].evidence: run_id/manifest_id must equal "
+                                 "declaration_run_id/declaration_manifest_id")
+        for index, selected in enumerate(self.sources):
             if selected.target_id not in targets:
-                raise ValueError("source references missing target")
-            _require_ids(selected.source.related_source_ids, sources)
-        for review in self.source_reviews:
-            _require_pin(SourceRef(id=review.source_id, revision=review.source_revision), sources)
-            for refs in (review.act_chain, review.case_law_refs, review.national_overlay_ids):
-                _require_ids(refs, sources)
+                raise ValueError(f"sources[{index}].target_id: unknown reference {selected.target_id}")
+            _require_ids(selected.source.related_source_ids, sources, f"sources[{index}].source.related_source_ids")
+        for index, review in enumerate(self.source_reviews):
+            _require_pin(SourceRef(id=review.source_id, revision=review.source_revision), sources,
+                         f"source_reviews[{index}].source_id/source_revision")
+            for field in ("act_chain", "case_law_refs", "national_overlay_ids"):
+                _require_ids(getattr(review, field), sources, f"source_reviews[{index}].{field}")
         for fact in facts.values():
-            _require_ids(fact.evidence_ids, evidence)
-            _require_ids(fact.conflicts, facts)
-        for requirement in self.requirements:
-            _require_ids(requirement.activity_ids, activities)
-            _require_ids(requirement.evidence_ids, evidence)
-            for pin in requirement.fact_refs:
-                _require_pin(pin, facts)
-            for pin in requirement.obligation_refs:
-                _require_pin(pin, obligations)
-        for obligation in self.obligations:
-            self.validate_provisions(obligation.source_provisions)
-            _require_ids(obligation.overlay_ids, sources)
-            _require_ids(obligation.control_ids, controls)
-        for control in self.controls:
-            _require_ids(control.obligation_ids, obligations)
-        for decision in self.applicability_decisions:
-            _require_pin(decision.obligation, obligations)
-            self.validate_provisions(decision.provisions)
-            _require_ids(decision.evidence_ids, evidence)
-        for item in [*self.applicability_decisions, *self.family_screenings]:
-            _require_pin(item.scope, {self.scope.id: self.scope})
-            for pin in item.fact_refs:
-                _require_pin(pin, facts)
-        for screening in self.family_screenings:
-            for pin in screening.source_refs:
-                _require_pin(pin, sources)
-        for review in self.evidence_reviews:
-            _require_pin(review.obligation, obligations)
-            _require_ids(review.evidence_ids, evidence)
+            _require_ids(fact.evidence_ids, evidence, f"scope fact {fact.id}.evidence_ids")
+            _require_ids(fact.conflicts, facts, f"scope fact {fact.id}.conflicts")
+        for index, requirement in enumerate(self.requirements):
+            where = f"requirements[{index}]"
+            _require_ids(requirement.activity_ids, activities, where + ".activity_ids")
+            _require_ids(requirement.evidence_ids, evidence, where + ".evidence_ids")
+            for number, pin in enumerate(requirement.fact_refs):
+                _require_pin(pin, facts, f"{where}.fact_refs[{number}]")
+            for number, pin in enumerate(requirement.obligation_refs):
+                _require_pin(pin, obligations, f"{where}.obligation_refs[{number}]")
+        for index, obligation in enumerate(self.obligations):
+            self.validate_provisions(obligation.source_provisions, f"obligations[{index}].source_provisions")
+            _require_ids(obligation.overlay_ids, sources, f"obligations[{index}].overlay_ids")
+            _require_ids(obligation.control_ids, controls, f"obligations[{index}].control_ids")
+        for index, control in enumerate(self.controls):
+            _require_ids(control.obligation_ids, obligations, f"controls[{index}].obligation_ids")
+        for index, decision in enumerate(self.applicability_decisions):
+            where = f"applicability_decisions[{index}]"
+            _require_pin(decision.obligation, obligations, where + ".obligation")
+            self.validate_provisions(decision.provisions, where + ".provisions")
+            _require_ids(decision.evidence_ids, evidence, where + ".evidence_ids")
+        for name, items in (("applicability_decisions", self.applicability_decisions), ("family_screenings", self.family_screenings)):
+            for index, item in enumerate(items):
+                _require_pin(item.scope, {self.scope.id: self.scope}, f"{name}[{index}].scope")
+                for number, pin in enumerate(item.fact_refs):
+                    _require_pin(pin, facts, f"{name}[{index}].fact_refs[{number}]")
+        for index, screening in enumerate(self.family_screenings):
+            for number, pin in enumerate(screening.source_refs):
+                _require_pin(pin, sources, f"family_screenings[{index}].source_refs[{number}]")
+        for index, review in enumerate(self.evidence_reviews):
+            _require_pin(review.obligation, obligations, f"evidence_reviews[{index}].obligation")
+            _require_ids(review.evidence_ids, evidence, f"evidence_reviews[{index}].evidence_ids")
             if review.method not in obligations[review.obligation.id].required_methods:
-                raise ValueError("review method not required by obligation")
+                raise ValueError(f"evidence_reviews[{index}].method: not among the obligation's required_methods")
         synthetic_records = [*self.requirements, *sources.values(), *self.source_reviews,
                              *self.applicability_decisions, *self.evidence_reviews, *self.family_screenings]
         if not self.synthetic and (any(item.synthetic for item in synthetic_records)
