@@ -7,6 +7,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import errno
 import hashlib
 from html.parser import HTMLParser
 import json
@@ -878,8 +879,9 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
         return bundle
     except RevalidationError:
         raise
-    except OSError:
-        raise RevalidationError("io-failed") from None
+    except OSError as error:
+        # O_NOFOLLOW reports a symlinked path component as ELOOP or ENOTDIR.
+        raise RevalidationError("unsafe-path" if error.errno in (errno.ELOOP, errno.ENOTDIR) else "io-failed") from None
     except ValidationError as error:
         raise _output_validation_error(error) from None
     except (ValueError, RecursionError):

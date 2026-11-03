@@ -451,6 +451,20 @@ class WorkflowTests(unittest.TestCase):
             r._publish(output, bundle, self.observations(), "report", r.time.monotonic() + 300)
         self.assertFalse(output.exists())
 
+    def test_symlinked_path_components_report_unsafe_path(self):
+        runs = self.root / "real-runs"
+        runs.mkdir(mode=0o700)
+        (self.root / "linked-runs").symlink_to(runs, target_is_directory=True)
+        for kwargs in ({"output_path": self.root / "linked-runs/run-a"},):
+            with self.assertRaises(r.RevalidationError) as caught:
+                r.run(self.input, **kwargs)
+            self.assertEqual(caught.exception.code, "unsafe-path")
+        (self.root / "linked-input.json").symlink_to(self.input)
+        with self.assertRaises(r.RevalidationError) as caught:
+            r.run(self.root / "linked-input.json", runs / "run-b")
+        self.assertEqual(caught.exception.code, "unsafe-path")
+        self.assertEqual(list(runs.iterdir()), [])
+
     def test_failures_and_interrupts_leave_incomplete_directory_without_marker(self):
         for failure in (OSError("PRIVATE_SENTINEL"), KeyboardInterrupt()):
             for after_marker in (False, True):

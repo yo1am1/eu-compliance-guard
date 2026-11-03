@@ -111,7 +111,9 @@ requires a higher `revision`; `check` names the exact location of a stale pin.
 ### Run directories
 
 The output parent must exist, belong to you and exclude group/other permissions, and
-the run directory must be new. Runs use modes 0700/0600 and are never overwritten.
+the run directory must be new. No component of an input, output or predecessor path may
+be a symbolic link (`unsafe-path`); `state-dir` prints a resolved path, and on macOS
+`$TMPDIR` lives under the `/var` symlink, so use `state-dir` or `pwd -P` paths. Runs use modes 0700/0600 and are never overwritten.
 Each run holds:
 
 - `input.json` (normalized declarations), `manifest.json`, `bundle.json` and `report.md`;
