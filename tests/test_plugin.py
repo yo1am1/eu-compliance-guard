@@ -40,6 +40,11 @@ class PluginLayoutTests(unittest.TestCase):
         market = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
         version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
         self.assertEqual((plugin["name"], plugin["version"]), ("eu-compliance-guard", version))
+        from eu_compliance_guard import __version__
+        self.assertEqual(__version__, version)
+        icon = (ROOT / ".claude-plugin/icon.png").read_bytes()
+        self.assertEqual((icon[:8], int.from_bytes(icon[16:20]), int.from_bytes(icon[20:24])),
+                         (b"\x89PNG\r\n\x1a\n", 512, 512))
         self.assertEqual([(item["name"], item["source"]) for item in market["plugins"]], [("eu-compliance-guard", "./")])
         self.assertNotIn("hooks", plugin)  # hooks/hooks.json is the default location; listing it again would duplicate.
         self.assertEqual(plugin["types"], "./types/index.d.ts")

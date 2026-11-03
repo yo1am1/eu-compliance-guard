@@ -1,4 +1,4 @@
-.PHONY: check contracts
+.PHONY: check contracts plugin-check
 check:
 	uv run --locked python -m unittest discover -s tests -v
 	uv run --locked python -m eu_compliance_guard.schema --check
@@ -7,3 +7,6 @@ check:
 contracts:
 	uv run --locked python -m eu_compliance_guard.schema
 	npm --prefix frontend run types
+plugin-check:
+	claude plugin validate .
+	claude plugin test .
