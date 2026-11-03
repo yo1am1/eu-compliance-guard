@@ -1484,7 +1484,8 @@ class RevalidationBundle(Record):
                 referenced.add(source.id)
         if referenced != set(retrieved):
             raise ValueError("every retrieved candidate needs exactly one attempt")
-        changed_targets = {item.source_target_id for item in attempts.values() if item.retrieval.comparison == "different_bytes"}
+        # Retrieved bytes per target; a declared source is withdrawn when the host served other bytes than its own.
+        fetched_digests = {item.source_target_id: item.retrieval.digest for item in attempts.values() if item.retrieved_source}
 
         def admitted_source(source_id: str) -> bool:
             pending = [source_id]
@@ -1499,7 +1500,7 @@ class RevalidationBundle(Record):
                 target = targets[selected.target_id]
                 review = source_reviews.get((identity, declared.scope.assessment_date))
                 if not (
-                        selected.target_id not in changed_targets
+                        fetched_digests.get(selected.target_id, source.content_digest) == source.content_digest
                         and selected.file and observed_files.get(selected.file.path) == source.content_digest
                         and selected.media_type.lower() in ("text/plain", "text/html", "application/xhtml+xml")
                         and (selected.charset is None or selected.charset.lower() == "utf-8")

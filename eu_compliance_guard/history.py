@@ -290,9 +290,12 @@ def compare(previous, current, previous_digest):
         if any(key not in sources or not sources[key].file
                or observed_files.get(sources[key].file.path) != sources[key].source.content_digest for key in source_ids):
             reasons.append("Dependent source bytes are unavailable or changed.")
-        if any(key not in attempts or attempts[key].state != "retrieved"
-               or attempts[key].retrieval.comparison != "same_bytes"
-               or attempts[key].retrieval.admission != "accepted" for key in targets):
+        def confirmed(target):
+            attempt = attempts.get(target)
+            own = [sources[key].source.content_digest for key in source_ids if key in sources and sources[key].target_id == target]
+            return bool(attempt and attempt.state == "retrieved" and attempt.retrieval.admission == "accepted"
+                        and own and all(digest == attempt.retrieval.digest for digest in own))
+        if not all(confirmed(target) for target in targets):
             reasons.append("Current source freshness is unknown: offline, failed, changed or unconfirmed retrieval.")
         freshness = "stale" if relevant else "unknown" if reasons else "current_for_recorded_inputs"
         if not reasons:

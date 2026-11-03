@@ -122,6 +122,21 @@ class RetrievalWorkflowTests(unittest.TestCase):
         self.assertEqual(bundle.retrieved_sources[0].content_digest, m.content_digest(CHANGED))
         self.assertNotEqual(bundle.retrieved_sources[0].id, "source-real")
 
+    def test_two_sources_on_one_target_are_confirmed_only_by_their_own_bytes(self):
+        old = b"<!doctype html><html lang='en'><body>FICTIONAL-REAL-1 older text</body></html>"
+        (self.root / "revalidation-synthetic/old.html").write_bytes(old)
+        for first_is_new in (True, False):
+            payload = real_target_payload()
+            extra = deepcopy(payload["sources"][-1])
+            extra["file"] = {"path": "revalidation-synthetic/old.html", "digest": m.content_digest(old)}
+            extra["source"].update(id="source-old", content_digest=m.content_digest(old))
+            payload["sources"].insert(len(payload["sources"]) - (0 if first_is_new else 1), extra)
+            self.input.write_text(json.dumps(payload))
+            with self.subTest(first_is_new=first_is_new):
+                bundle = self.assemble([result()])
+                self.assertIn("Source source-old: official retrieval returned different bytes; review the new candidate revision", bundle.gaps)
+                self.assertFalse(any(gap.startswith("Source source-real: official retrieval") for gap in bundle.gaps))
+
     def test_failures_never_invent_content_or_freshness(self):
         failures = [result(content=None, failure="timeout"), result(content=None, failure="unsafe-destination"),
                     result(content=None, failure="response-too-large", bytes_read=s.MAX_RESPONSE_BYTES + 1),

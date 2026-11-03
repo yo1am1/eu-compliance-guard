@@ -428,7 +428,7 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
             failure=safe, retrieval=provenance))
         if not retained:
             record_gap(f"Source target {target.id}: official retrieval failed ({failure}); no fresh content was recorded.")
-            outcomes[target.id] = "unconfirmed"
+            outcomes[target.id] = (None, False)
             continue
         record_gap(f"Source target {target.id}: retrieved candidate {candidate.id} requires accountable source review; "
                    "official hosting establishes neither binding status, completeness, applicability nor currency.")
@@ -436,9 +436,8 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
             record_gap(f"Source target {target.id}: retrieved content needs review ({admission.reason}).")
         for reason in reasons:
             record_gap(f"Source target {target.id}: retrieved content needs review ({reason}).")
-        outcomes[target.id] = ("changed" if comparison == "different_bytes" else "confirmed"
-                               if comparison == "same_bytes" and state == "retrieved" and admission.state == "accepted" and not reasons
-                               else "unconfirmed")
+        # Fetched digest and whether it was admitted as text; each declared source compares its own bytes.
+        outcomes[target.id] = (digest, state == "retrieved" and admission.state == "accepted" and not reasons)
 
     for selected in declared.evidence:
         item = selected.evidence
@@ -497,7 +496,9 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
         for topic in get_args(m.SourceReviewTopic):
             if not review or not review.review_notes.get(topic, "").strip():
                 problems.append("source note missing: " + topic)
-        outcome = outcomes.get(selected.target_id)
+        fetched = outcomes.get(selected.target_id)
+        outcome = (None if fetched is None else "unconfirmed" if fetched[0] is None
+                   else "changed" if fetched[0] != source.content_digest else "confirmed" if fetched[1] else "unconfirmed")
         if outcome == "changed":
             problems.append("official retrieval returned different bytes; review the new candidate revision")
         if not source.synthetic and outcome != "confirmed":
