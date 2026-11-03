@@ -41,6 +41,14 @@ the prompt and a browser view of verified runs. Story 004 (predecessor revalidat
 and story 006 (release checks) are not started. No stage of this bolt has been
 validated by the Owner, and no story is marked complete.
 
+## Version 1.0.0 — 2026-11-03
+
+Stories 004 (predecessor revalidation), 005 (portable plugin skills and example) and
+006 (release checks) are implemented and released as 1.0.0 on this branch: `init`,
+located `check`, the console command, Pydantic-only runtime, the plugin icon and
+`make plugin-check`. See the [1.0 end-to-end report](v1-e2e-report.md). Owner stage and
+MVP acceptance remain pending; no story is marked complete here.
+
 ## Stories Included
 
 Continuation on 2026-10-27: predecessor comparison and release verification are
