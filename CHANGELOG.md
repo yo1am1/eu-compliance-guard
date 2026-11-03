@@ -43,7 +43,9 @@ First stable MVP of the read-only requirements-to-law revalidation workflow.
 - **Withdrawn support persists.** A plain rerun with `--previous` no longer restores
   withdrawn support. Support returns only when the applicability decision and every
   evidence review are new revisions reviewed between the two runs. Family screenings
-  follow the same rule, and attestations dated after a run are review gaps.
+  follow the same rule, and attestations dated after a run are review gaps. Renaming
+  or removing and re-adding an obligation cannot reuse old reviews, and renewing an
+  obligation and its family screening together restores both.
 - **Freshness per source.** Retrieved bytes confirm only the source with those same
   bytes, even when several sources share one target.
 - **Storage per project.** Runs are stored per declared `project_id`, not per folder
@@ -66,6 +68,8 @@ See [the audit report](memory-bank/bolts/003-legal-revalidation-cli/v1-team-audi
   downloaded acts as selected sources. Only text and HTML sources can support a
   mapping; a PDF always remains a manual-identity-review gap.
 - All input, output and predecessor paths must be free of symbolic links.
+- Revalidation compares only against the predecessor you name; naming an older run (or
+  none) compares against that state.
 - Some official pages change bytes on every request, so exact-byte comparison reports
   them as changed.
 - The band draws only in interactive Claude Code (terminal or desktop app).

@@ -288,6 +288,8 @@ from the confirmation round, future-dated renewals and family screenings not car
 forward. It also found minor diagnostic, labelling and documentation issues. All are
 fixed with regression tests; details are in the
 [team audit report](../memory-bank/bolts/003-legal-revalidation-cli/v1-team-audit-report.md).
-`make check` passes 214 tests, and the plugin validates and passes its 6 band tests.
+`make check` passes 217 tests, and the plugin validates and passes its 6 band tests.
+A final recheck found a renewal deadlock and rename/re-add bypasses, which are now
+fixed, and one documented limit: a run compares only against the predecessor it names.
 Owner MVP acceptance remains pending.
 

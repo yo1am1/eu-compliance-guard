@@ -21,6 +21,8 @@ recorded here.
 2. **Confirmation:** after the fixes, five agents reproduced every original finding
    against the fixed code and hunted for regressions the fixes introduced.
 3. **Recheck:** one adversarial agent tried to bypass the tightened renewal rules.
+   It found a deadlock and three bypasses. Two bypasses were fixed by judging renewals
+   per review record. The third (an older predecessor) is documented as a limit.
 
 ## Verified findings and resolution
 
@@ -42,7 +44,11 @@ recorded here.
 | Symlinked path components reported `io-failed` | minor | `unsafe-path`; README explains symlink-free paths | `6b58b69` |
 | *(confirmation)* A future-dated `reviewed_at` counted as a renewal forever | major | Renewal needs a higher revision and a review time between the two runs; attestations dated after the run are gaps | `a8a4b8a` |
 | *(confirmation)* Family-screening withdrawal was not carried forward | major | Carried forward like obligations, until a genuine renewal | `a8a4b8a` |
-| *(confirmation)* CHANGELOG did not describe the fixes | minor | Updated with this report | this change |
+| *(confirmation)* CHANGELOG did not describe the fixes | minor | Updated with this report | `8a50172` |
+| *(recheck)* An obligation and its family screening could never both be restored (each renewal withdrew the other) | blocker | Renewals are classified per review record and never count as changes | `73a803b` |
+| *(recheck)* Renaming an obligation reused its old reviews | major | New or changed review records outside the renewal window withdraw support for any obligation | `73a803b` |
+| *(recheck)* Removing and re-adding an obligation reused its old reviews | major | Same rule: re-added records are new relative to the predecessor | `73a803b` |
+| *(recheck)* Choosing an older `--previous` (or none) after reverting inputs restores that state | major | Documented: a run compares only against the named predecessor. Detecting it would need history crawling, which the design forbids; the skill offers the newest run | documented |
 
 The verifiers refuted two findings. **Hand-edited review pins** was refuted because it
 needs someone to edit human review records, which the skills forbid. **Revision
@@ -54,11 +60,12 @@ bytes are compared separately.
 
 ## Checks after the fixes
 
-- `make check`: 214 tests, schema/TypeScript drift and compile.
+- `make check`: 217 tests, schema/TypeScript drift and compile.
 - `make plugin-check`: validation passes; 6 band tests on all four surfaces.
 - Each blocker/major fix has a regression test. The tests for the laundering blocker,
-  freshness leak, value echo, future-dated renewal and family carry-forward were run
-  against the pre-fix code and fail there.
+  freshness leak, value echo, future-dated renewal, family carry-forward, the
+  renewal deadlock and the rename/re-add bypasses were run against the pre-fix code and
+  fail there.
 - No live legal source was contacted and no real project was audited. The
   interactive band still needs a local check.
 
