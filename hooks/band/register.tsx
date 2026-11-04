@@ -21,7 +21,7 @@ const PANE_TITLE = 'EU Compliance Guard'
 async function readLevel($: EngineInterface, home: string): Promise<string> {
   let level = ((await $.env.get('EUCG_DEFAULT_MODE')) ?? '').trim().toLowerCase()
   if (level === '') {
-    const config = `${(await $.env.get('XDG_CONFIG_HOME')) ?? `${home}/.config`}/eu-compliance-guard/config.json`
+    const config = `${(await $.env.get('XDG_CONFIG_HOME')) || `${home}/.config`}/eu-compliance-guard/config.json`
     try {
       const parsed = JSON.parse(await $.fs.read(config))
       level = typeof parsed?.defaultMode === 'string' ? parsed.defaultMode.toLowerCase() : ''
@@ -43,7 +43,9 @@ async function declaredProject($: EngineInterface, project: string): Promise<str
   }
 }
 
-async function refresh($: EngineInterface): Promise<void> {
+// An empty XDG variable counts as unset, as in the session hook and the CLI.
+// `rerank` (Refresh, /eucg-panel) retries a ranking that failed for the newest run.
+async function refresh($: EngineInterface, rerank = false): Promise<void> {
   const home = (await $.env.get('HOME')) ?? ''
   // The session's project root, like the hook's CLAUDE_PROJECT_DIR; a worktree is its own project.
   const project = await $.session.root()
@@ -51,7 +53,7 @@ async function refresh($: EngineInterface): Promise<void> {
   const entries = await $.fs.list(project).catch(() => [])
   const isActive = level !== 'off' && entries.some(entry => entry.name === '.eu-compliance-guard' && entry.kind === 'dir')
   const identity = isActive ? await declaredProject($, project) : null
-  const stateDir = identity ? `${(await $.env.get('XDG_STATE_HOME')) ?? `${home}/.local/state`}/eu-compliance-guard/${identity}` : ''
+  const stateDir = identity ? `${(await $.env.get('XDG_STATE_HOME')) || `${home}/.local/state`}/eu-compliance-guard/${identity}` : ''
   let run = null
   let problem = null
   let previousGaps: number | null = null
@@ -81,7 +83,8 @@ async function refresh($: EngineInterface): Promise<void> {
   }
   await update($, band, () => ({ isActive, level, stateDir, run, problem, previousGaps }))
   // Ranked once per run, in the background, so a slow interpreter start never holds the session.
-  if (run !== null && (await read($, nextSteps))?.dir !== run.dir) void rankNext($, run.dir)
+  const ranked = run === null ? null : await read($, nextSteps)
+  if (run !== null && (ranked?.dir !== run.dir || (rerank && ranked.steps === null))) void rankNext($, run.dir)
 }
 
 // Runs the plugin's own CLI: uv with the locked environment when available, else python3 on PYTHONPATH.
@@ -161,7 +164,7 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'eucg-panel' }, async $ => {
-    await refresh($)
+    await refresh($, true)
     const { isPlaced } = await $.ui.open({ id: PANE, title: PANE_TITLE })
     return { text: isPlaced ? 'EU Compliance Guard panel opened.' : 'This surface cannot show the panel now.' }
   })
@@ -214,7 +217,7 @@ export const register: Register = on => {
         <Box flexDirection="row" gap={1}>
           <Button key="report" label="Open report" onPress={() => openReport($, run.dir)} />
           <Button key="gaps" label="Gaps" onPress={() => runSkill($, 'eucg-gaps')} />
-          <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
+          <Button key="refresh" label="Refresh" onPress={() => refresh($, true)} />
         </Box>
         <Text dimColor>Workflow guidance from the recorded run; not a compliance verdict.</Text>
       </Box>

@@ -282,16 +282,18 @@ test('steps an earlier version stored are declined and ranked again', async ($, 
   await ui.unmount()
 })
 
-test('a failed ranking is shown once and not retried on every turn', async ($, on) => {
+test('a failed ranking is not retried on every turn, only on Refresh', async ($, on) => {
   const { processes } = host(on, { next: 'not json' })
   await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect(await eventually(() => ui.find({ type: 'Text', text: /Ranking unavailable/ }))).toBeDefined()
-  // Each opening refreshes the band, as a turn's end does.
-  await $.command.run({ command: 'eucg-panel' })
-  await $.command.run({ command: 'eucg-panel' })
+  // Turns ending do not retry it; an explicit Refresh does, once per press.
+  await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
   await new Promise(done => setTimeout(done, 50))
   expect(processes.filter(argv => argv.includes('next')).length).toBe(1)
+  await ui.press({ key: 'refresh' })
+  await new Promise(done => setTimeout(done, 50))
+  expect(processes.filter(argv => argv.includes('next')).length).toBe(2)
   await ui.unmount()
 })
 
