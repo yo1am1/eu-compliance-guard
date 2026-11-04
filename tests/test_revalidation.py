@@ -296,6 +296,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_not_applicable_obligation_is_not_reported_as_missing_evidence(self):
         self.payload["applicability_decisions"][0]["applicability"] = "not_applicable"
+        self.payload["obligations"][0]["required_methods"] += ["technical"]
         baseline = deepcopy(self.payload)
         for reviewed in (True, False):
             self.payload = deepcopy(baseline)
@@ -310,9 +311,12 @@ class WorkflowTests(unittest.TestCase):
                 self.assertEqual(disposition.applicability, "not_applicable")
                 self.assertEqual(method.outcome, "unresolved_review")
                 self.assertEqual(method.missing_evidence, ["Obligation reviewed as not applicable; this method was not assessed."])
+                technical = disposition.required_method_dispositions[1]
+                self.assertEqual((technical.method, technical.outcome), ("technical", "not_tested"))
+                self.assertEqual(technical.missing_evidence, ["Obligation reviewed as not applicable; this method was not assessed."])
                 self.assertEqual([gap for gap in bundle.gaps if gap.startswith("Obligation obligation-example")],
-                                 ["Obligation obligation-example, method document: not assessed because the obligation "
-                                  "was reviewed as not applicable."])
+                                 [f"Obligation obligation-example, method {name}: not assessed because the obligation "
+                                  "was reviewed as not applicable." for name in ("document", "technical")])
                 self.assertEqual(assessment.state, "unresolved")
                 self.assertEqual(assessment.gaps, ["A mapped obligation was reviewed as not applicable; it cannot support this requirement."])
         self.payload = deepcopy(baseline)

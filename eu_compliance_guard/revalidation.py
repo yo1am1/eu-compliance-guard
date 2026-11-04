@@ -661,7 +661,7 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
             outcome = "unresolved_review"
             if method == "technical":
                 outcome = "not_tested"
-                missing.append("Technical checks are outside the offline workflow.")
+                missing.append(NOT_ASSESSED if not_applicable else "Technical checks are outside the offline workflow.")
             elif not review:
                 missing.append(NOT_ASSESSED if not_applicable else "Accountable evidence review missing.")
                 manual_states.append("pending")
@@ -686,7 +686,7 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
             if missing:
                 record_gap(f"Obligation {obligation.id}, method {method}: "
                            + ("not assessed because the obligation was reviewed as not applicable."
-                              if not_applicable and outcome == "unresolved_review" else "review or evidence incomplete."))
+                              if not_applicable and outcome in ("unresolved_review", "not_tested") else "review or evidence incomplete."))
             method_dispositions.append(m.MethodDisposition(method=method, outcome=outcome, attempt_ids=[],
                 review_ids=[review.id] if review else [], missing_evidence=list(dict.fromkeys(missing))))
         manual = ("unsupported" if "unsupported" in manual_states else "pending" if not manual_states or "pending" in manual_states
