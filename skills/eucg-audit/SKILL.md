@@ -110,12 +110,20 @@ state="$(<cli> state-dir)"   # private 0700 run storage, keyed by the declared p
 
 ## 3. Report
 
-Read `report.md`, starting with "What needs attention and the declared legal
-basis". Rank the items: reviewed evidence deficiencies first, then unresolved
-applicability, missing source reviews, retrieval failures or changed bytes,
-unmapped requirements and obligations, then family-screening gaps.
+Lead with what to do, not with the gap count. A first run has many open items, and a
+wall of them reads as failure.
 
-For each item give one row:
+1. Run `<cli> next --run <run dir> --top 5`. Show the five steps in plain words, each
+   with how many open requirements it unblocks. Say that these five come first.
+2. Then one line of context: `<N> open items in total; the rest are in the report
+   (/eucg-gaps lists them all).` Do not list every gap unless the user asks.
+3. If reviewed evidence deficiencies exist (read `report.md`, "What needs attention
+   and the declared legal basis"), name them before the steps: they are a reviewer's
+   recorded finding, not a missing answer.
+
+For a full ledger on request, rank: reviewed evidence deficiencies, unresolved
+applicability, missing source reviews, retrieval failures or changed bytes, unmapped
+requirements and obligations, then family-screening gaps, one row each:
 `<requirement or obligation id>, <what is wrong or unknown>. legal ref: <declared identifier — article>. next: <review action>.`
 
 End with: `Run <id>: <partial|completed>. <N> gaps. Report: <path>. Processing state is not a compliance verdict.`
