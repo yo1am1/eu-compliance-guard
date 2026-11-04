@@ -278,6 +278,13 @@ class PRCheckTests(unittest.TestCase):
                 p.parse_diff("diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n" + body)
             self.assertEqual(caught.exception.code, "invalid-input", body)
 
+    def test_a_hunk_before_any_file_is_refused_even_when_a_file_follows(self):
+        later = "diff --git a/x.py b/x.py\n--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-a\n+b\n"
+        self.assertEqual(p.parse_diff(later)[0], {"x.py": [(1, "b")]})
+        with self.assertRaises(p.PRCheckError) as caught:
+            p.parse_diff("@@ -0,0 +1 @@\n+patient health\n" + later)
+        self.assertEqual(caught.exception.code, "invalid-input")
+
     def test_empty_diff_is_not_a_clean_bill(self):
         report = p.pr_check("")
         self.assertEqual(report["attention"], 0)

@@ -259,10 +259,10 @@ def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str], i
             new_left -= 1
             continue
         if line.startswith("@@"):
-            if file is None:  # no file named yet: nothing to attribute it to, and nothing is counted
-                continue
             hunk = _hunk(line)
-            if hunk is None:
+            if hunk is None and file is None:  # prose before any file (a commit message line): not a hunk
+                continue
+            if hunk is None or file is None:  # a hunk with no file to attribute its lines to cannot be screened
                 raise PRCheckError("invalid-input")
             old_left, number, new_left = hunk
             file.open = False
