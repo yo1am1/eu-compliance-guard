@@ -31,6 +31,8 @@ export type Band = {
   stateDir: string
   run: RunSummary | null
   problem: string | null
+  // Open items in the run before the newest, when there is one.
+  previousGaps?: number | null
 }
 
 declare module 'claude-code' {

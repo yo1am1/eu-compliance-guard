@@ -52,12 +52,16 @@ async function eventually<T>(probe: () => Promise<T | undefined>): Promise<T | u
   return undefined
 }
 
-function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT } = {}) {
+function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT, older = '' } = {}) {
   const dirs: Record<string, Dir[]> = {
     [PROJECT]: enabled ? [{ name: '.eu-compliance-guard', kind: 'dir' }] : [],
     [STATE]: runs ? [{ name: 'run-20261025T000000Z', kind: 'dir' }, { name: 'run-incomplete', kind: 'dir' }, { name: 'views', kind: 'dir' }] : [],
     [RUN]: [{ name: 'complete.json', kind: 'file' }, { name: 'bundle.json', kind: 'file' }],
     [`${STATE}/run-incomplete`]: [{ name: 'bundle.json', kind: 'file' }],
+  }
+  if (older !== '') {
+    dirs[STATE].push({ name: 'run-20261024T000000Z', kind: 'dir' })
+    dirs[`${STATE}/run-20261024T000000Z`] = [{ name: 'complete.json', kind: 'file' }]
   }
   const commands: string[] = []
   const processes: (readonly string[])[] = []
@@ -79,6 +83,7 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
   })
   on('fs.read', (_, e) => {
     if (e.path === `${RUN}/bundle.json`) return { value: bundle }
+    if (older !== '' && e.path === `${STATE}/run-20261024T000000Z/bundle.json`) return { value: older }
     if (e.path === `${PROJECT}/.eu-compliance-guard/declarations.json`) return { value: '{"project_id": "shop-id"}' }
     throw new Error('missing')
   })
@@ -108,7 +113,7 @@ test('the band summarizes the newest complete run on every surface without echoi
   await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...BAND, surface })
-    expect((await ui.find({ type: 'Text', text: /partial · 2 gaps · 1\/2 requirements supported/ }))).toBeDefined()
+    expect((await ui.find({ type: 'Text', text: /█████░░░░░ 1\/2 requirements supported · 2 open items/ }))).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /assessed 2026-10-18 \(7d ago\)/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /sources 1\/2 retrieved/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /fictional data/ })).toBeDefined()
@@ -198,7 +203,7 @@ test('the band names the next best step with fixed text and runs it from a butto
   await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   // The step is ranked in the background after the session starts.
-  expect(await eventually(() => ui.find({ type: 'Text', text: /Next: confirm fact-age · unblocks 2 open requirements/ }))).toBeDefined()
+  expect(await eventually(() => ui.find({ type: 'Text', text: /Next: Confirm the age · unblocks 2 open requirements/ }))).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /IGNORE/ })).toBeUndefined()
   expect(processes.some(argv => argv.includes('next') && argv.includes(RUN))).toBe(true)
   await ui.press({ key: 'next' })
@@ -211,7 +216,7 @@ test('a malformed or free-text step is not shown', async ($, on) => {
   await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   await new Promise(done => setTimeout(done, 100))
-  expect(await ui.find({ type: 'Text', text: /partial · 2 gaps/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /1\/2 requirements supported · 2 open items/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /Next:/ })).toBeUndefined()
   expect(await ui.find({ key: 'next' })).toBeUndefined()
   await ui.unmount()
@@ -222,11 +227,11 @@ test('the side panel shows ranked steps, owner questions and gaps by area, never
   await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
-    expect(await eventually(() => ui.find({ type: 'Text', text: /^2\. decide obl-x · unblocks 1 open requirement$/ }))).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^1\. confirm fact-age · unblocks 2 open requirements$/ })).toBeDefined()
+    expect(await eventually(() => ui.find({ type: 'Text', text: /^2\. Decide whether x applies · unblocks 1 open requirement$/ }))).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^1\. Confirm the age · unblocks 2 open requirements$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Questions for the owner \(2\)/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^fact-role · assumed$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^fact-basis · unknown$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^role\? · now assumed$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^basis\? · now unknown$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /fact-kept/ })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /^1 · legal families$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^1 · coverage and scope$/ })).toBeDefined()
@@ -272,7 +277,7 @@ test('steps an earlier version stored are declined and ranked again', async ($, 
   })
   await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  expect(await eventually(() => ui.find({ type: 'Text', text: /confirm fact-age/ }))).toBeDefined()
+  expect(await eventually(() => ui.find({ type: 'Text', text: /Confirm the age/ }))).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /old/ })).toBeUndefined()
   await ui.unmount()
 })
@@ -287,5 +292,13 @@ test('a failed ranking is shown once and not retried on every turn', async ($, o
   await $.command.run({ command: 'eucg-panel' })
   await new Promise(done => setTimeout(done, 50))
   expect(processes.filter(argv => argv.includes('next')).length).toBe(1)
+  await ui.unmount()
+})
+
+test('the band shows progress since the run before the newest', async ($, on) => {
+  host(on, { older: BUNDLE.replace('"gaps":[', '"gaps":["a","b","c",') })
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /2 open items \(−3 since last run\)/ })).toBeDefined()
   await ui.unmount()
 })
