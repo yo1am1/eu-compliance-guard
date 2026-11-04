@@ -29,6 +29,7 @@ STRONG = {"health", "medical", "diagnosis", "biometric", "pregnancy", "religion"
           "bmi", "minor", "parental", "child", "children", "consent", "cookie", "cookies", "llm", "openai", "anthropic",
           "gpt", "newsletter", "unsubscribe", "subscription", "cancellation", "refund", "withdrawal", "retention",
           "geolocation", "fingerprint", "analytics", "tracking", "gtag", "mixpanel", "hotjar", "aria", "a11y", "dob"}
+GIT_PREFIXES = ("a/", "b/", "c/", "i/", "w/", "o/", "1/", "2/")  # git's default, mnemonic and --no-index prefixes
 
 
 class PRCheckError(ValueError):
@@ -84,7 +85,22 @@ def _name(value: str) -> str | None:
 
 
 def _unprefix(first: str | None, second: str | None) -> tuple[str | None, str | None]:
-    """The old and new name of a file pair without git's a/ and b/ prefixes."""
+    """The old and new name of a file pair without their diff prefixes.
+
+    git writes a/ b/ by default, i/ w/, c/ w/, c/ i/ or o/ w/ with diff.mnemonicPrefix (swapped by
+    -R), 1/ 2/ for --no-index, custom ones with --src-prefix/--dst-prefix and none with --no-prefix.
+    The same name twice has no prefix, names that agree after their first component carry one
+    each, and other pairs (renames) drop only prefixes git itself writes.
+    """
+    if first is not None and second is not None:
+        if first == second:
+            return first, second
+        _, slash, tail = first.partition("/")
+        _, other_slash, other_tail = second.partition("/")
+        if slash and other_slash and tail == other_tail:
+            return tail, other_tail
+        if first[:2] != second[:2] and first[:2] in GIT_PREFIXES and second[:2] in GIT_PREFIXES:
+            return first[2:], second[2:]
     return tuple(name[2:] if name is not None and name[:2] in ("a/", "b/") else name for name in (first, second))
 
 

@@ -183,6 +183,31 @@ class PRCheckTests(unittest.TestCase):
         twice = "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1 +1 @@\n-x\n+y\n" * 2
         self.assertEqual(p.parse_diff(twice)[2], 1)
 
+    def test_mnemonic_custom_and_missing_prefixes_name_the_same_paths(self):
+        # diff.mnemonicPrefix writes i/ w/ (plain `git diff`), c/ w/, c/ i/ or o/ w/; -R swaps them; --no-prefix has none.
+        body = "--- {0}src/app.py\n+++ {1}src/app.py\n@@ -1 +1,2 @@\n x = 1\n+retention_days = 30\n"
+        for old, new in (("a/", "b/"), ("i/", "w/"), ("c/", "w/"), ("c/", "i/"), ("o/", "w/"), ("w/", "i/"),
+                         ("left/", "right/"), ("", "")):
+            diff = f"diff --git {old}src/app.py {new}src/app.py\nindex 4cb14cc..86c3dad 100644\n" + body.format(old, new)
+            added, touched, files = p.parse_diff(diff)
+            self.assertEqual((sorted(added), touched, files), (["src/app.py"], {"src/app.py"}, 1), old)
+        diff = ("diff --git i/src/old.py w/src/new.py\nsimilarity index 90%\nrename from src/old.py\nrename to src/new.py\n"
+                "--- i/src/old.py\n+++ w/src/new.py\n@@ -1 +1,2 @@\n x\n+cookie = 1\n"
+                "diff --git i/src/n.py w/src/n.py\nnew file mode 100644\n--- /dev/null\n+++ w/src/n.py\n@@ -0,0 +1 @@\n+x\n"
+                "diff --git i/src/sp ace.py w/src/sp ace.py\nold mode 100644\nnew mode 100755\n"
+                "diff --git a/lib.py a/lib.py\n--- a/lib.py\n+++ a/lib.py\n@@ -1 +1 @@\n-x\n+y\n")  # --no-prefix: a/lib.py
+        added, touched, files = p.parse_diff(diff)
+        self.assertEqual(sorted(added), ["a/lib.py", "src/n.py", "src/new.py"])
+        self.assertEqual(touched, {"src/old.py", "src/new.py", "src/n.py", "src/sp ace.py", "a/lib.py"})
+        self.assertEqual(files, 4)
+        payload = json.loads(FIXTURE.read_bytes())
+        payload["files_root"], payload["evidence"][0]["path"] = "project", "src/app.py"
+        report = p.pr_check("diff --git i/src/app.py w/src/app.py\n" + body.format("i/", "w/"),
+                            m.RevalidationInput.model_validate(payload))
+        self.assertEqual([item["path"] for item in report["pinned_evidence"]], ["src/app.py"])
+        self.assertEqual(report["touchpoints"][0]["examples"], ["src/app.py:2  retention_days = 30"])
+        self.assertEqual(report["files"], 1)
+
     def test_coloured_diffs_parse_like_plain_ones(self):
         coloured = _coloured(DIFF)
         self.assertTrue(coloured.startswith("\x1b[1mdiff --git "))
