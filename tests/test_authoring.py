@@ -137,6 +137,20 @@ class AuthoringTests(unittest.TestCase):
         self.assertEqual(json.loads(stdout)["errors"],
                          [{"at": "(file)", "problem": "declarations file exceeds the 4 MiB limit"}])
 
+    def test_a_truncated_problem_list_says_how_many_problems_exist(self):
+        payload = deepcopy(self.payload)
+        payload["requirements"] += [{"id": index} for index in range(60)]
+        report = self.check(payload)
+        self.assertEqual(len(report["errors"]), a.MAX_PROBLEMS)
+        self.assertGreater(report["total_errors"], a.MAX_PROBLEMS)
+        self.assertEqual(a.format_check(report).splitlines()[0],
+                         f"declarations: invalid ({report['total_errors']} problem(s); the first 50 are listed)")
+        payload["requirements"] = payload["requirements"][:3]
+        report = self.check(payload)
+        self.assertEqual(report["total_errors"], len(report["errors"]))
+        self.assertEqual(a.format_check(report).splitlines()[0], f"declarations: invalid ({len(report['errors'])} problem(s))")
+        self.assertEqual(self.check()["total_errors"], 0)
+
     def test_official_and_unofficial_targets_and_cli_exit_codes(self):
         payload = deepcopy(self.payload)
         for identifier, url in (("target-eurlex", "https://eur-lex.europa.eu/eli/reg/2016/679/oj"),

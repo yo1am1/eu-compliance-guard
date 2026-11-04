@@ -125,9 +125,17 @@ def check(path: str | os.PathLike, previous: str | os.PathLike | None = None) ->
     """Validate a declaration and observe its selected files, reporting problems by location.
 
     With `previous`, also verify that run and name every record that needs a higher revision.
+    At most MAX_PROBLEMS errors are listed; `total_errors` counts all of them.
     """
+    report = _check(path, previous)
+    report["total_errors"] = len(report["errors"])
+    del report["errors"][MAX_PROBLEMS:]
+    return report
+
+
+def _check(path, previous) -> dict:
     errors, warnings, files, targets = [], [], [], []
-    report = {"valid": False, "errors": errors, "warnings": warnings, "files": files, "targets": targets}
+    report = {"valid": False, "total_errors": 0, "errors": errors, "warnings": warnings, "files": files, "targets": targets}
     r._primitives()
     try:
         with r._parent(path) as (fd, name):
@@ -164,7 +172,7 @@ def check(path: str | os.PathLike, previous: str | os.PathLike | None = None) ->
             try:
                 declared = m.parse_record(m.RevalidationInput, raw)
             except ValidationError as error:
-                for detail in error.errors(include_input=False, include_url=False)[:MAX_PROBLEMS]:
+                for detail in error.errors(include_input=False, include_url=False):
                     at, problem = _location(detail["loc"], detail["type"]), detail["msg"].removeprefix("Value error, ")
                     # Cross-reference checks carry their own location: "<path>: <problem>".
                     if at == "(document)" and LOCATED.match(problem):
@@ -257,7 +265,9 @@ def check(path: str | os.PathLike, previous: str | os.PathLike | None = None) ->
 
 
 def format_check(report: dict) -> str:
-    lines = ["declarations: " + ("valid" if report["valid"] else f"invalid ({len(report['errors'])} problem(s))")]
+    total, listed = report["total_errors"], len(report["errors"])
+    lines = ["declarations: " + ("valid" if report["valid"] else f"invalid ({total} problem(s)"
+                                 + (f"; the first {listed} are listed)" if total > listed else ")"))]
     if "counts" in report:
         lines.append("counts: " + ", ".join(f"{value} {key}" for key, value in report["counts"].items()))
     lines += [f"error   {item['at']}: {item['problem']}" for item in report["errors"]]
