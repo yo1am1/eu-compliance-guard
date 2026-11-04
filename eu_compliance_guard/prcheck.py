@@ -241,10 +241,11 @@ def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str], i
             file = _File.header(line)
             files.append(file)
             continue
-        if new_left > 0 or any(left > 0 for left in old_left):
+        if new_left > 0 or max(old_left, default=0) > 0:
             if line.startswith("\\"):  # "\ No newline at end of file"
                 continue
-            columns, content = line[:len(old_left)].ljust(len(old_left)), line[len(old_left):]
+            parents = len(old_left)
+            columns, content = line[:parents].ljust(parents), line[parents:]
             if columns.strip(" +-") or ("+" in columns and "-" in columns):
                 raise PRCheckError("invalid-input")
             if "-" in columns:  # gone from the result; only the parents marked "-" had it
@@ -252,7 +253,8 @@ def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str], i
                 continue
             if "+" in columns and file.new:
                 added.setdefault(file.new, []).append((number, content))
-            old_left = [left - (mark == " ") for left, mark in zip(old_left, columns)]
+            if " " in columns:  # the parents marked " " have the line too
+                old_left = [left - (mark == " ") for left, mark in zip(old_left, columns)]
             number += 1
             new_left -= 1
             continue
