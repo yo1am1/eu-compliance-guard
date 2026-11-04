@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections import Counter
 from html.parser import HTMLParser
+import itertools
 import math
 import re
 
@@ -170,8 +171,8 @@ def _segment(paragraphs) -> dict[str, dict]:
     occurrence with the most text, the first one on a tie.
     """
     marked = any(_is_number(classes) for classes, _ in paragraphs)
-    found: dict[str, list[dict]] = {}
-    current = previous = None
+    found: dict[str, dict] = {}
+    current = previous = repeat = None  # repeat: the key a later occurrence of a number may take over
     expect_title = wrote = ended = final = False
     for classes, text in paragraphs:
         if _is_end(classes, text):
@@ -188,9 +189,10 @@ def _segment(paragraphs) -> dict[str, dict]:
                 # The first heading after an end decides: the next number means the end was a stray marker.
                 ended = key in found or not _follows(number, previous)
                 final = ended
-            if not final and (key in found or len(found) < MAX_ARTICLES):
+            repeat = key if key in found else None
+            if not final and (repeat or len(found) < MAX_ARTICLES):
                 current = {"title": "", "text": ""}
-                found.setdefault(key, []).append(current)
+                found.setdefault(key, current)
                 previous = number
             expect_title = True
             continue
@@ -201,8 +203,10 @@ def _segment(paragraphs) -> dict[str, dict]:
         elif len(current["text"]) < MAX_ARTICLE_CHARS:
             current["text"] += " " + text
             wrote = True
+            if repeat is not None and len(current["text"]) > len(found[repeat]["text"]):
+                found[repeat] = current  # keep only the best occurrence, so repeats cost no memory
         expect_title = False
-    return {key: max(occurrences, key=lambda item: len(item["text"])) for key, occurrences in found.items()}
+    return found
 
 
 def _tidy(text: str) -> str:
@@ -227,7 +231,8 @@ def parse(content: bytes, media_type: str) -> dict[str, dict]:
         paragraphs = parser.paragraphs
     elif media_type == "text/plain":
         # Each non-blank line is a paragraph of an unmarked page, so both follow the same rules.
-        paragraphs = [((), line) for line in map(_tidy, text.splitlines()) if line]
+        lines = (line for line in map(_tidy, text.splitlines()) if line)
+        paragraphs = [((), line) for line in itertools.islice(lines, MAX_PARAGRAPHS)]
     else:
         return {}
     return {key: {"title": item["title"], "text": _tidy(item["text"])[:MAX_ARTICLE_CHARS]}

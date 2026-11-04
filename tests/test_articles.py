@@ -1,6 +1,8 @@
 """Article segmentation and text-search suggestions on synthetic snippets."""
 
+import tracemalloc
 import unittest
+from unittest import mock
 
 from eu_compliance_guard import articles as a
 
@@ -193,6 +195,20 @@ class ArticleTests(unittest.TestCase):
             "Article 1": {"title": "Fictional subject-matter", "text": "This fictional Regulation lays down rules."},
             "Article 2": {"title": "Fictional erasure", "text": "The fictional subject may obtain erasure of data."}})
         self.assertEqual(a.suggest("Users can delete their account", {"act": parsed})[0]["article"], "Article 2")
+
+    def test_repeated_numbers_and_long_plain_text_stay_bounded(self):
+        paragraphs = [((), "Article 1"), ((), "Fictional title"), ((), "Body.")] * 20000
+        tracemalloc.start()
+        try:
+            parsed = a._segment(paragraphs)
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+        self.assertEqual(parsed, {"Article 1": {"title": "Fictional title", "text": " Body."}})
+        self.assertLess(peak, 1024 * 1024)  # one kept occurrence, not one per repeat
+        with mock.patch.object(a, "MAX_PARAGRAPHS", 3):
+            self.assertEqual(a.parse(b"Article 1\nT\nBody.\nMore.\nArticle 2\nT\nB.\n", "text/plain"),
+                             {"Article 1": {"title": "T", "text": "Body."}})
 
     def test_locators_normalise_to_article_keys(self):
         self.assertEqual(a.article_key("Article 9(2)(a)"), "Article 9")
