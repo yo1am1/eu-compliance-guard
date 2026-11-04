@@ -363,18 +363,20 @@ def tag_text(item: m.ScoreCount) -> str:
     return f"{TAG_LABELS[item.key]} ×{item.count}"
 
 
+STEP_TEXT = {
+    "retrieve": "Retrieve the official law text of the declared source targets",
+    "fact": "Confirm fact {subject}",
+    "source": "Read and select the source text of {subject}",
+    "applicability": "Record whether {subject} applies",
+    "mapping": "Map {subject} to a candidate obligation",
+    "review": "Review the evidence for {subject}",
+    "family": "Screen the eleven legal families",
+}
+
+
 def describe_step(step: m.ScoreNextStep) -> str:
     """Fixed words per kind with the step's validated id; never a run's free text."""
-    subject = step.subject or ""
-    what = {
-        "retrieve": "Retrieve the official law text of the declared source targets",
-        "fact": f"Confirm fact {subject}",
-        "source": f"Read and select the source text of {subject}",
-        "applicability": f"Record whether {subject} applies",
-        "mapping": f"Map {subject} to a candidate obligation",
-        "review": f"Review the evidence for {subject}",
-        "family": "Screen the eleven legal families",
-    }[step.kind]
+    what = STEP_TEXT[step.kind].replace("{subject}", step.subject or "")
     return f"{what} · unblocks {step.unblocks} open requirement{'' if step.unblocks == 1 else 's'}"
 
 

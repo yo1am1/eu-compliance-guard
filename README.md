@@ -299,6 +299,12 @@ evidence or a requirement origin changed), `in review` or `recorded steps closed
 none of them is a verdict. `--against` adds point changes only when that run is the
 recorded parent and used the same tool version; the trend never changes the status.
 
+`view` also writes `<parent>/views/<run>.scorecard.json` (0600). The local dashboard
+page in `frontend/` renders such a file: run `npm --prefix frontend run build` and
+`npm --prefix frontend run preview` (it listens on 127.0.0.1), then choose or drop the
+file. It is read in the browser only; the page's Content Security Policy blocks every
+connection, and its types are generated from `eu_compliance_guard/models.py`.
+
 ### Grounding assumptions in the code
 
 `ground` builds a local index of the project's text files: no network, model or
@@ -344,8 +350,9 @@ git diff origin/main...HEAD | eu-compliance-guard pr-check --markdown
 - Processing budgets are cooperative, not a hard CPU or filesystem deadline. The
   bounded Linux execution helper is not an enabled scanner, and its real
   containment is unverified.
-- Scanners, Graphify, the dashboard, the API (optional `api` extra) and remediation
-  automation are later work.
+- Scanners, Graphify, the API (optional `api` extra) and remediation automation are
+  later work. The dashboard shows one run's review progress from a local file; it
+  manages nothing.
 
 ## Development
 
@@ -354,7 +361,7 @@ Prerequisites: Python 3.12+, uv, Node.js, npm and make.
 ```sh
 uv sync --locked
 npm --prefix frontend ci --ignore-scripts
-make check           # unit tests, JSON Schema and TypeScript drift, TypeScript compile
+make check           # unit tests, JSON Schema and TypeScript drift, TypeScript compile, dashboard tests and build
 make plugin-check    # claude plugin validate . and the band tests (needs Claude Code)
 ```
 
