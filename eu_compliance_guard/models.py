@@ -10,13 +10,15 @@ from urllib.parse import urlsplit
 
 from pydantic import (
     AfterValidator, BeforeValidator, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter,
-    model_validator,
+    ValidationInfo, model_validator,
 )
 
 MAX_REQUEST_BYTES = 4 * 1024 * 1024
 # A bundle repeats the declarations and adds one output per requirement and obligation.
 MAX_BUNDLE_BYTES = 16 * 1024 * 1024
 MAX_SEQUENCE = 2**53 - 1
+# Validation context key under which declarations collect located membership problems.
+COLLECT_PROBLEMS = "membership_problems"
 
 
 # Fixed messages: the standard library's errors quote the rejected value.
@@ -511,6 +513,8 @@ class CurrentAssessment(Record):
     historical_run_id: Id
     finding_assessment_id: Id | None = None
     obligation_disposition_id: Id | None = None
+    # The historical disposition's obligation, named even when this run removed or renamed it.
+    obligation_id: Id | None = None
     expected_manifest_id: Id
     observed_manifest_id: Id | None = None
     checked_at: Timestamp
@@ -523,6 +527,8 @@ class CurrentAssessment(Record):
     def assessment_target(self) -> CurrentAssessment:
         if (self.finding_assessment_id is None) == (self.obligation_disposition_id is None):
             raise ValueError("current overlay must reference exactly one historical assessment")
+        if self.obligation_id is not None and self.obligation_disposition_id is None:
+            raise ValueError("only an obligation disposition overlay names an obligation")
         if self.freshness == "current_for_recorded_inputs":
             if self.observed_manifest_id is None or self.changed_dependencies:
                 raise ValueError("current claim requires observed inputs without relevant changes")
@@ -989,11 +995,17 @@ COMMAND_ADAPTER = TypeAdapter(Command)
 TRecord = TypeVar("TRecord", bound=Record)
 
 
-def parse_record(model: type[TRecord], payload: bytes | str, limit: int = MAX_REQUEST_BYTES) -> TRecord:
+def parse_record(model: type[TRecord], payload: bytes | str, limit: int = MAX_REQUEST_BYTES, *,
+                 collect: list | None = None) -> TRecord:
+    """Parse and validate one record.
+
+    With `collect`, declarations append every located membership problem there instead of
+    raising the first; the returned record then serves diagnostics only, never a run.
+    """
     raw = payload.encode("utf-8") if isinstance(payload, str) else payload
     if len(raw) > limit:
         raise ValueError("record exceeds byte limit")
-    return model.model_validate_json(raw)
+    return model.model_validate_json(raw, context=None if collect is None else {COLLECT_PROBLEMS: collect})
 
 
 def parse_command(payload: bytes | str) -> Command:
@@ -1147,67 +1159,129 @@ class RequirementAssessment(Record):
     next_actions: Texts
 
 
-def _unique_records(records: list, key=lambda item: item.id, where: str = "") -> dict:
+class LocatedProblem(ValueError):
+    """A declaration problem and its JSON location; neither part echoes a declared value.
+
+    `args[0]` is the problem alone, so fixed bound messages stay recognizable.
+    """
+
+    def __init__(self, at: str, problem: str):
+        super().__init__(problem)
+        self.at, self.problem = at, problem
+
+    def __str__(self) -> str:
+        return f"{self.at}: {self.problem}"
+
+
+def _unique_records(records: list, key=lambda item: item.id) -> dict:
     indexed = {}
     for record in records:
         identity = key(record)
         if identity in indexed:
-            raise ValueError(f"{where}: duplicate record identity {identity}" if where else "duplicate record identity")
+            raise ValueError("duplicate record identity")
         indexed[identity] = record
     return indexed
 
 
-# Optional `where` locations name JSON paths and declared identifiers, never values.
-def _require_ids(ids: list[str], records: dict, where: str = "") -> None:
-    if len(ids) != len(set(ids)) or any(identity not in records for identity in ids):
-        if not where:
-            raise ValueError("duplicate or dangling reference")
-        unknown = [identity for identity in ids if identity not in records]
-        raise ValueError(f"{where}: unknown reference {unknown[0]}" if unknown else f"{where}: duplicate reference")
+def _index(records: list, where: str, key=lambda item: item.id):
+    """Yield each duplicate identity as a located problem; return the first record per identity."""
+    indexed = {}
+    for record in records:
+        identity = key(record)
+        if identity in indexed:
+            yield where, f"duplicate record identity {identity}"
+        else:
+            indexed[identity] = record
+    return indexed
 
 
-def _require_pin(pin: SourceRef, records: dict, where: str = "") -> None:
-    if pin.id not in records or pin.revision != records[pin.id].revision:
-        if not where:
-            raise ValueError("missing or mismatched record revision")
-        if pin.id not in records:
-            raise ValueError(f"{where}: unknown reference {pin.id}")
-        raise ValueError(f"{where}: {pin.id} is pinned at revision {pin.revision} but declared at revision {records[pin.id].revision}")
+# Problems name declared identifiers, never values.
+def _id_problem(ids: list[str], records) -> str | None:
+    unknown = [identity for identity in ids if identity not in records]
+    if unknown:
+        return f"unknown reference {unknown[0]}"
+    return "duplicate reference" if len(ids) != len(set(ids)) else None
+
+
+def _pin_problem(pin: SourceRef, records: dict) -> str | None:
+    if pin.id not in records:
+        return f"unknown reference {pin.id}"
+    if pin.revision != records[pin.id].revision:
+        return f"{pin.id} is pinned at revision {pin.revision} but declared at revision {records[pin.id].revision}"
+    return None
+
+
+def _ids_at(where: str, ids: list[str], records):
+    problem = _id_problem(ids, records)
+    if problem:
+        yield where, problem
+
+
+def _pin_at(where: str, pin: SourceRef, records: dict):
+    problem = _pin_problem(pin, records)
+    if problem:
+        yield where, problem
+
+
+def _require_ids(ids: list[str], records: dict) -> None:
+    if _id_problem(ids, records):
+        raise ValueError("duplicate or dangling reference")
+
+
+def _require_pin(pin: SourceRef, records: dict) -> None:
+    if _pin_problem(pin, records):
+        raise ValueError("missing or mismatched record revision")
+
+
+def scope_fact_locations(scope: Scope) -> list[tuple[str, Fact]]:
+    """Each explicit fact occurrence with its JSON location, in scope_facts() order."""
+    located = [(f"scope.{name}[{index}]", fact) for name in ("roles", "size_and_sector")
+               for index, fact in enumerate(getattr(scope, name))]
+    for number, activity in enumerate(scope.activities):
+        where = f"scope.activities[{number}]"
+        located.append((where + ".lawful_basis", activity.lawful_basis))
+        located.extend((f"{where}.{name}[{index}]", fact) for name in ("roles", "recipients", "locations", "stores", "retention")
+                       for index, fact in enumerate(getattr(activity, name)))
+    return located
 
 
 def scope_facts(scope: Scope) -> list[Fact]:
     """Return explicit fact occurrences only; no project discovery or inference."""
-    facts = [*scope.roles, *scope.size_and_sector]
-    for activity in scope.activities:
-        facts.extend([activity.lawful_basis, *activity.roles, *activity.recipients,
-                      *activity.locations, *activity.stores, *activity.retention])
-    return facts
+    return [fact for _, fact in scope_fact_locations(scope)]
 
 
-def _collection_bounds(record: Record, *, list_limit: int = 1000, aggregate: int = 5000) -> None:
+def _collection_bounds(record: Record, *, list_limit: int = 1000, aggregate: int = 5000,
+                       record_limit: int | None = 1000) -> None:
     """Bound nested collections without counting model field names as data items.
 
-    The root's own lists are bounded by their declared max_length; the per-record limit
-    applies to nested records, where one entry could otherwise carry unbounded children.
+    The root's own lists are bounded by their declared max_length; `record_limit` bounds the
+    items across one nested record's lists, where an entry could otherwise carry unbounded
+    children. Without it, `list_limit` per list and `aggregate` in total bound nested records.
+    A violation names the record or list where it occurs; dictionary keys are never named.
     """
     total = 0
-    stack = [(record, 0)]
+    stack = [(record, 0, "")]
     while stack:
-        item, depth = stack.pop()
+        item, depth, at = stack.pop()
         if depth > 32:
-            raise ValueError("record exceeds nesting limit")
+            raise LocatedProblem(at, "record exceeds nesting limit")
         if isinstance(item, Record):
-            values = [getattr(item, name) for name in type(item).model_fields]
+            names = list(type(item).model_fields)
+            values = [getattr(item, name) for name in names]
             own_items = sum(len(value) for value in values if isinstance(value, (list, dict)))
-            if depth and own_items > 1000:
-                raise ValueError("record exceeds nested collection limit")
-            stack.extend((value, depth + 1) for value in values)
+            if depth and record_limit is not None and own_items > record_limit:
+                raise LocatedProblem(at, "record exceeds nested collection limit")
+            stack.extend((value, depth + 1, f"{at}.{name}" if at else name) for name, value in zip(names, values))
         elif isinstance(item, (list, dict)):
             total += len(item)
-            if len(item) > list_limit or total > aggregate:
-                raise ValueError("record exceeds aggregate collection limit")
-            values = item.values() if isinstance(item, dict) else item
-            stack.extend((value, depth + 1) for value in values)
+            if len(item) > list_limit:
+                raise LocatedProblem(at, "record exceeds aggregate collection limit")
+            if total > aggregate:
+                raise LocatedProblem("(document)", "record exceeds aggregate collection limit")
+            if isinstance(item, dict):
+                stack.extend((value, depth + 1, at) for value in item.values())
+            else:
+                stack.extend((value, depth + 1, f"{at}[{index}]") for index, value in enumerate(item))
 
 
 class RevalidationInput(Record):
@@ -1230,118 +1304,144 @@ class RevalidationInput(Record):
     evidence: Annotated[list[SelectedEvidence], Field(max_length=200)] = Field(default_factory=list)
     evidence_reviews: Annotated[list[EvidenceReview], Field(max_length=200)] = Field(default_factory=list)
 
-    def validate_provisions(self, provisions: list[ProvisionRef], where: str = "") -> None:
+    def _provision_problems(self, provisions: list[ProvisionRef], where: str):
         targets = {item.id for item in self.source_targets}
         sources = {item.source.id: item for item in self.sources}
-        prefix = where + ": " if where else ""
         for index, provision in enumerate(provisions):
             if provision.source_target_id not in targets:
-                raise ValueError(f"{prefix}provision {index} references missing source target")
-            if provision.source_id is not None:
+                yield f"{where}[{index}].source_target_id", f"unknown reference {provision.source_target_id}"
+            elif provision.source_id is not None:
                 selected = sources.get(provision.source_id)
                 if (selected is None or selected.source.revision != provision.revision
                         or selected.target_id != provision.source_target_id):
-                    raise ValueError(f"{prefix}provision {index} source/target/revision mismatch")
+                    yield f"{where}[{index}]", "source/target/revision mismatch"
 
-    @model_validator(mode="after")
-    def membership(self) -> RevalidationInput:
-        _collection_bounds(self)
-        if self.scope.project_id != self.project_id or len(self.scope.activities) > 100:
-            raise ValueError("scope project or activity bound mismatch")
-        facts = {}
-        occurrences = scope_facts(self.scope)
+    def validate_provisions(self, provisions: list[ProvisionRef]) -> None:
+        for at, problem in self._provision_problems(provisions, "provisions"):
+            raise LocatedProblem(at, problem)
+
+    def membership_problems(self):
+        """Yield each bound and cross-reference problem as (JSON location, problem), in a fixed order."""
+        try:
+            _collection_bounds(self)
+        except LocatedProblem as error:
+            # Beyond its bounds a record is not examined further.
+            yield error.at, error.problem
+            return
+        if self.scope.project_id != self.project_id:
+            yield "scope.project_id", "differs from the envelope project_id"
+        if len(self.scope.activities) > 100:
+            yield "scope.activities", "more than 100 processing activities"
+        occurrences = scope_fact_locations(self.scope)
         if len(occurrences) > 500:
-            raise ValueError("scope exceeds fact limit")
-        for fact in occurrences:
-            if fact.id in facts and canonical_json(fact) != canonical_json(facts[fact.id]):
-                raise ValueError("conflicting copies of fact identity")
-            facts[fact.id] = fact
-        activities = _unique_records(self.scope.activities, where="scope.activities")
-        _unique_records(self.requirements, where="requirements")
-        targets = _unique_records(self.source_targets, where="source_targets")
-        sources = _unique_records([item.source for item in self.sources], where="sources[].source")
-        obligations = _unique_records(self.obligations, where="obligations")
-        controls = _unique_records(self.controls, where="controls")
-        evidence = _unique_records([item.evidence for item in self.evidence], where="evidence[].evidence")
-        _unique_records(self.applicability_decisions, where="applicability_decisions")
-        _unique_records(self.applicability_decisions, lambda item: item.obligation.id,
-                        where="applicability_decisions (one per obligation)")
-        _unique_records(self.evidence_reviews, where="evidence_reviews")
-        _unique_records(self.evidence_reviews, lambda item: (item.obligation.id, item.method),
-                        where="evidence_reviews (one per obligation and method)")
-        _unique_records(self.source_reviews, lambda item: (item.source_id, item.source_revision, item.assessment_date),
-                        where="source_reviews (one per source revision and date)")
-        _unique_records(self.family_screenings, lambda item: item.family, where="family_screenings (one per family)")
-        for name, items in (("requirements", self.requirements), ("applicability_decisions", self.applicability_decisions),
-                            ("evidence_reviews", self.evidence_reviews), ("evidence", [item.evidence for item in self.evidence])):
+            yield "scope", "more than 500 fact occurrences"
+        facts, fact_at = {}, {}
+        for at, fact in occurrences:
+            if fact.id not in facts:
+                facts[fact.id], fact_at[fact.id] = fact, at
+            elif canonical_json(fact) != canonical_json(facts[fact.id]):
+                yield at, f"conflicting copies of fact identity {fact.id}"
+        activities = yield from _index(self.scope.activities, "scope.activities")
+        yield from _index(self.requirements, "requirements")
+        targets = yield from _index(self.source_targets, "source_targets")
+        sources = yield from _index([item.source for item in self.sources], "sources[].source")
+        obligations = yield from _index(self.obligations, "obligations")
+        controls = yield from _index(self.controls, "controls")
+        evidence = yield from _index([item.evidence for item in self.evidence], "evidence[].evidence")
+        yield from _index(self.applicability_decisions, "applicability_decisions")
+        yield from _index(self.applicability_decisions, "applicability_decisions (one per obligation)",
+                          lambda item: item.obligation.id)
+        yield from _index(self.evidence_reviews, "evidence_reviews")
+        yield from _index(self.evidence_reviews, "evidence_reviews (one per obligation and method)",
+                          lambda item: (item.obligation.id, item.method))
+        yield from _index(self.source_reviews, "source_reviews (one per source revision and date)",
+                          lambda item: (item.source_id, item.source_revision, item.assessment_date))
+        yield from _index(self.family_screenings, "family_screenings (one per family)", lambda item: item.family)
+        for where, items in (("requirements[{}]", self.requirements), ("applicability_decisions[{}]", self.applicability_decisions),
+                             ("evidence_reviews[{}]", self.evidence_reviews),
+                             ("evidence[{}].evidence", [item.evidence for item in self.evidence])):
             for index, item in enumerate(items):
                 if item.project_id != self.project_id:
-                    raise ValueError(f"{name}[{index}]: cross-project declaration (project_id differs from the envelope)")
+                    yield where.format(index) + ".project_id", "cross-project declaration (differs from the envelope project_id)"
         for index, item in enumerate(self.evidence):
             if (item.evidence.run_id != self.declaration_run_id
                     or item.evidence.manifest_id != self.declaration_manifest_id):
-                raise ValueError(f"evidence[{index}].evidence: run_id/manifest_id must equal "
-                                 "declaration_run_id/declaration_manifest_id")
+                yield (f"evidence[{index}].evidence", "run_id/manifest_id must equal "
+                       "declaration_run_id/declaration_manifest_id")
         for index, selected in enumerate(self.sources):
             if selected.target_id not in targets:
-                raise ValueError(f"sources[{index}].target_id: unknown reference {selected.target_id}")
-            _require_ids(selected.source.related_source_ids, sources, f"sources[{index}].source.related_source_ids")
+                yield f"sources[{index}].target_id", f"unknown reference {selected.target_id}"
+            yield from _ids_at(f"sources[{index}].source.related_source_ids", selected.source.related_source_ids, sources)
         for index, review in enumerate(self.source_reviews):
-            _require_pin(SourceRef(id=review.source_id, revision=review.source_revision), sources,
-                         f"source_reviews[{index}].source_id/source_revision")
+            yield from _pin_at(f"source_reviews[{index}].source_id/source_revision",
+                               SourceRef(id=review.source_id, revision=review.source_revision), sources)
             for field in ("act_chain", "case_law_refs", "national_overlay_ids"):
-                _require_ids(getattr(review, field), sources, f"source_reviews[{index}].{field}")
-        for fact in facts.values():
-            _require_ids(fact.evidence_ids, evidence, f"scope fact {fact.id}.evidence_ids")
-            _require_ids(fact.conflicts, facts, f"scope fact {fact.id}.conflicts")
+                yield from _ids_at(f"source_reviews[{index}].{field}", getattr(review, field), sources)
+        for identity, fact in facts.items():
+            yield from _ids_at(fact_at[identity] + ".evidence_ids", fact.evidence_ids, evidence)
+            yield from _ids_at(fact_at[identity] + ".conflicts", fact.conflicts, facts)
         for index, requirement in enumerate(self.requirements):
             where = f"requirements[{index}]"
-            _require_ids(requirement.activity_ids, activities, where + ".activity_ids")
-            _require_ids(requirement.evidence_ids, evidence, where + ".evidence_ids")
+            yield from _ids_at(where + ".activity_ids", requirement.activity_ids, activities)
+            yield from _ids_at(where + ".evidence_ids", requirement.evidence_ids, evidence)
             for number, pin in enumerate(requirement.fact_refs):
-                _require_pin(pin, facts, f"{where}.fact_refs[{number}]")
+                yield from _pin_at(f"{where}.fact_refs[{number}]", pin, facts)
             for number, pin in enumerate(requirement.obligation_refs):
-                _require_pin(pin, obligations, f"{where}.obligation_refs[{number}]")
+                yield from _pin_at(f"{where}.obligation_refs[{number}]", pin, obligations)
         for index, obligation in enumerate(self.obligations):
-            self.validate_provisions(obligation.source_provisions, f"obligations[{index}].source_provisions")
-            _require_ids(obligation.overlay_ids, sources, f"obligations[{index}].overlay_ids")
-            _require_ids(obligation.control_ids, controls, f"obligations[{index}].control_ids")
+            yield from self._provision_problems(obligation.source_provisions, f"obligations[{index}].source_provisions")
+            yield from _ids_at(f"obligations[{index}].overlay_ids", obligation.overlay_ids, sources)
+            yield from _ids_at(f"obligations[{index}].control_ids", obligation.control_ids, controls)
         for index, control in enumerate(self.controls):
-            _require_ids(control.obligation_ids, obligations, f"controls[{index}].obligation_ids")
+            yield from _ids_at(f"controls[{index}].obligation_ids", control.obligation_ids, obligations)
         for index, decision in enumerate(self.applicability_decisions):
             where = f"applicability_decisions[{index}]"
-            _require_pin(decision.obligation, obligations, where + ".obligation")
-            self.validate_provisions(decision.provisions, where + ".provisions")
-            _require_ids(decision.evidence_ids, evidence, where + ".evidence_ids")
+            yield from _pin_at(where + ".obligation", decision.obligation, obligations)
+            yield from self._provision_problems(decision.provisions, where + ".provisions")
+            yield from _ids_at(where + ".evidence_ids", decision.evidence_ids, evidence)
         for name, items in (("applicability_decisions", self.applicability_decisions), ("family_screenings", self.family_screenings)):
             for index, item in enumerate(items):
-                _require_pin(item.scope, {self.scope.id: self.scope}, f"{name}[{index}].scope")
+                yield from _pin_at(f"{name}[{index}].scope", item.scope, {self.scope.id: self.scope})
                 for number, pin in enumerate(item.fact_refs):
-                    _require_pin(pin, facts, f"{name}[{index}].fact_refs[{number}]")
+                    yield from _pin_at(f"{name}[{index}].fact_refs[{number}]", pin, facts)
         for index, screening in enumerate(self.family_screenings):
             for number, pin in enumerate(screening.source_refs):
-                _require_pin(pin, sources, f"family_screenings[{index}].source_refs[{number}]")
+                yield from _pin_at(f"family_screenings[{index}].source_refs[{number}]", pin, sources)
         for index, review in enumerate(self.evidence_reviews):
-            _require_pin(review.obligation, obligations, f"evidence_reviews[{index}].obligation")
-            _require_ids(review.evidence_ids, evidence, f"evidence_reviews[{index}].evidence_ids")
-            if review.method not in obligations[review.obligation.id].required_methods:
-                raise ValueError(f"evidence_reviews[{index}].method: not among the obligation's required_methods")
+            yield from _pin_at(f"evidence_reviews[{index}].obligation", review.obligation, obligations)
+            yield from _ids_at(f"evidence_reviews[{index}].evidence_ids", review.evidence_ids, evidence)
+            obligation = obligations.get(review.obligation.id)
+            if obligation is not None and review.method not in obligation.required_methods:
+                yield f"evidence_reviews[{index}].method", "not among the obligation's required_methods"
         synthetic_records = [*self.requirements, *sources.values(), *self.source_reviews,
                              *self.applicability_decisions, *self.evidence_reviews, *self.family_screenings]
         if not self.synthetic and (any(item.synthetic for item in synthetic_records)
                                    or any(item.intended_type == "synthetic_fixture" for item in self.source_targets)):
-            raise ValueError("synthetic declarations require a synthetic envelope")
+            yield "synthetic", "synthetic declarations require a synthetic envelope"
+        selected = [(f"sources[{index}].file", item.file.path, item.file.digest)
+                    for index, item in enumerate(self.sources) if item.file]
+        selected += [(f"requirements[{index}].origin", item.origin.path, item.origin.digest)
+                     for index, item in enumerate(self.requirements) if item.origin]
+        selected += [(f"evidence[{index}].path", item.path, item.evidence.digest)
+                     for index, item in enumerate(self.evidence) if item.path]
         files = {}
-        selected_files = [item.file for item in self.sources if item.file]
-        selected_files.extend(item.origin for item in self.requirements if item.origin)
-        selected_files.extend(SourceFile(path=item.path, digest=item.evidence.digest)
-                              for item in self.evidence if item.path)
-        for file in selected_files:
-            if file.path in files and files[file.path] != file.digest:
-                raise ValueError("conflicting selected file digests")
-            files[file.path] = file.digest
-        if len(files) > 32:
-            raise ValueError("too many selected files")
+        for at, path, digest in selected:
+            if path in files:
+                if files[path] != digest:
+                    yield at, "conflicting selected file digests"
+                continue
+            files[path] = digest
+            if len(files) == 33:
+                yield at, "more than 32 distinct selected files"
+
+    @model_validator(mode="after")
+    def membership(self, info: ValidationInfo) -> RevalidationInput:
+        collect = info.context.get(COLLECT_PROBLEMS) if isinstance(info.context, dict) else None
+        if collect is not None:
+            collect.extend(self.membership_problems())
+            return self
+        for at, problem in self.membership_problems():
+            raise LocatedProblem(at, problem)
         return self
 
 
@@ -1395,7 +1495,9 @@ class RevalidationBundle(Record):
 
     @model_validator(mode="after")
     def membership(self) -> RevalidationBundle:
-        _collection_bounds(self, list_limit=5000, aggregate=50000)
+        # Nested declarations keep their own per-record limit. A run's derived records (its gaps,
+        # dispositions, assessments) are bounded per list and in total, as their declared maxima allow.
+        _collection_bounds(self, list_limit=5000, aggregate=50000, record_limit=None)
         declared = self.declarations
         if (self.project_id != declared.project_id or self.run.project_id != self.project_id
                 or self.synthetic != declared.synthetic or self.run.manifest_id != self.manifest.id

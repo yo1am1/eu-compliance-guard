@@ -41,8 +41,9 @@ class ViewError(ValueError):
         super().__init__(code)
 
 
-def _tag(value: str) -> str:
-    kind = "ok" if value in ("supported", "applicable", "passed", "retrieved", "completed", "same_bytes") else (
+def _tag(value: str, confirmed: bool = True) -> str:
+    """``confirmed=False`` never styles a value as ok, e.g. fetched bytes that still need review."""
+    kind = "ok" if confirmed and value in ("supported", "applicable", "passed", "retrieved", "completed", "same_bytes") else (
         "bad" if value in ("conflicting", "observed_failure", "retrieval_failed", "different_bytes") else "")
     return f'<span class="tag {kind}">{escape(value)}</span>'
 
@@ -192,6 +193,10 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
     index = articles.ArticleIndex(acts)
     declared = bundle.declarations
     obligations = {item.id: item for item in declared.obligations}
+    # Official law, guidance, proposals and engineering practice must not look alike: a pinned
+    # reference shows its source's declared type, an unpinned one its target's intended type.
+    source_types = {item.source.id: item.source.type for item in declared.sources}
+    target_types = {item.id: item.intended_type for item in declared.source_targets}
     decisions = {item.obligation.id: item for item in bundle.effective_applicability_decisions}
     requirement_states = Counter(item.state for item in bundle.requirement_assessments)
     applicability = Counter(item.applicability for item in bundle.obligation_dispositions)
@@ -212,20 +217,22 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
     for disposition in bundle.obligation_dispositions:
         obligation = obligations[disposition.obligation_id]
         decision = decisions[disposition.obligation_id]
-        references = "".join(f"<li>{escape(f'{pin.source_id or pin.source_target_id} — {pin.locator}')}"
+        references = "".join(f"<li>{escape(f'{pin.source_id or pin.source_target_id} — {pin.locator}')} "
+                             f"({escape(source_types.get(pin.source_id) or target_types.get(pin.source_target_id) or 'type not declared')})"
                              f"{_article(pin, acts, by_source)}</li>" for pin in obligation.source_provisions)
         methods = " ".join(_tag(f"{item.method}: {item.outcome}") for item in disposition.required_method_dispositions)
         obligation_rows.append([f"<code>{escape(obligation.id)}</code>", escape(f"{obligation.family} · {obligation.classification}"),
                                 f"<ul>{references}</ul>" if references else "—", _tag(decision.applicability) + f'<br><span class="muted">{escape(decision.reviewer or "no reviewer")}</span>',
                                 methods or '<span class="muted">none declared</span>'])
-    attempt_rows = [[f"<code>{escape(item.source_target_id)}</code>", _tag(item.state),
+    attempt_rows = [[f"<code>{escape(item.source_target_id)}</code>", escape(item.intended_type),
+                     _tag(item.state, item.retrieval.admission == "accepted"),
                      f"<code>{escape(item.retrieval.final_url or item.retrieval.requested_url)}</code>",
-                     escape(str(item.retrieval.status or "—")), _tag(item.retrieval.comparison),
+                     escape(str(item.retrieval.status or "—")), _tag(item.retrieval.comparison, item.retrieval.admission == "accepted"),
                      escape(f"{item.failure.code}: {item.failure.safe_message}" if item.failure else "—")]
                     for item in bundle.source_attempts]
     family_rows = [[escape(item.family), _tag(item.applicability), escape(item.reviewer or "—"), _list(item.gaps)]
                    for item in bundle.family_screenings]
-    # Disposition ids derive from obligation ids, so the current run names the historical ones too.
+    # Older runs did not record the historical obligation; fall back to the current run's dispositions.
     by_disposition = {item.id: item.obligation_id for item in bundle.obligation_dispositions}
     comparison_html = ""
     if bundle.comparison is not None:
@@ -239,7 +246,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
                  for item in bundle.comparison.changes],
                 "Recorded dependencies unchanged.")
             + _table(["Historical obligation", "Freshness", "Changed dependencies", "Review actions and uncertainty"],
-                [[f"<code>{escape(by_disposition.get(item.obligation_disposition_id, item.obligation_disposition_id))}</code>",
+                [[f"<code>{escape(item.obligation_id or by_disposition.get(item.obligation_disposition_id, item.obligation_disposition_id))}</code>",
                   _tag(item.freshness), _list(item.changed_dependencies), _list(item.reasons)]
                  for item in bundle.current_assessments], "No historical dispositions."))
     banner = ("FICTIONAL / SYNTHETIC DATA. Every conclusion below is fictional and establishes no real EU duty."
@@ -271,7 +278,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
                "No candidate obligations declared: a coverage gap."),
         "<h2>Official-source retrieval</h2>",
         "<p class=\"muted\">Official hosting establishes neither binding status, completeness, applicability nor currency.</p>",
-        _table(["Target", "State", "URL", "HTTP", "Compared", "Failure"], attempt_rows, "No retrieval was requested for this run."),
+        _table(["Target", "Type", "State", "URL", "HTTP", "Compared", "Failure"], attempt_rows, "No retrieval was requested for this run."),
         comparison_html,
         "<h2>Eleven candidate legal families</h2>",
         _table(["Family", "Applicability", "Reviewer", "Gaps"], family_rows, ""),
@@ -293,6 +300,8 @@ def verify_run(run_dir: str | os.PathLike, contents: dict[str, bytes] | None = N
 
 def write_view(run_dir: str | os.PathLike) -> Path:
     """Write ``<parent>/views/<run>.html`` (0700 directory, 0600 file), replacing an older view."""
+    if not os.fspath(run_dir):
+        raise ViewError("unsafe-path")  # Path("") is ".": never fall back to the working directory.
     run_dir = Path(run_dir)
     contents: dict[str, bytes] = {}
     html = render_html(verify_run(run_dir, contents), contents).encode("utf-8")

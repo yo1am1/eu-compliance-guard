@@ -50,16 +50,18 @@ Use the CLI command from the SessionStart context, written `<cli>` below, or
 
 ## Ground the assumptions in the code
 
-`init` sets `"files_root": "project"`, so selected paths resolve from the project folder.
-Run `<cli> ground`. For each assumed or unknown fact it lists ranked `file:line`
-candidates from a local index (no network, no model), flags organisational facts that
-code can never show, and lists possible touchpoints that no fact covers.
+With the default path, `init` sets `"files_root": "project"`, so selected paths resolve from the project folder.
+Run `<cli> ground`. For each assumed or unknown fact, and each fact marked `pinned
+evidence changed or missing`, it lists ranked `file:line` candidates from a local index
+(no network, no model), flags organisational facts that code can never show, and lists
+possible touchpoints that no fact covers.
 
 - Show each fact's candidate lines to the owner. Pin only a line the owner confirms
   shows the technical fact (for example `set_cookie(..., max_age=…)` for a cookie
   lifetime): `<cli> ground --apply <fact-id>=<path>:<line>`. The fact becomes
   `observed`, with that file's digest as evidence. Later edits to the file make the evidence unavailable, and
-  the gap returns until it is grounded again.
+  the gap returns until it is grounded again. `check` warns about it; never copy the new digest into the
+  evidence, because only a line the owner confirms with `ground --apply` grounds the fact again.
 - Never apply a candidate that only mentions a related word. Organisational facts
   (lawful basis, establishment, roles, size, sector) stay owner questions; the CLI
   refuses them.
@@ -71,11 +73,13 @@ code can never show, and lists possible touchpoints that no fact covers.
 EUR-Lex answers scripted requests with a bot challenge, so `--fetch-official` records
 a safe failure for it. When the user has downloaded the act (PDF or saved HTML):
 
-1. Put the file under `.eu-compliance-guard/sources/` and keep a source target for it.
-   With `"files_root": "project"`, its path is `.eu-compliance-guard/sources/<file>`.
+1. Put the file in a `sources/` folder beside the declarations file and keep a source
+   target for it. With `"files_root": "project"`, its path is `.eu-compliance-guard/sources/<file>`
+   (relative to the project folder). With `"files_root": "declarations_dir"`, its path is
+   `sources/<file>` (relative to the declarations file's folder).
 2. Add a `sources[]` entry: `target_id`, `media_type` (`application/pdf`, `text/html`
-   or `text/plain`), `charset` (`null` for PDF, else `utf-8`), `file.path` relative
-   to the declarations file, and a `source` with a stable `id`, `revision: 0`, and
+   or `text/plain`), `charset` (`null` for PDF, else `utf-8`), `file.path` as in step 1,
+   and a `source` with a stable `id`, `revision: 0`, and
    `type`, `url`, `identifier`,
    `publisher`, `language` and `jurisdiction` equal the target's exactly. Set
    `retrieved_at` to when the user downloaded it (UTC), `provisions` to the
@@ -107,7 +111,9 @@ state="$(<cli> state-dir)"   # private 0700 run storage, keyed by the declared p
 - Increase revisions when changing versioned semantic records and update their
   explicit pins. A changed fact also changes the `scope` (and its activity) that
   contains it. `<cli> check --previous <run-directory>` names every record that
-  still needs a higher revision before you run. Never invent renewed reviewer approval to clear a stale result.
+  still needs a higher revision before you run, and warns about withdrawn support the
+  declarations do not renew yet. A renewal recorded in the same run as another relevant
+  change does not count; the reviewer renews again after that run. Never invent renewed reviewer approval to clear a stale result.
   Explain stale dependencies and unknown freshness separately; unchanged bytes
   renew neither legal currency nor reviewer approval. Historical files stay intact.
 - Exit 2: show the safe error code (for example `invalid-input`), fix the

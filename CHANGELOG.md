@@ -1,9 +1,49 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 — 2026-11-05
+
+Licence change and the Great Auditor fixes: 83 confirmed defects found by an agent
+audit that tested every command, option and flow, each fixed with a regression test.
+
+### Changed
 
 - Licence changed from MIT to GNU AGPL-3.0-only, with an attribution notice
   (`NOTICE`, section 7(b)). Releases 1.0.0 and 1.1.0 remain MIT.
+- `init` keeps file paths inside the project: outside `.eu-compliance-guard/` it sets
+  `"files_root": "declarations_dir"`. It refuses symlinked folders and an empty date.
+- A missing declarations file is reported as `io-failed`; an unreadable or linked path
+  as `unsafe-path`. A named `pr-check --input` must exist.
+- Commits are unsigned and carry only the Owner's identity. Some earlier commits on
+  `main` (up to 1.1.0) carry co-author trailers, one carries an agent identity, and
+  some show as Unverified on GitHub; history was not rewritten.
+
+### Fixed
+
+- `next` gives every open requirement a step (new `review` kind), asks to ground a
+  fact again when its pinned file changed, names what blocks a recorded decision, and
+  never offers to fetch a target the fetch policy refuses.
+- `ground` never grounds legal facts (lawful basis, roles, size) in code, lists facts
+  whose pinned file changed, re-pins them cleanly, keeps uncited touchpoints visible,
+  checks every `--apply` before writing any, accepts only plain line numbers, keeps the
+  file mode and reports unreadable folders as skipped. `--json` works with `--apply`.
+- `check` reports every problem in one pass with its JSON location (including stale
+  pins and the revision cascade), encoding problems, oversized files and truncation,
+  and never prints unknown keys. A changed grounded code file is a warning to ground
+  again, not a digest to copy.
+- Run history never restores withdrawn support because a file was briefly missing;
+  same-run renewals are explained; unreadable runs report `unsafe-path`.
+- Article text: chapter and section headings, scripts, tables of contents, correlation
+  tables and annex suffixes no longer leak into or split articles; BOM and upper-case
+  media types are handled.
+- `pr-check` rejects coloured or non-diff input, strips mnemonic prefixes, counts
+  renames once and keeps added lines of combined merge diffs.
+- Output that cannot be written is `io-failed` (never a traceback or exit 1); text the
+  console cannot encode is escaped. A relative `XDG_STATE_HOME` is ignored.
+- The view and report name removed historical obligations, show each source's type and
+  style only admitted retrievals as confirmed. The band shows the run state and says
+  when the default level is off.
+- `revalidate` handles up to the bundle's gap limit, and its requirement gaps name the
+  real blocker.
 
 ## 1.1.0 — 2026-11-04
 

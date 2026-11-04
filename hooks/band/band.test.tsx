@@ -52,16 +52,16 @@ async function eventually<T>(probe: () => Promise<T | undefined>): Promise<T | u
   return undefined
 }
 
-function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT, older = '' } = {}) {
+function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT, older = '', stateHome = '/state', state = STATE, level = '' } = {}) {
   const dirs: Record<string, Dir[]> = {
     [PROJECT]: enabled ? [{ name: '.eu-compliance-guard', kind: 'dir' }] : [],
-    [STATE]: runs ? [{ name: 'run-20261025T000000Z', kind: 'dir' }, { name: 'run-incomplete', kind: 'dir' }, { name: 'views', kind: 'dir' }] : [],
-    [RUN]: [{ name: 'complete.json', kind: 'file' }, { name: 'bundle.json', kind: 'file' }],
-    [`${STATE}/run-incomplete`]: [{ name: 'bundle.json', kind: 'file' }],
+    [state]: runs ? [{ name: 'run-20261025T000000Z', kind: 'dir' }, { name: 'run-incomplete', kind: 'dir' }, { name: 'views', kind: 'dir' }] : [],
+    [`${state}/run-20261025T000000Z`]: [{ name: 'complete.json', kind: 'file' }, { name: 'bundle.json', kind: 'file' }],
+    [`${state}/run-incomplete`]: [{ name: 'bundle.json', kind: 'file' }],
   }
   if (older !== '') {
-    dirs[STATE].push({ name: 'run-20261024T000000Z', kind: 'dir' })
-    dirs[`${STATE}/run-20261024T000000Z`] = [{ name: 'complete.json', kind: 'file' }]
+    dirs[state].push({ name: 'run-20261024T000000Z', kind: 'dir' })
+    dirs[`${state}/run-20261024T000000Z`] = [{ name: 'complete.json', kind: 'file' }]
   }
   const commands: string[] = []
   const processes: (readonly string[])[] = []
@@ -71,7 +71,7 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
     opened.push(e.id)
     return { value: { isPlaced: true } }
   })
-  mock.env(on, { HOME: '/home/me', XDG_STATE_HOME: '/state' })
+  mock.env(on, { HOME: '/home/me', XDG_STATE_HOME: stateHome, ...(level === '' ? {} : { EUCG_DEFAULT_MODE: level }) })
   mock.clock(on, { now: Date.parse('2026-10-25T12:00:00Z') })
   on('session.repo', () => ({ value: { root: '/work', remote: null, internal: false, name: 'monorepo' } }))
   on('session.root', () => ({ value: root }))
@@ -82,8 +82,8 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
     return { value: entries.map(entry => ({ ...entry, size: 0, mtimeMs: 0, isLink: false })) }
   })
   on('fs.read', (_, e) => {
-    if (e.path === `${RUN}/bundle.json`) return { value: bundle }
-    if (older !== '' && e.path === `${STATE}/run-20261024T000000Z/bundle.json`) return { value: older }
+    if (e.path === `${state}/run-20261025T000000Z/bundle.json`) return { value: bundle }
+    if (older !== '' && e.path === `${state}/run-20261024T000000Z/bundle.json`) return { value: older }
     if (e.path === `${PROJECT}/.eu-compliance-guard/declarations.json`) return { value: '{"project_id": "shop-id"}' }
     throw new Error('missing')
   })
@@ -121,6 +121,26 @@ test('the band summarizes the newest complete run on every surface without echoi
     expect(await ui.find({ type: 'Text', text: /not a compliance verdict/ })).toBeDefined()
     await ui.unmount()
   }
+})
+
+test('the band and the panel show the run processing state from a fixed set', async ($, on) => {
+  host(on)
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await band.find({ type: 'Text', text: ' · state partial' })).toBeDefined()
+  await band.unmount()
+  const pane = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await pane.find({ type: 'Text', text: 'run run-abc · state partial · assessed 2026-10-18' })).toBeDefined()
+  await pane.unmount()
+})
+
+test('a run state outside the terminal states is shown as unrecorded', async ($, on) => {
+  host(on, { bundle: BUNDLE.replace('"partial"', '"verified-compliant"') })
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await band.find({ type: 'Text', text: ' · state unrecorded' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: 'compliant' })).toBeUndefined()
+  await band.unmount()
 })
 
 test('buttons run the plugin skills and the report view through the plugin CLI', async ($, on) => {
@@ -165,6 +185,14 @@ test('without a run the band offers an audit', async ($, on) => {
   await ui.press({ key: 'fold' })
   expect(await ui.find({ key: 'audit' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /EU Compliance Guard · no completed run yet/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a relative XDG_STATE_HOME is ignored, as the CLI and the session hook ignore it', async ($, on) => {
+  host(on, { stateHome: 'state', state: '/home/me/.local/state/eu-compliance-guard/shop-id' })
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /1\/2 requirements supported/ })).toBeDefined()
   await ui.unmount()
 })
 
@@ -262,6 +290,16 @@ test('without declarations the panel says so and offers nothing to run', async (
   await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect(await ui.find({ type: 'Text', text: /No \.eu-compliance-guard\/ declarations/ })).toBeDefined()
+  expect(await ui.find({ key: 'audit' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('with the default level off the panel says so instead of claiming no declarations', async ($, on) => {
+  host(on, { level: 'off' })
+  await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: 'The default level is off; resume with /eucg.' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'declarations' })).toBeUndefined()
   expect(await ui.find({ key: 'audit' })).toBeUndefined()
   await ui.unmount()
 })

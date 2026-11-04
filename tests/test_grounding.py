@@ -1,11 +1,15 @@
 """Local evidence grounding on a synthetic project; no network, model or target execution."""
 
 from contextlib import redirect_stderr, redirect_stdout
+import hashlib
 import io
 import json
+import os
 from pathlib import Path
+import stat
 import tempfile
 import unittest
+from unittest import mock
 
 from eu_compliance_guard import authoring as a, grounding as g, models as m, revalidation as r
 from eu_compliance_guard.__main__ import main
@@ -46,6 +50,121 @@ class GroundingTests(unittest.TestCase):
         with redirect_stdout(stdout), redirect_stderr(stderr):
             code = main(list(args))
         return code, stdout.getvalue(), stderr.getvalue()
+
+    def test_lawful_basis_slots_and_plural_role_keys_are_never_grounded_in_code(self):
+        data = json.loads(self.declarations.read_text())
+        data["scope"]["roles"].append(fact("fact-roles", "Processor roles for analytics cookie"))
+        data["scope"]["activities"] = [{"id": "activity-web", "purpose": "Fictional analytics", "subjects": [],
+            "data_categories": [], "roles": [], "lawful_basis": fact("fact-basis", "Analytics cookie max age"),
+            "recipients": [], "locations": [], "stores": [], "retention": [], "evidence_owner": "Fictional owner"}]
+        self.declarations.write_text(json.dumps(data, indent=2))
+        facts = {item["fact"]: item for item in g.ground(self.declarations)["facts"]}
+        self.assertEqual((facts["fact-basis"]["observable"], facts["fact-roles"]["observable"]), (False, False))
+        for fact_id in ("fact-basis", "fact-roles"):
+            code, _, stderr = self.cli("ground", "--input", str(self.declarations), "--apply", f"{fact_id}=app/web.py:2")
+            self.assertEqual((code, "not-observable" in stderr), (2, True))
+
+    def test_a_cited_line_hides_only_itself_from_uncovered_touchpoints(self):
+        (self.project / "app/web.py").write_text(CODE["app/web.py"]
+            + "def notify(user):\n    send(user.email, user.phone, user.address)\n")
+        self.assertEqual(self.cli("ground", "--input", str(self.declarations), "--apply",
+                                  "fact-cookie-lifetime=app/web.py:2")[0], 0)
+        examples = [example for item in g.ground(self.declarations)["undeclared"] for example in item["examples"]]
+        self.assertTrue(any(example.startswith("app/web.py:4 ") for example in examples), examples)
+        self.assertFalse(any(example.startswith("app/web.py:2 ") for example in examples))
+
+    def test_ground_lists_a_fact_whose_pinned_evidence_changed_or_is_missing(self):
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+        report = g.ground(self.declarations)
+        self.assertNotIn("fact-cookie-lifetime", [item["fact"] for item in report["facts"]])
+        web = self.project / "app/web.py"
+        web.write_text(CODE["app/web.py"].replace("395", "30"))
+        facts = {item["fact"]: item for item in g.ground(self.declarations)["facts"]}
+        stale = facts["fact-cookie-lifetime"]
+        self.assertEqual((stale["basis"], stale["stale"], stale["candidates"][0]["location"]),
+                         ("observed", True, "app/web.py:2"))
+        self.assertFalse(facts["fact-llm-weight"]["stale"])
+        code, stdout, _ = self.cli("ground", "--input", str(self.declarations))
+        self.assertEqual(code, 0)
+        self.assertIn("fact fact-cookie-lifetime (observed, pinned evidence changed or missing)", stdout)
+        # The pinned line no longer hides what the changed file now holds there.
+        web.write_text("def notify(user):\n    send(user.email, user.phone, user.address)\n")
+        report = g.ground(self.declarations)
+        examples = [example for item in report["undeclared"] for example in item["examples"]]
+        self.assertTrue(any(example.startswith("app/web.py:2 ") for example in examples), examples)
+        web.unlink()
+        facts = {item["fact"]: item for item in g.ground(self.declarations)["facts"]}
+        self.assertTrue(facts["fact-cookie-lifetime"]["stale"])
+        # Pinning it again closes it.
+        web.write_text(CODE["app/web.py"])
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+        self.assertNotIn("fact-cookie-lifetime", [item["fact"] for item in g.ground(self.declarations)["facts"]])
+
+    def test_repinning_a_stale_fact_to_another_file_drops_the_old_evidence(self):
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+        (self.project / "app/cookies.py").write_text(CODE["app/web.py"])
+        (self.project / "app/web.py").unlink()
+        stale = {item["fact"]: item for item in g.ground(self.declarations)["facts"]}["fact-cookie-lifetime"]
+        self.assertEqual((stale["stale"], stale["candidates"][0]["location"]), (True, "app/cookies.py:2"))
+        code, _, _ = self.cli("ground", "--input", str(self.declarations), "--apply", "fact-cookie-lifetime=app/cookies.py:2")
+        self.assertEqual(code, 0)
+        self.assertNotIn("fact-cookie-lifetime", [item["fact"] for item in g.ground(self.declarations)["facts"]])
+        declared = r.load_input(self.declarations)
+        new = "evidence-code-" + hashlib.sha256(b"app/cookies.py").hexdigest()[:16]
+        lifetime = next(item for item in m.scope_facts(declared.scope) if item.id == "fact-cookie-lifetime")
+        self.assertEqual(lifetime.evidence_ids, [new])
+        # No fact cites the deleted file's record any more, so it is gone too.
+        self.assertEqual([item.path for item in declared.evidence], ["app/cookies.py"])
+        runs = Path(self.temporary.name) / "runs"
+        runs.mkdir(mode=0o700)
+        bundle = r.run(self.declarations, runs / "run-1")
+        self.assertFalse(any("evidence-code-" in gap or gap.startswith("Fact fact-cookie-lifetime") for gap in bundle.gaps),
+                         bundle.gaps)
+
+    def test_repinning_keeps_old_evidence_another_fact_still_cites(self):
+        data = json.loads(self.declarations.read_text())
+        data["scope"]["roles"].append(fact("fact-cookie-name", "Analytics cookie name"))
+        self.declarations.write_text(json.dumps(data, indent=2))
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+        g.apply(self.declarations, "fact-cookie-name", "app/web.py:2")
+        (self.project / "app/cookies.py").write_text(CODE["app/web.py"])
+        (self.project / "app/web.py").unlink()
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/cookies.py:2")
+        declared = r.load_input(self.declarations)
+        facts = {item.id: item for item in m.scope_facts(declared.scope)}
+        self.assertEqual(len(facts["fact-cookie-lifetime"].evidence_ids), 1)
+        # The other fact still relies on the missing file: it stays stale, with its record kept.
+        self.assertEqual(sorted(item.path for item in declared.evidence), ["app/cookies.py", "app/web.py"])
+        listed = {item["fact"]: item for item in g.ground(self.declarations)["facts"]}
+        self.assertTrue(listed["fact-cookie-name"]["stale"])
+        self.assertNotIn("fact-cookie-lifetime", listed)
+
+    def test_concept_vocabulary_finds_lines_the_fact_key_does_not_name(self):
+        (self.project / "web").mkdir()
+        (self.project / "web/head.html").write_text(
+            '<script>gtag("config", "G-FICTION"); hotjar.init(1234); mixpanel.init("fictional")</script>\n')
+        data = json.loads(self.declarations.read_text())
+        data["scope"]["roles"].append(fact("fact-tracking", "Tracking"))
+        self.declarations.write_text(json.dumps(data, indent=2))
+        report = g.ground(self.declarations)
+        facts = {item["fact"]: item for item in report["facts"]}
+        self.assertEqual([item["location"] for item in facts["fact-tracking"]["candidates"]][:1], ["web/head.html:1"])
+        # Lines that name the fact's own terms still rank first.
+        self.assertEqual(facts["fact-cookie-lifetime"]["candidates"][0]["location"], "app/web.py:2")
+
+    def test_a_concept_only_candidate_stays_an_uncovered_touchpoint(self):
+        (self.project / "web").mkdir()
+        (self.project / "web/head.html").write_text(
+            '<script>gtag("config", "G-FICTION"); hotjar.init(1234); mixpanel.init("fictional")</script>\n')
+        report = g.ground(self.declarations)
+        facts = {item["fact"]: item for item in report["facts"]}
+        # The cookie-lifetime fact offers the tracker line through the tracking vocabulary only ...
+        self.assertIn("web/head.html:1", [item["location"] for item in facts["fact-cookie-lifetime"]["candidates"]])
+        # ... which does not show a cookie lifetime, so no fact covers that tracker yet.
+        examples = [example for item in report["undeclared"] for example in item["examples"]]
+        self.assertTrue(any(example.startswith("web/head.html:1 ") for example in examples), examples)
+        # A candidate naming the fact's own terms is covered.
+        self.assertFalse(any(example.startswith("app/web.py:2 ") for example in examples), examples)
 
     def test_tokens_split_identifiers(self):
         self.assertEqual(g.tokens("response.set_cookie(maxAge=395)"), ["response", "set", "cookie", "max", "age", "395"])
@@ -100,6 +219,53 @@ class GroundingTests(unittest.TestCase):
         self.assertEqual(self.declarations.read_bytes(), before)
         code, _, stderr = self.cli("ground", "--input", str(self.declarations), "--apply", "fact-cookie-basis=app/web.py:2")
         self.assertEqual((code, "not-observable" in stderr), (2, True))
+
+    def test_a_refused_apply_in_a_batch_writes_none_of_them(self):
+        before = self.declarations.read_bytes()
+        for second in ("fact-cookie-basis=app/web.py:2", "fact-cookie-lifetime=app/billing.py:1", "no-separator"):
+            with self.subTest(second=second):
+                code, stdout, stderr = self.cli("ground", "--input", str(self.declarations),
+                                                "--apply", "fact-cookie-lifetime=app/web.py:2", "--apply", second)
+                self.assertEqual((code, stdout), (2, ""))
+                self.assertIn("grounding failed", stderr)
+                self.assertEqual(self.declarations.read_bytes(), before)
+        code, stdout, _ = self.cli("ground", "--input", str(self.declarations), "--apply",
+                                   "fact-cookie-lifetime=app/web.py:2", "--apply", "fact-llm-weight=app/chat.py:2")
+        self.assertEqual(code, 0)
+        self.assertIn("fact-llm-weight: observed, pinned to app/chat.py:2", stdout)
+        facts = {item.id: item for item in m.scope_facts(r.load_input(self.declarations).scope)}
+        self.assertEqual({facts[name].basis for name in ("fact-cookie-lifetime", "fact-llm-weight")}, {"observed"})
+
+    def test_apply_with_json_prints_json(self):
+        code, stdout, stderr = self.cli("ground", "--input", str(self.declarations), "--json",
+                                        "--apply", "fact-cookie-lifetime=app/web.py:2")
+        self.assertEqual((code, stderr), (0, ""))
+        self.assertEqual(json.loads(stdout), {"applied": [{"fact": "fact-cookie-lifetime", "location": "app/web.py:2"}]})
+
+    def test_apply_keeps_the_declarations_mode_and_refuses_a_read_only_file(self):
+        for mode in (0o644, 0o640, 0o600):
+            with self.subTest(mode=oct(mode)):
+                self.declarations.chmod(mode)
+                g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+                self.assertEqual(stat.S_IMODE(self.declarations.stat().st_mode), mode)
+        self.declarations.chmod(0o444)
+        before = self.declarations.read_bytes()
+        code, _, stderr = self.cli("ground", "--input", str(self.declarations), "--apply", "fact-llm-weight=app/chat.py:2")
+        self.assertEqual((code, "io-failed" in stderr), (2, True))
+        self.assertEqual((self.declarations.read_bytes(), stat.S_IMODE(self.declarations.stat().st_mode)), (before, 0o444))
+
+    def test_apply_accepts_only_plain_ascii_line_numbers(self):
+        before = self.declarations.read_bytes()
+        # 5000 digits exceed Python's integer conversion limit.
+        for number in ("٢", "２", "²", "02", "+2", " 2", "2 ", "2.0", "0", "", "9" * 5000, "1" + "0" * 9):
+            with self.subTest(number=number):
+                with self.assertRaises(g.GroundingError) as caught:
+                    g.apply(self.declarations, "fact-cookie-lifetime", f"app/web.py:{number}")
+                self.assertEqual(caught.exception.code, "bad-location")
+                code, _, stderr = self.cli("ground", "--input", str(self.declarations),
+                                           "--apply", f"fact-cookie-lifetime=app/web.py:{number}")
+                self.assertEqual((code, "bad-location" in stderr), (2, True))
+        self.assertEqual(self.declarations.read_bytes(), before)
 
     def test_apply_replaces_a_planted_temp_symlink_instead_of_writing_through_it(self):
         victim = Path(self.temporary.name) / "victim.txt"
@@ -156,6 +322,38 @@ class GroundingTests(unittest.TestCase):
         self.assertEqual(declared["fact-cookie-lifetime"].basis, "observed")
         # The other fact was confirmed against the old bytes: it is a question again.
         self.assertEqual((declared["fact-cookie-name"].basis, declared["fact-cookie-name"].evidence_ids), ("assumed", []))
+
+    def test_an_unreadable_folder_counts_as_skipped(self):
+        # Simulated, so the test also holds as root, whom chmod 000 does not stop.
+        blocked, scandir = os.path.join(os.path.realpath(self.project), "app"), os.scandir
+
+        def refuse(path="."):
+            if os.fspath(path) == blocked:
+                raise PermissionError(13, "Permission denied")
+            return scandir(path)
+
+        with mock.patch("os.scandir", refuse):
+            report = g.ground(self.declarations)
+        self.assertEqual((report["files"], report["skipped"]), (0, 1))
+        self.assertIn("(1 skipped)", g.format_ground(report))
+
+    def test_a_file_that_cannot_be_examined_counts_as_skipped(self):
+        # A folder that can be listed but not entered (mode r--): every lstat in it fails.
+        # Simulated for both stat calls, so the test also holds as root.
+        blocked, lstat, stat_ = os.path.join(os.path.realpath(self.project), "app") + os.sep, os.lstat, os.stat
+
+        def refusing(call):
+            def refuse(path, *args, **kwargs):
+                if isinstance(path, (str, os.PathLike)) and os.fspath(path).startswith(blocked):
+                    raise PermissionError(13, "Permission denied")
+                return call(path, *args, **kwargs)
+            return refuse
+
+        with mock.patch("os.lstat", refusing(lstat)), mock.patch("os.stat", refusing(stat_)):
+            report = g.ground(self.declarations)
+            code, stdout, _ = self.cli("ground", "--input", str(self.declarations))
+        self.assertEqual((report["files"], report["skipped"]), (0, len(CODE)))
+        self.assertEqual((code, f"({len(CODE)} skipped)" in stdout), (0, True))
 
     def test_oversized_files_are_skipped_without_reading_them_whole(self):
         (self.project / "dump.sql").write_bytes(b"cookie " * (g.MAX_FILE_BYTES // 7 + 10))

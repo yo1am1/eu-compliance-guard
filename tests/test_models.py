@@ -108,6 +108,20 @@ class ContractTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             m.Fact.model_validate(payload)
 
+    def test_bundle_bounds_hold_every_gap_a_run_record_declares(self):
+        snapshot = m.Snapshot.model_validate(FIXTURE["snapshot"])
+        run = snapshot.run.model_copy(update={"gaps": [f"Synthetic gap {index}" for index in range(5000)]})
+        holder = snapshot.model_copy(update={"run": run})
+        # Declarations keep the per-record limit; a bundle's records are bounded per list and in total.
+        with self.assertRaisesRegex(ValueError, "nested collection limit"):
+            m._collection_bounds(holder)
+        m._collection_bounds(holder, list_limit=5000, aggregate=50000, record_limit=None)
+        oversized = snapshot.model_copy(update={"run": run.model_copy(update={"gaps": [*run.gaps, "One more"]})})
+        with self.assertRaisesRegex(ValueError, "aggregate collection limit"):
+            m._collection_bounds(oversized, list_limit=5000, aggregate=50000, record_limit=None)
+        with self.assertRaisesRegex(ValueError, "aggregate collection limit"):
+            m._collection_bounds(holder, list_limit=5000, aggregate=5000, record_limit=None)
+
     def test_proposals_need_contained_paths_retests_and_verification_references(self):
         envelope = dict(schema_version=1, conversation_id="conversation", context_manifest_id="context", finding_assessment_id="assessment", message="Synthetic proposal", proposal=dict(kind="one_file_text_patch", relative_path="safe.py", preimage_digest=m.content_digest(b"before"), proposed_postimage="after", retest_ids=["check"]))
         m.AgentReplyEnvelope.model_validate(envelope)

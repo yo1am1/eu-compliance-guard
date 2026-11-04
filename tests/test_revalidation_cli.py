@@ -5,6 +5,7 @@ from copy import deepcopy
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -120,6 +121,82 @@ class RevalidationCliTests(unittest.TestCase):
     def package_cli(*args):
         return subprocess.run([sys.executable, "-m", "eu_compliance_guard", *map(str, args)],
                               cwd=ROOT, capture_output=True, text=True, timeout=30, check=False)
+
+    def test_output_that_cannot_be_written_is_io_failed_not_a_traceback(self):
+        class Unwritable(io.StringIO):
+            def __init__(self, error):
+                super().__init__()
+                self.error = error
+
+            def write(self, text):
+                raise self.error
+
+        for error in (BrokenPipeError(32, "Broken pipe"), OSError(28, "No space left on device"),
+                      UnicodeEncodeError("ascii", "PRIVATE-é", 8, 9, "ordinal not in range(128)")):
+            with self.subTest(error=type(error).__name__):
+                run = Mock(return_value=m.RevalidationBundle.model_validate(bundle_payload()))
+                module = ModuleType("eu_compliance_guard.revalidation")
+                module.run = run
+                stderr = io.StringIO()
+                with patch.dict(sys.modules, {module.__name__: module}), redirect_stdout(Unwritable(error)), \
+                        redirect_stderr(stderr):
+                    code = main(["revalidate", "--input", "in", "--output", "out"])
+                self.assertEqual((code, stderr.getvalue()), (2, "eu-compliance-guard: io-failed: output failed\n"))
+
+    def project_cli(self, project, *args, stdin=b"", stdout=subprocess.PIPE, encoding=None):
+        environment = {**os.environ, "PYTHONPATH": str(ROOT)}
+        environment.pop("PYTHONIOENCODING", None)
+        if encoding:
+            environment["PYTHONIOENCODING"] = encoding
+        return subprocess.run([sys.executable, "-m", "eu_compliance_guard", *args], cwd=project, env=environment,
+                              input=stdin, stdout=stdout, stderr=subprocess.PIPE, timeout=60, check=False)
+
+    def test_a_closed_or_full_stdout_is_io_failed_and_never_the_strict_attention_code(self):
+        def closed_pipe():
+            reader, writer = os.pipe()
+            os.close(reader)
+            return os.fdopen(writer, "wb")
+
+        targets = {"closed pipe": closed_pipe}
+        if os.path.exists("/dev/full"):
+            targets["full device"] = lambda: open("/dev/full", "wb")
+        with tempfile.TemporaryDirectory(prefix="eucg-cli-") as project:
+            for arguments in (["pr-check", "--strict", "--json"], ["--help"]):
+                for name, target in targets.items():
+                    with self.subTest(arguments=arguments, target=name), target() as stdout:
+                        result = self.project_cli(project, *arguments, stdout=stdout)
+                        self.assertEqual(result.returncode, 2)
+                        self.assertEqual(result.stderr, b"eu-compliance-guard: io-failed: output failed\n")
+
+    def test_text_the_console_cannot_encode_is_escaped(self):
+        from eu_compliance_guard import authoring
+        with tempfile.TemporaryDirectory(prefix="eucg-cli-") as folder:
+            project = Path(folder) / "shop"
+            (project / "légal").mkdir(parents=True)
+            (project / "légal/wéb.py").write_text(
+                'def landing(response, visitor_id):\n    response.set_cookie("_analytics", visitor_id, max_age=395)\n')
+            declarations = authoring.init(project / ".eu-compliance-guard/declarations.json", "shop", synthetic=True)
+            data = json.loads(declarations.read_text())
+            data["scope"]["roles"] = [{"id": "fact-cookie-lifetime", "revision": 0, "value": None, "basis": "unknown",
+                                       "key": "Analytics cookie lifetime (Größe)", "evidence_ids": [],
+                                       "owner": "Jürgen Ölmann", "observed_at": "2026-11-04T00:00:00Z",
+                                       "conflicts": []}]
+            declarations.write_text(json.dumps(data, ensure_ascii=False))
+            ground = self.project_cli(project, "ground", encoding="ascii")
+            self.assertEqual((ground.returncode, ground.stderr), (0, b""))
+            self.assertIn(b"(Gr\\xf6\\xdfe)", ground.stdout)
+            applied = self.project_cli(project, "ground", "--apply", "fact-cookie-lifetime=légal/wéb.py:2",
+                                       encoding="ascii")
+            self.assertEqual((applied.returncode, applied.stderr), (0, b""))
+            self.assertIn(b"pinned to l\\xe9gal/w\\xe9b.py:2", applied.stdout)
+            self.assertEqual(json.loads(declarations.read_text())["scope"]["roles"][0]["basis"], "observed")
+            diff = ("diff --git a/légal/wéb.py b/légal/wéb.py\n--- a/légal/wéb.py\n"
+                    "+++ b/légal/wéb.py\n@@ -2,0 +3 @@\n+set_cookie('größe', analytics)\n").encode()
+            for style in ([], ["--markdown"]):
+                with self.subTest(style=style):
+                    result = self.project_cli(project, "pr-check", *style, stdin=diff, encoding="ascii")
+                    self.assertEqual((result.returncode, result.stderr), (0, b""))
+                    self.assertIn(b"l\\xe9gal/w\\xe9b.py", result.stdout)
 
     def test_real_private_fixture_runs_no_overwrite_and_evidence_secrecy(self):
         self.assertIsNotNone(importlib.util.find_spec("eu_compliance_guard.revalidation"),

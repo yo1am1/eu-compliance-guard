@@ -9,6 +9,7 @@ _ERROR_CODES = {
     "incomplete-run", "corrupt-run",
     "wrong-project", "invalid-revision", "not-observable", "bad-location", "unrelated-line", "no-run",
 }
+_DEFAULT_INPUT = ".eu-compliance-guard/declarations.json"
 
 
 class _Parser(argparse.ArgumentParser):
@@ -16,8 +17,77 @@ class _Parser(argparse.ArgumentParser):
         # argparse's default includes untrusted argument values in diagnostics.
         self.exit(2, "eu-compliance-guard: invalid-arguments: use --help for supported arguments\n")
 
+    def print_help(self, file=None) -> None:
+        # argparse drops a failed write; help that cannot be written is io-failed like any other output.
+        if file is not None:
+            return super().print_help(file)
+        _emit(self.format_help(), end="")
+
+
+class _OutputFailed(Exception):
+    """Standard output could not take the result (closed pipe, full disk or a closed stream)."""
+
+
+def _emit(text: str, end: str = "\n") -> None:
+    """Print a result; a failed write becomes _OutputFailed, never a traceback."""
+    if sys.stdout is None:
+        raise _OutputFailed
+    try:
+        print(text, end=end)
+    except (OSError, ValueError) as error:
+        raise _OutputFailed from error
+
+
+def _flush() -> None:
+    try:
+        if sys.stdout is not None:
+            sys.stdout.flush()
+    except (OSError, ValueError) as error:
+        raise _OutputFailed from error
+
 
 def main(argv: list[str] | None = None) -> int:
+    """Run one command; exit 0 ok, 2 handled error (also output that cannot be written), 130 interrupt."""
+    for stream in (sys.stdout, sys.stderr):
+        # Text the console cannot encode (owners, statements, paths) is escaped, so the
+        # console's encoding can never change an outcome.
+        try:
+            stream.reconfigure(errors="backslashreplace")
+        except (AttributeError, OSError, ValueError):
+            pass
+    try:
+        try:
+            code = _command(argv)
+        finally:
+            # Results are buffered; a closed pipe or full disk shows here, not at interpreter exit.
+            _flush()
+    except KeyboardInterrupt:
+        return 130
+    except _OutputFailed:
+        _discard_stdout()
+        try:
+            print("eu-compliance-guard: io-failed: output failed", file=sys.stderr)
+        except (OSError, ValueError, AttributeError):
+            pass
+        return 2
+    return code
+
+
+def _discard_stdout() -> None:
+    """Point standard output at the null device, so the exit flush cannot fail again (Python's SIGPIPE advice)."""
+    import os
+    try:
+        descriptor = sys.stdout.fileno()
+    except (AttributeError, OSError, ValueError):
+        return
+    null = os.open(os.devnull, os.O_WRONLY)
+    try:
+        os.dup2(null, descriptor)
+    finally:
+        os.close(null)
+
+
+def _command(argv: list[str] | None) -> int:
     parser = _Parser(description=__doc__, allow_abbrev=False)
     commands = parser.add_subparsers(dest="command", required=True, parser_class=_Parser)
     revalidate = commands.add_parser("revalidate", help="Create a private revalidation report", allow_abbrev=False)
@@ -48,7 +118,8 @@ def main(argv: list[str] | None = None) -> int:
     ground.add_argument("--top", type=int, default=3, choices=range(1, 11), metavar="1-10", help="Candidates per fact")
     ground.add_argument("--json", action="store_true", help="Print the result as JSON")
     ground.add_argument("--apply", action="append", metavar="FACT=PATH:LINE",
-                        help="Mark a technical fact observed, pinned to this file line; repeat for several")
+                        help="Mark a technical fact observed, pinned to this file line; repeat for several "
+                             "(all are checked before any is written)")
     view = commands.add_parser("view", help="Write and optionally open a static HTML view of a verified run", allow_abbrev=False)
     view.add_argument("--run", required=True, help="Existing run directory with a valid completion marker")
     view.add_argument("--open", action="store_true", help="Open the view in the default browser")
@@ -61,7 +132,8 @@ def main(argv: list[str] | None = None) -> int:
     pr = commands.add_parser("pr-check", help="Screen a unified diff for EU legal touchpoints (for pull requests and CI)",
                              allow_abbrev=False)
     pr.add_argument("--diff", default="-", help="Unified diff file, or - for standard input (default)")
-    pr.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file, if present")
+    pr.add_argument("--input", help="Declarations file; must exist when given "
+                                    "(default: .eu-compliance-guard/declarations.json, if present)")
     output = pr.add_mutually_exclusive_group()
     output.add_argument("--json", action="store_true", help="Print the result as JSON")
     output.add_argument("--markdown", action="store_true", help="Print a pull-request comment")
@@ -81,11 +153,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "state-dir":
         try:
             from .authoring import state_dir
-            print(state_dir(args.input))
+            path = state_dir(args.input)
         except Exception as error:
             code = getattr(error, "code", None)
             print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'io-failed'}: state-dir failed", file=sys.stderr)
             return 2
+        _emit(str(path))
         return 0
     if args.command == "check":
         return _check(args.input, args.json, args.previous)
@@ -107,8 +180,8 @@ def main(argv: list[str] | None = None) -> int:
             code = "revalidation-failed"
         print(f"eu-compliance-guard: {code}: revalidation failed", file=sys.stderr)
         return 2
-    print(f"Run {bundle.run.id}: processing state {bundle.run.state}; report.md and bundle.json retained.")
-    print("Processing state is not a compliance verdict.")
+    _emit(f"Run {bundle.run.id}: processing state {bundle.run.state}; report.md and bundle.json retained.")
+    _emit("Processing state is not a compliance verdict.")
     return 0
 
 
@@ -121,8 +194,8 @@ def _init(args) -> int:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'invalid-input'}: init failed", file=sys.stderr)
         return 2
-    print(path)
-    print("Starter declarations written. Add requirements, facts, source targets and obligations, then run check.")
+    _emit(str(path))
+    _emit("Starter declarations written. Add requirements, facts, source targets and obligations, then run check.")
     return 0
 
 
@@ -137,31 +210,43 @@ def _check(path: str, as_json: bool, previous: str | None = None) -> int:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'check-failed'}: check failed", file=sys.stderr)
         return 2
-    print(json.dumps(report, indent=2) if as_json else format_check(report))
+    _emit(json.dumps(report, indent=2) if as_json else format_check(report))
     return 0 if report["valid"] else 2
 
 
 def _ground(args) -> int:
     import json
     from . import grounding
+    pins = []
     try:
         if args.apply:
             for item in args.apply:
                 fact, separator, location = item.partition("=")
                 if not separator:
                     raise grounding.GroundingError("bad-location")
+                pins.append((fact, location))
+            # Check every pin before writing any, so a refused one leaves the declarations unchanged.
+            for fact, location in pins:
+                grounding.apply(args.input, fact, location, write=False)
+            for fact, location in pins:
                 grounding.apply(args.input, fact, location)
-                print(f"{fact}: observed, pinned to {location}")
-            print("Run check, then a new revalidate run; a later change to the file makes this evidence unavailable.")
-            return 0
-        report = grounding.ground(args.input, args.top)
+        else:
+            report = grounding.ground(args.input, args.top)
     except KeyboardInterrupt:
         return 130
     except Exception as error:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'ground-failed'}: grounding failed", file=sys.stderr)
         return 2
-    print(json.dumps(report, indent=2) if args.json else grounding.format_ground(report))
+    if pins and args.json:
+        _emit(json.dumps({"applied": [{"fact": fact, "location": location} for fact, location in pins]}, indent=2))
+        return 0
+    if pins:
+        for fact, location in pins:
+            _emit(f"{fact}: observed, pinned to {location}")
+        _emit("Run check, then a new revalidate run; a later change to the file makes this evidence unavailable.")
+        return 0
+    _emit(json.dumps(report, indent=2) if args.json else grounding.format_ground(report))
     return 0
 
 
@@ -183,13 +268,12 @@ def _next(args) -> int:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'next-failed'}: next step failed", file=sys.stderr)
         return 2
-    print(json.dumps({"run": args.run, "steps": steps}, indent=2) if args.json else nextstep.format_steps(steps))
+    _emit(json.dumps({"run": args.run, "steps": steps}, indent=2) if args.json else nextstep.format_steps(steps))
     return 0
 
 
 def _pr_check(args) -> int:
     import json
-    import os
     from . import prcheck
     from .revalidation import load_input
     try:
@@ -200,7 +284,7 @@ def _pr_check(args) -> int:
                 diff = handle.read(prcheck.MAX_DIFF_BYTES + 1)
         if len(diff) > prcheck.MAX_DIFF_BYTES:
             raise prcheck.PRCheckError("capacity-exceeded")
-        declared = load_input(args.input) if os.path.lexists(args.input) else None
+        declared = load_input(args.input) if args.input is not None else _default_declarations()
         report = prcheck.pr_check(diff.decode("utf-8", "replace"), declared)
     except KeyboardInterrupt:
         return 130
@@ -208,9 +292,26 @@ def _pr_check(args) -> int:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'pr-check-failed'}: pr check failed", file=sys.stderr)
         return 2
-    print(json.dumps(report, indent=2) if args.json else prcheck.format_markdown(report) if args.markdown
+    _emit(json.dumps(report, indent=2) if args.json else prcheck.format_markdown(report) if args.markdown
           else prcheck.format_text(report))
     return 1 if args.strict and report["attention"] else 0
+
+
+def _default_declarations():
+    """The default declarations, or None only when they plainly do not exist.
+
+    A folder that cannot be searched or resolved is not an absent file: load_input refuses it
+    (unsafe-path), so a permission problem never quietly drops the declaration-backed checks.
+    """
+    import os
+    from .revalidation import load_input
+    try:
+        os.lstat(_DEFAULT_INPUT)
+    except FileNotFoundError:
+        return None
+    except OSError:
+        pass
+    return load_input(_DEFAULT_INPUT)
 
 
 def _view(run_dir: str, open_browser: bool) -> int:
@@ -223,10 +324,16 @@ def _view(run_dir: str, open_browser: bool) -> int:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'view-failed'}: run view failed", file=sys.stderr)
         return 2
-    print(path)
+    _emit(str(path))
     if open_browser:
+        import os
         import webbrowser
-        if not webbrowser.open(path.as_uri()):
+        from pathlib import Path
+        try:
+            opened = webbrowser.open(Path(os.path.abspath(path)).as_uri())
+        except Exception:
+            opened = False
+        if not opened:
             print("eu-compliance-guard: no-browser: open the file above manually", file=sys.stderr)
     return 0
 

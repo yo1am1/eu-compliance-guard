@@ -81,6 +81,25 @@ class HistoryTests(unittest.TestCase):
         self.assertIn('tabindex="0" role="region"', html)
         self.assertNotIn("<script", html)
 
+    def test_withdrawn_support_never_keeps_a_supporting_rationale(self):
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        successor = self.successor()
+        assessment = successor.requirement_assessments[0]
+        self.assertEqual(assessment.state, "unresolved")
+        self.assertEqual(assessment.rationale, h.WITHDRAWN_MAPPING_RATIONALE)
+        decision = successor.effective_applicability_decisions[0]
+        self.assertEqual((decision.applicability, decision.rationale), ("unresolved", h.WITHDRAWN_DECISION_RATIONALE))
+        self.assertEqual(successor.declarations.applicability_decisions[0].rationale,
+                         self.payload["applicability_decisions"][0]["rationale"])
+        disposition = next(item for item in successor.obligation_dispositions if item.obligation_id == "obligation-example")
+        self.assertEqual(disposition.rationale, decision.rationale)
+        report = (self.root / "next/report.md").read_text()
+        self.assertNotIn("Recorded mapping supports this declared requirement only", report)
+        self.assertNotIn("- Applicability reasoning: Fictional declared role", report)
+        self.assertIn("- Applicability reasoning: Support withdrawn after the predecessor comparison", report)
+        self.assertIn("- Rationale: Fictional declared role meets fictional condition", report)  # Supplied claim kept.
+        self.assertNotIn("Recorded mapping supports", view.render_html(successor))
+
     def test_withdrawn_support_persists_until_reviews_are_renewed_after_the_predecessor(self):
         from datetime import datetime, timedelta, timezone
         self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
@@ -181,6 +200,84 @@ class HistoryTests(unittest.TestCase):
         self.save()
         self.assertEqual(family(r.run(self.input, self.root / "fam-4", previous=self.root / "fam-3")), "applicable")
 
+    def test_a_screening_declared_unresolved_again_withdraws_nothing(self):
+        decision = self.payload["applicability_decisions"][0]
+        self.payload["family_screenings"] = [{
+            "family": "gdpr", "synthetic": True, "scope": decision["scope"], "assessment_date": decision["assessment_date"],
+            "applicability": "applicable", "rationale": "Fictional screening.", "fact_refs": decision["fact_refs"],
+            "source_refs": [{"id": "source-example", "revision": 0}], "reviewer": "Fictional reviewer",
+            "reviewed_at": decision["reviewed_at"], "gaps": []}]
+        self.save()
+        screening = lambda bundle: next(item for item in bundle.family_screenings if item.family == "gdpr")
+        self.assertEqual(screening(r.run(self.input, self.root / "unres-1")).applicability, "applicable")
+        self.payload["family_screenings"][0].update(applicability="unresolved", reviewer=None, reviewed_at=None)
+        self.save()
+        for name, previous in (("unres-2", "unres-1"), ("unres-3", "unres-2")):
+            bundle = r.run(self.input, self.root / name, previous=self.root / previous)
+            with self.subTest(run=name):
+                self.assertEqual(screening(bundle).applicability, "unresolved")
+                self.assertNotIn(h.FAMILY_WITHDRAWN_GAP, screening(bundle).gaps)
+                self.assertFalse([gap for gap in bundle.gaps if h.FAMILY_WITHDRAWN_GAP in gap])
+        declared = r.load_input(self.input)
+        problems = h.renewal_problems(h.load_run(self.root / "unres-3")[0], declared)
+        self.assertFalse([problem for problem in problems if problem.startswith("Family ")])
+        # Declaring support again with the old review date is a changed record, not a renewal.
+        self.payload["family_screenings"][0].update(applicability="applicable", reviewer="Fictional reviewer",
+                                                    reviewed_at=decision["reviewed_at"])
+        self.save()
+        again = screening(r.run(self.input, self.root / "unres-4", previous=self.root / "unres-3"))
+        self.assertEqual(again.applicability, "unresolved")
+        self.assertIn(h.FAMILY_WITHDRAWN_GAP, again.gaps)
+
+    def test_family_withdrawal_is_carried_while_the_screening_is_unresolved_for_another_reason(self):
+        from datetime import datetime, timedelta, timezone
+
+        class Later(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime.now(tz) + timedelta(hours=1)
+
+        decision = self.payload["applicability_decisions"][0]
+        self.payload["family_screenings"] = [{
+            "family": "gdpr", "synthetic": True, "scope": decision["scope"], "assessment_date": decision["assessment_date"],
+            "applicability": "applicable", "rationale": "Fictional screening.", "fact_refs": decision["fact_refs"],
+            "source_refs": [{"id": "source-example", "revision": 0}], "reviewer": "Fictional reviewer",
+            "reviewed_at": decision["reviewed_at"], "gaps": []}]
+        self.save()
+        screening = lambda bundle: next(item for item in bundle.family_screenings if item.family == "gdpr")
+        self.assertEqual(screening(r.run(self.input, self.root / "fam-1")).applicability, "applicable")
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        self.save()
+        self.assertEqual(screening(r.run(self.input, self.root / "fam-2", previous=self.root / "fam-1")).applicability,
+                         "unresolved")
+        # A renewal dated after the run that reads it is a gap and leaves the screening unresolved anyway.
+        future = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat().replace("+00:00", "Z")
+        self.payload["family_screenings"][0].update(rationale="Fictional screening, renewed.", reviewed_at=future)
+        self.save()
+        dated = screening(r.run(self.input, self.root / "fam-3", previous=self.root / "fam-2"))
+        self.assertIn("Family screening dated after this run.", dated.gaps)
+        self.assertIn(h.FAMILY_WITHDRAWN_GAP, dated.gaps)
+        with patch.object(r, "datetime", Later):  # The date has passed; the record itself is unchanged.
+            plain = r.run(self.input, self.root / "fam-4", previous=self.root / "fam-3")
+        self.assertEqual(plain.comparison.changes, [])
+        self.assertEqual(screening(plain).applicability, "unresolved")
+        self.assertIn(h.FAMILY_WITHDRAWN_GAP, screening(plain).gaps)
+        # Declared support the predecessor could not confirm is withdrawn by a change all the same.
+        self.payload["family_screenings"][0].update(rationale="Fictional screening.", reviewed_at=decision["reviewed_at"])
+        self.payload["requirements"][0].update(revision=0, statement="FICTIONAL: record the declared review.")
+        self.save()
+        r.run(self.input, self.root / "fam-5")
+        source = self.root / "revalidation-synthetic/source.txt"
+        kept = source.read_bytes()
+        source.unlink()
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        self.save()
+        unread = screening(r.run(self.input, self.root / "fam-6", previous=self.root / "fam-5"))
+        self.assertIn(h.FAMILY_WITHDRAWN_GAP, unread.gaps)
+        source.write_bytes(kept)
+        self.assertEqual(screening(r.run(self.input, self.root / "fam-7", previous=self.root / "fam-6")).applicability,
+                         "unresolved")
+
     def now(self):
         import time
         from datetime import datetime, timezone
@@ -216,6 +313,44 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual((renewed.requirement_assessments[0].state, family(renewed)), ("supported", "applicable"))
         quiet = r.run(self.input, self.root / "w-4", previous=self.root / "w-3")
         self.assertEqual((quiet.requirement_assessments[0].state, family(quiet)), ("supported", "applicable"))
+
+    def test_renewal_in_the_same_run_as_a_change_is_explained_and_flagged_by_check(self):
+        from eu_compliance_guard import authoring as a
+        decision = self.payload["applicability_decisions"][0]
+        self.payload["family_screenings"] = [{
+            "family": "gdpr", "synthetic": True, "scope": decision["scope"], "assessment_date": decision["assessment_date"],
+            "applicability": "applicable", "rationale": "Fictional screening.", "fact_refs": decision["fact_refs"],
+            "source_refs": [{"id": "source-example", "revision": 0}], "reviewer": "Fictional reviewer",
+            "reviewed_at": decision["reviewed_at"], "gaps": []}]
+        self.save()
+        r.run(self.input, self.root / "sr-1")
+        family = lambda bundle: next(item for item in bundle.family_screenings if item.family == "gdpr").applicability
+
+        def renew():
+            stamp = self.now()
+            for key in ("applicability_decisions", "evidence_reviews"):
+                for item in self.payload[key]:
+                    if item["obligation"]["id"] == "obligation-example":
+                        item.update(revision=item["revision"] + 1, reviewed_at=stamp)
+            self.payload["family_screenings"][0].update(rationale=f"Fictional screening, renewed {stamp}.", reviewed_at=stamp)
+            self.save()
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        renew()
+        same = r.run(self.input, self.root / "sr-2", previous=self.root / "sr-1")
+        # The conservative rule stays: the review cannot be shown to follow a change made in the same run.
+        self.assertEqual((same.requirement_assessments[0].state, family(same)), ("unresolved", "unresolved"))
+        self.assertIn(h.SAME_RUN_RENEWAL, self.overlay(same).reasons)
+        self.assertIn(f"Family gdpr: {h.FAMILY_WITHDRAWN_GAP} {h.SAME_RUN_RENEWAL}", same.gaps)
+        warned = {item["at"]: item["problem"] for item in a.check(self.input, self.root / "sr-2")["warnings"]}
+        self.assertIn("Obligation obligation-example", warned)
+        self.assertIn("Family gdpr", warned)
+        self.assertIn("higher revision", warned["Obligation obligation-example"])
+        renew()
+        report = a.check(self.input, self.root / "sr-2")
+        self.assertTrue(report["valid"])
+        self.assertFalse({"Obligation obligation-example", "Family gdpr"} & {item["at"] for item in report["warnings"]})
+        restored = r.run(self.input, self.root / "sr-3", previous=self.root / "sr-2")
+        self.assertEqual((restored.requirement_assessments[0].state, family(restored)), ("supported", "applicable"))
 
     def test_renamed_obligation_cannot_reuse_old_reviews(self):
         self.withdraw()
@@ -308,6 +443,43 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(self.overlay(changed).freshness, "stale")
         self.assertIn("unavailable", " ".join(self.overlay(changed).reasons))
 
+    def test_unobserved_file_in_predecessor_cannot_launder_a_later_change(self):
+        """Declared support is withdrawn by a change even after a run that could not read a file."""
+        evidence = self.root / "revalidation-synthetic/evidence.txt"
+        source = self.root / "revalidation-synthetic/source.txt"
+        kept = {path: path.read_bytes() for path in (evidence, source)}
+        evidence.unlink()
+        self.assertEqual(self.successor("ev-missing").requirement_assessments[0].state, "unresolved")
+        evidence.write_text("FICTIONAL changed evidence")
+        self.payload["evidence"][0]["evidence"]["digest"] = m.content_digest(evidence.read_bytes())
+        self.save()
+        changed = r.run(self.input, self.root / "ev-changed", previous=self.root / "ev-missing")
+        self.assertEqual(changed.requirement_assessments[0].state, "unresolved")
+        self.assertIn(h.INVALIDATED_GAP, changed.effective_applicability_decisions[0].gaps)
+        self.assertEqual(r.run(self.input, self.root / "ev-rerun", previous=self.root / "ev-changed")
+                         .requirement_assessments[0].state, "unresolved")
+        self.payload = json.loads(FIXTURE.read_bytes())
+        evidence.write_bytes(kept[evidence])
+        source.unlink()
+        self.assertEqual(self.successor("src-missing").requirement_assessments[0].state, "unresolved")
+        source.write_bytes(kept[source])
+        self.payload["source_reviews"][0]["review_notes"]["case_law"] = "Changed fictional review note"
+        self.save()
+        reviewed = r.run(self.input, self.root / "src-changed", previous=self.root / "src-missing")
+        self.assertEqual(reviewed.requirement_assessments[0].state, "unresolved")
+        self.assertIn("source_review:source-example", self.overlay(reviewed).changed_dependencies)
+
+    def test_regaining_the_declared_bytes_after_an_unobserved_run_is_no_change(self):
+        evidence = self.root / "revalidation-synthetic/evidence.txt"
+        kept = evidence.read_bytes()
+        evidence.unlink()
+        self.successor("ev-missing")
+        evidence.write_bytes(kept)
+        restored = r.run(self.input, self.root / "ev-restored", previous=self.root / "ev-missing")
+        self.assertTrue(any(change.kind == "file" and change.before is None for change in restored.comparison.changes))
+        self.assertEqual(self.overlay(restored).changed_dependencies, [])
+        self.assertEqual(restored.requirement_assessments[0].state, "supported")
+
     def test_source_retrieval_timestamp_is_observational_and_source_digest_edit_is_not(self):
         self.payload["sources"][0]["source"]["retrieved_at"] = "2026-10-19T10:00:00Z"
         successor = self.successor()
@@ -394,6 +566,51 @@ class HistoryTests(unittest.TestCase):
         with self.assertRaises(r.RevalidationError) as caught:
             self.successor("wrong-project")
         self.assertEqual(caught.exception.code, "wrong-project")
+
+    def test_missing_or_empty_predecessor_path_is_not_an_incomplete_run(self):
+        # A typo names no run at all; an empty path must not fall back to the working directory.
+        for previous in (self.root / "absent", self.root / "absent/deeper", ""):
+            with self.subTest(previous=str(previous)), self.assertRaises(r.RevalidationError) as caught:
+                h.load_run(previous)
+            self.assertEqual(caught.exception.code, "unsafe-path")
+        with patch("eu_compliance_guard.sources.retrieve") as retrieve, self.assertRaises(r.RevalidationError) as caught:
+            r.run(self.input, self.root / "typo-output", previous=str(self.root / "absent"), fetch_official=True)
+        self.assertEqual(caught.exception.code, "unsafe-path")
+        retrieve.assert_not_called()
+        self.assertFalse((self.root / "typo-output").exists())
+        (self.root / "empty").mkdir()
+        with self.assertRaises(r.RevalidationError) as caught:
+            h.load_run(self.root / "empty")
+        self.assertEqual(caught.exception.code, "incomplete-run")
+
+    def test_unreadable_intact_artifacts_are_unsafe_path_not_corrupt_or_incomplete(self):
+        import os
+        read = r._read_file
+        source = next(path for path in self.snapshot if path.startswith("sources/"))
+        for name in ("complete.json", "bundle.json", source):
+            def blocked(fd, path, **options):
+                return r.FileObservation("blocked") if path == name else read(fd, path, **options)
+            with self.subTest(name=name), patch.object(r, "_read_file", blocked), \
+                    self.assertRaises(r.RevalidationError) as caught:
+                h.load_run(self.prior_path)
+            self.assertEqual(caught.exception.code, "unsafe-path")
+        bundle = self.prior_path / "bundle.json"
+        bundle.rename(self.root / "bundle-copy.json")
+        bundle.symlink_to(self.root / "bundle-copy.json")
+        with self.assertRaises(r.RevalidationError) as caught:
+            h.load_run(self.prior_path)
+        self.assertEqual(caught.exception.code, "unsafe-path")
+        bundle.unlink()
+        (self.root / "bundle-copy.json").rename(bundle)
+        if os.geteuid() != 0:  # Permission bits do not bind the superuser.
+            bundle.chmod(0)
+            try:
+                with self.assertRaises(r.RevalidationError) as caught:
+                    h.load_run(self.prior_path)
+            finally:
+                bundle.chmod(0o600)
+            self.assertEqual(caught.exception.code, "unsafe-path")
+        self.assertEqual(h.load_run(self.prior_path)[0], self.prior)
 
     def test_marker_digest_rewrites_do_not_hide_semantically_mismatched_artifacts(self):
         payload = json.loads((self.prior_path / "input.json").read_bytes())

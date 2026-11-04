@@ -159,6 +159,15 @@ class SessionHookTests(unittest.TestCase):
                        "--previous <run-directory>", "--no-dev"):
             self.assertIn(phrase, audit)
 
+    def test_audit_manual_source_paths_follow_files_root(self):
+        audit = (ROOT / "skills/eucg-audit/SKILL.md").read_text()
+        section = " ".join(audit.split("## Manually downloaded official documents", 1)[1].split("## 2. Run", 1)[0].split())
+        # check resolves file.path from the project folder under "project", else from the declarations file's folder.
+        self.assertNotIn("`file.path` relative to the declarations file,", section)
+        self.assertIn('With `"files_root": "project"`, its path is `.eu-compliance-guard/sources/<file>`', section)
+        self.assertIn('With `"files_root": "declarations_dir"`', section)
+        self.assertIn("`file.path` as in step 1", section)
+
     def test_uses_payload_cwd_when_project_variable_is_absent(self):
         self.enable()
         env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.home), "XDG_STATE_HOME": str(self.home / "state")}
@@ -203,6 +212,29 @@ class SessionHookTests(unittest.TestCase):
         text = self.hook()
         self.assertIn("belongs to another project", text)
         self.assertNotIn("run-a", text)
+
+    def test_a_retrieved_but_unadmitted_source_is_not_counted_as_confirmed(self):
+        self.enable()
+        (self.project / ".eu-compliance-guard/declarations.json").write_text('{"project_id": "client-a"}')
+        run = self.home / "state/eu-compliance-guard/client-a/run-20261103T000000Z"
+        run.mkdir(parents=True)
+        (run / "complete.json").write_text("{}")
+        attempts = [{"state": "retrieved", "retrieval": {"admission": "accepted"}},
+                    {"state": "retrieved", "retrieval": {"admission": "needs_review"}},
+                    {"state": "retrieval_failed", "retrieval": None}]
+        (run / "bundle.json").write_text(json.dumps({"project_id": "client-a", "run": {"id": "run-a", "state": "partial"},
+                                                     "declarations": {"scope": {}}, "source_attempts": attempts}))
+        text = self.hook()
+        self.assertIn("source attempts 1 confirmed / 2 not confirmed", text)
+        self.assertNotIn("retrieved /", text)
+
+    def test_a_relative_xdg_state_home_is_ignored_like_the_cli_does(self):
+        self.enable()
+        (self.project / ".eu-compliance-guard/declarations.json").write_text('{"project_id": "client-a"}')
+        expected = Path(os.path.realpath(self.home)) / ".local/state/eu-compliance-guard/client-a"
+        for value in ("state", "./state", ""):
+            with self.subTest(value=value):
+                self.assertIn(f"`{expected}`", self.hook(XDG_STATE_HOME=value))
 
     def test_untrusted_or_corrupt_run_data_is_never_echoed(self):
         self.enable()

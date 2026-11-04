@@ -10,7 +10,7 @@ It is read-only and never gives a compliance verdict. A named human reviewer mak
 every legal decision, and the tool records who decided what, based on which sources
 and evidence. No real compliance audit is implied by any output, test or example.
 
-**Version 1.1.0.** The read-only workflow (declarations, official-source retrieval,
+**Version 1.2.0.** The read-only workflow (declarations, official-source retrieval,
 reports, predecessor revalidation and the Claude Code plugin), plus code-grounded
 facts, article text beside each reference, the next best step, a pull-request check
 and a side panel. See the [changelog](CHANGELOG.md).
@@ -102,7 +102,8 @@ level with `EUCG_DEFAULT_MODE` or `~/.config/eu-compliance-guard/config.json`
 Runs are stored outside the repository in
 `${XDG_STATE_HOME:-~/.local/state}/eu-compliance-guard/<project_id>/`, keyed by the
 declared `project_id`. `eu-compliance-guard state-dir` prints and creates it with
-mode 0700. Keep runs out of Git.
+mode 0700. A relative `XDG_STATE_HOME` is ignored, as the XDG Base Directory spec
+requires, so the path never depends on the current folder. Keep runs out of Git.
 
 ### Fewer permission prompts
 
@@ -128,12 +129,12 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | Command | Purpose |
 | --- | --- |
 | `init --project-id <id> [--path <file>] [--assessment-date <date>] [--jurisdiction <j>]… [--synthetic]` | Write a valid starter declarations file; never overwrites |
-| `check [--input <file>] [--previous <run dir>] [--json]` | Validate declarations: each problem with its JSON location, the observed digest of every selected file, whether each source target can be fetched, and (with `--previous`) every record that needs a higher revision |
+| `check [--input <file>] [--previous <run dir>] [--json]` | Validate declarations: each problem with its JSON location, the observed digest of every selected file, whether each source target can be fetched, whether an offline run fits the output limits, and (with `--previous`) every record that needs a higher revision |
 | `revalidate --input <file> --output <new run dir> [--offline \| --fetch-official] [--previous <run dir>]` | Assemble and publish a private run |
-| `ground [--input <file>] [--top N] [--json] [--apply <fact>=<path>:<line>]…` | Rank code evidence for each assumed or unknown fact with a local index. `--apply` marks a confirmed technical fact `observed`, pinned to that file's digest |
+| `ground [--input <file>] [--top N] [--json] [--apply <fact>=<path>:<line>]…` | Rank code evidence for each assumed or unknown fact, and each fact whose pinned evidence changed, with a local index. `--apply` marks a confirmed technical fact `observed`, pinned to that file's digest |
 | `state-dir [--input <file>]` | Print and create (0700) the private run storage for the declared `project_id` |
 | `next [--run <run dir>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
-| `pr-check [--diff <file>\|-] [--markdown\|--json] [--strict]` | Screen a diff's added lines for legal touchpoints, undeclared concepts and pinned evidence in changed files; `--strict` exits 1 when something needs attention |
+| `pr-check [--diff <file>\|-] [--input <file>] [--markdown\|--json] [--strict]` | Screen a diff's added lines for legal touchpoints, undeclared concepts and pinned evidence in changed files; `--strict` exits 1 when something needs attention |
 | `view --run <run dir> [--open]` | Verify a run and write `<parent>/views/<run>.html`; optionally open it |
 
 ```sh
@@ -150,7 +151,10 @@ eu-compliance-guard view --run "$runs/run-002" --open
 Exit codes: 0 means the artifacts were published, even when the report is partial
 (`check`: the declarations are valid). 2 means invalid input or an unusable path;
 diagnostics are fixed codes such as `invalid-input` or `output-exists`, never input
-values. 130 means the run was interrupted.
+values. Output that cannot be written (a closed pipe or a full disk) is
+`io-failed: output failed` with exit 2, even when the command's work, such as a published
+run or rewritten declarations, is already done. Characters the console cannot encode are
+printed as backslash escapes. 130 means the run was interrupted.
 
 ### Declarations
 
@@ -162,16 +166,19 @@ It holds the scope and facts, requirements, source targets, selected sources,
 candidate obligations, applicability decisions, evidence references and reviews.
 
 File paths resolve relative to the declarations file, or to the project folder (its
-parent) when `"files_root": "project"`, which `init` sets. Only explicitly selected
+parent) when `"files_root": "project"`, which `init` sets for the default `.eu-compliance-guard/` folder (elsewhere it sets `"declarations_dir"`). Only explicitly selected
 regular files are read; nothing is discovered, crawled or executed. Facts keep their
 basis (`declared`, `observed`, `assumed`, `unknown`). Changing a versioned record
-requires a higher `revision`; `check` names the exact location of a stale pin.
+requires a higher `revision`; `check` names the exact location of every stale pin, and
+with `--previous` every record that needs a higher revision, including those whose pins
+must follow a raised revision.
 
 ### Run directories
 
 The output parent must exist, belong to you and exclude group/other permissions, and
 the run directory must be new. No component of an input, output or predecessor path may
-be a symbolic link (`unsafe-path`); `state-dir` prints a resolved path, and on macOS
+be a symbolic link (`unsafe-path`, as for a missing output parent or an overlong name;
+missing declarations, file or folder, are `io-failed` in every command); `state-dir` prints a resolved path, and on macOS
 `$TMPDIR` lives under the `/var` symlink, so use `state-dir` or `pwd -P` paths. Runs use modes 0700/0600 and are never overwritten.
 Each run holds:
 
@@ -180,12 +187,17 @@ Each run holds:
 - `complete.json`, which lists the exact digest of every artifact.
 
 Evidence bodies are never copied or rendered. A directory without a valid completion
-marker is incomplete; retry under a new path.
+marker is incomplete; retry under a new path. A run path that names no directory, or a
+run file that cannot be opened safely (permissions, a symbolic link), is `unsafe-path`
+instead: correct the path or the permissions, because the run itself may be intact.
 
 The report starts with what needs attention. Each reviewed deficiency or open
 question sits beside its project requirement and location, declared legal
 identifier and article, evidence reasoning and next review action. Missing
 applicability or legal support stays a review gap, never an established violation.
+An obligation reviewed as not applicable is not a violation either: its methods are
+recorded as not assessed, which keeps the run partial, and a requirement mapped to it
+stays unresolved.
 
 ### Official sources
 
@@ -232,7 +244,13 @@ Withdrawn support stays withdrawn in later runs. It is restored only when the
 obligation's applicability decision and every evidence review for it are new
 revisions with a `reviewed_at` after the predecessor run and no later than the
 current run. Withdrawn family screenings follow the same rule. Renewals are not counted
-as new changes. Any other new or changed review record, including one moved to a
+as new changes. A renewal recorded in the same run as another relevant change does not
+count, because the review cannot be shown to follow that change: the run withdraws
+support and says so, and the reviews must be renewed again after that run.
+`check --previous` warns about withdrawn obligations and family screenings that the
+declarations do not renew yet. A family screening that the declarations set back to
+`unresolved` claims no support, so nothing is withdrawn from it; declaring an
+applicability again is a changed record that needs a fresh `reviewed_at`. Any other new or changed review record, including one moved to a
 renamed or re-added obligation, cannot carry support. An attestation dated after the
 run that reads it is always a review gap.
 
@@ -240,7 +258,9 @@ Each run compares against the one predecessor you name. Naming an older run, or 
 compares against that state, so always use the newest completed run (`/eucg-audit`
 offers it) unless you deliberately want another baseline. Offline and `--fetch-official` runs of the same tool version count as
 the same configuration.
-Missing evidence or an offline or failed refresh makes freshness unknown. Matching
+Missing evidence or an offline or failed refresh makes freshness unknown. Withdrawal
+follows the reviews the predecessor declared, so a file it could not read does not
+shield them from a later change; reading exactly the declared bytes again is no change. Matching
 bytes establish only matching recorded inputs, never current law or renewed
 approval. Incomplete dependency attribution and any known change to family
 screenings withdraw support conservatively.
@@ -251,18 +271,27 @@ screenings withdraw support conservatively.
 embeddings, a bounded number of files, and no symlinks or dependency folders. It uses
 Okapi BM25 over identifier-split tokens, and a lexicon of legal concepts expands each
 query (tracking, special-category data, children, AI, subscriptions, retention and
-more). For every assumed or unknown fact it lists ranked `file:line` candidates, and it
-also lists touchpoints that no fact covers. Organisational facts are flagged, because
-code can never show them. `--apply` accepts a line only if it shares terms with the
-fact. It then records the fact as `observed` with the file as evidence, which closes
-that fact's gap until the file changes.
+more). For every assumed or unknown fact, and every fact whose pinned evidence changed
+or is missing, it lists ranked `file:line` candidates, and it also lists touchpoints
+that no fact covers. Organisational facts are flagged, because code can never show
+them. `--apply` accepts a line only if it shares terms with the fact. It then records
+the fact as `observed` with the file as evidence, which closes that fact's gap until
+the file changes; `ground` then lists it again to be pinned anew. Pinning it anew, in
+the same or another file, drops its code evidence for a changed or deleted file.
+Repeated `--apply` values are all checked first: if one is refused, none is written.
 
 ### Pull-request check
 
-`pr-check` reads a unified diff (a file or standard input) and the declarations, if
-present. It lists the legal concepts in added lines with their candidate families, says
+`pr-check` reads a unified diff (a file or standard input) and the declarations: the
+`--input` file, which must then exist (`io-failed` if it does not), or `.eu-compliance-guard/declarations.json` if
+present. A declarations folder it cannot read is an `unsafe-path` error, never an
+absent file. It lists the legal concepts in added lines with their candidate families, says
 whether the declarations already mention each concept, and flags code evidence or
-requirements that live in a changed file. It is deterministic and offline. To run it on
+requirements that live in a changed file. It is deterministic and offline. Colour codes
+from `git diff --color` are ignored; input that names no changed file (prose or a
+`--stat` summary) or holds hunk lines a unified diff cannot (such as `--word-diff`
+output) exits 2 with `invalid-input` instead of passing unread. A merge's combined diff
+(`git show <merge>`) is screened too: a line added against any parent counts. To run it on
 every pull request, copy [`examples/github/eu-compliance-guard-pr.yml`](examples/github/eu-compliance-guard-pr.yml)
 into `.github/workflows/`; it keeps one comment updated, and `--strict` can fail the
 check. It is keyword screening: a diff with no touchpoints is not a clean bill.

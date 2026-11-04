@@ -5,6 +5,9 @@ const SAFE = /^[A-Za-z0-9][A-Za-z0-9_.:+-]{0,127}$/
 // Fixed-format fields only: run data never reaches the band as free text.
 const safe = (value: unknown) => (typeof value === 'string' && SAFE.test(value) ? value : 'unrecorded')
 
+// A completed run's processing state is one of the terminal states, as in models.TERMINAL_RUN_STATES.
+const RUN_STATES = ['completed', 'partial', 'cancelled', 'interrupted']
+
 const count = (items: unknown, field: string, value: string) =>
   Array.isArray(items) ? items.filter(item => item !== null && typeof item === 'object' && item[field] === value).length : 0
 
@@ -64,7 +67,7 @@ export function summarize(dir: string, text: string): RunSummary | null {
     dir,
     projectId: safe(bundle.project_id),
     id: safe(bundle.run.id),
-    state: safe(bundle.run.state),
+    state: RUN_STATES.includes(bundle.run.state) ? bundle.run.state : 'unrecorded',
     endedAt: safe(bundle.run.ended_at),
     assessmentDate: safe(bundle.declarations?.scope?.assessment_date),
     synthetic: bundle.synthetic === true,
@@ -90,7 +93,7 @@ export function daysOld(date: string, nowMs: number): number | null {
   return Number.isNaN(at) ? null : Math.max(0, Math.floor((nowMs - at) / 86_400_000))
 }
 
-const KINDS = ['retrieve', 'fact', 'source', 'applicability', 'mapping', 'family'] as const
+const KINDS = ['retrieve', 'fact', 'source', 'applicability', 'mapping', 'review', 'family'] as const
 
 // Parses `next --json` output into fixed-format steps; free-text actions never reach the band.
 export function parseSteps(dir: string, text: string): NextSteps | null {
@@ -123,6 +126,7 @@ export function describeStep(step: NextStep): string {
     source: `Read and approve the ${words(step.subject)} text`,
     applicability: `Decide whether ${words(step.subject)} applies`,
     mapping: `Link ${words(step.subject)} to a legal duty`,
+    review: `Review the evidence for ${words(step.subject)}`,
     family: 'Check which areas of EU law apply',
   }[step.kind]
   return `${what} · unblocks ${step.unblocks} open requirement${step.unblocks === 1 ? '' : 's'}`

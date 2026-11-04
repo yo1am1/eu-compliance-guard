@@ -57,6 +57,7 @@ FAMILY_DESCRIPTIONS = dict(zip(m.LEGAL_FAMILIES, (
     "Copyright, content permissions and software/asset licensing.",
     "Additional sector or national rules discovered from facts, including financial, health, employment, children and product-safety contexts; unsupported specialist review must be exposed.",
 )))
+NOT_ASSESSED = "Obligation reviewed as not applicable; this method was not assessed."
 POLICY = {"workflow": "offline-declared-review-v1", "tool_version": __version__,
           "budget": "cooperative-only", "network": False, "technical_execution": False}
 LANGUAGE = re.compile(rb"<html\b[^>]{0,2048}?\blang\s*=\s*[\"']?([A-Za-z]{1,8})", re.I)
@@ -130,6 +131,19 @@ def _parent(path: str | os.PathLike, base_fd: int | None = None):
         yield fd, path.name
     finally:
         os.close(fd)
+
+
+@contextmanager
+def _named_path(missing: str = "unsafe-path"):
+    """Operations on the input or output path the user named: an overlong name or a missing output
+    parent is a path they can fix (unsafe-path), not an I/O fault. Missing declarations (file or
+    folder) are reported as `missing` says: io-failed, as every command that reads them does."""
+    try:
+        yield
+    except OSError as error:
+        if error.errno in (errno.ENOENT, errno.ENAMETOOLONG):
+            raise RevalidationError(missing if error.errno == errno.ENOENT else "unsafe-path") from None
+        raise
 
 
 def _read_file(parent_fd: int, path: str, *, limit: int, retain: bool,
@@ -221,7 +235,8 @@ def _derived_id(prefix: str, identity: str) -> str:
 def _load(parent_fd: int, name: str, deadline: float | None = None):
     observation = _read_file(parent_fd, name, limit=m.MAX_REQUEST_BYTES, retain=True, deadline=deadline)
     if observation.availability != "available":
-        raise RevalidationError("unsafe-path")
+        # A missing file is not a safety refusal; unsafe-path means a link, a non-file or a refused open.
+        raise RevalidationError("io-failed" if observation.availability == "missing" else "unsafe-path")
     raw = observation.content
     _check_json_depth(raw)
     try:
@@ -254,6 +269,8 @@ def load_input(path: str | os.PathLike) -> m.RevalidationInput:
     try:
         with _parent(path) as (fd, name):
             return _load(fd, name)[0]
+    except FileNotFoundError:
+        raise RevalidationError("io-failed") from None
     except OSError:
         raise RevalidationError("unsafe-path") from None
 
@@ -558,11 +575,6 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
             record_gap(f"Source target {target.id}: no selected source candidate.")
         if target.family not in m.LEGAL_FAMILIES:
             record_gap(f"Source target {target.id}: unsupported topic requires specialist/national research.")
-    for requirement in declared.requirements:
-        if requirement.origin:
-            observation = observations.get(requirement.origin.path)
-            if not observation or observation.availability != "available" or observation.digest != requirement.origin.digest:
-                record_gap(f"Requirement {requirement.id}: origin unavailable or corrupt.")
 
     def fact_problems(pins):
         problems = []
@@ -642,15 +654,17 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
         manual_states = []
         if not obligation.required_methods:
             record_gap(f"Obligation {obligation.id}: required review methods are undeclared.")
+        # A reviewed not-applicable obligation has no method to pass; say so instead of naming evidence problems.
+        not_applicable = decision.applicability == "not_applicable"
         for method in dict.fromkeys(obligation.required_methods):
             review = reviews.get((obligation.id, method))
             missing = []
             outcome = "unresolved_review"
             if method == "technical":
                 outcome = "not_tested"
-                missing.append("Technical checks are outside the offline workflow.")
+                missing.append(NOT_ASSESSED if not_applicable else "Technical checks are outside the offline workflow.")
             elif not review:
-                missing.append("Accountable evidence review missing.")
+                missing.append(NOT_ASSESSED if not_applicable else "Accountable evidence review missing.")
                 manual_states.append("pending")
             else:
                 accountable = bool(review.reviewer and review.reviewer.strip() and review.reviewed_at and review.rationale.strip()
@@ -665,12 +679,15 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
                     outcome = "passed"
                     manual_states.append("supported")
                 else:
-                    missing.append("Evidence sufficiency, provenance, period, owner or legal support unresolved.")
+                    missing.append(NOT_ASSESSED if not_applicable
+                                   else "Evidence sufficiency, provenance, period, owner or legal support unresolved.")
                     manual_states.append("unresolved")
                 missing.extend(review.missing_evidence)
                 missing.extend(review.contrary_evidence)
             if missing:
-                record_gap(f"Obligation {obligation.id}, method {method}: review or evidence incomplete.")
+                record_gap(f"Obligation {obligation.id}, method {method}: "
+                           + ("not assessed because the obligation was reviewed as not applicable."
+                              if not_applicable and outcome in ("unresolved_review", "not_tested") else "review or evidence incomplete."))
             method_dispositions.append(m.MethodDisposition(method=method, outcome=outcome, attempt_ids=[],
                 review_ids=[review.id] if review else [], missing_evidence=list(dict.fromkeys(missing))))
         manual = ("unsupported" if "unsupported" in manual_states else "pending" if not manual_states or "pending" in manual_states
@@ -692,11 +709,14 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
                 requirement_gaps.append("Declared requirement origin unavailable or corrupt.")
         if not mapped:
             requirement_gaps.append("No declared obligation mapping.")
-        supported = bool(mapped and not requirement_gaps and all(item.manual_review == "supported" and item.applicability == "applicable"
-            and item.required_method_dispositions and all(method.outcome == "passed" for method in item.required_method_dispositions)
-            for item in mapped))
-        if not supported and mapped:
+        if any(item.applicability == "not_applicable" for item in mapped):
+            requirement_gaps.append("A mapped obligation was reviewed as not applicable; it cannot support this requirement.")
+        # Blame the mapped obligations only when one of them is open, not for the requirement's own gaps.
+        if not all(item.manual_review == "supported" and item.applicability == "applicable"
+                   and item.required_method_dispositions and all(method.outcome == "passed" for method in item.required_method_dispositions)
+                   for item in mapped if item.applicability != "not_applicable"):
             requirement_gaps.append("Mapped obligations retain unresolved, insufficient or untested methods.")
+        supported = not requirement_gaps
         state = "supported" if supported else "conflicting" if any(item.manual_review == "unsupported" for item in mapped) else "unresolved"
         for problem in requirement_gaps:
             record_gap(f"Requirement {requirement.id}: {problem}")
@@ -878,7 +898,7 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
     try:
         from . import history
         prior = history.load_run(previous, deadline) if previous is not None else None
-        with _parent(input_path) as (fd, name):
+        with _named_path(missing="io-failed"), _parent(input_path) as (fd, name):
             declared, input_digest = _load(fd, name, deadline)
             if prior is not None:
                 if (prior[0].project_id, prior[0].synthetic) != (declared.project_id, declared.synthetic):
@@ -889,7 +909,8 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
         retrievals = None
         if fetch_official:
             from . import sources
-            _preflight_output(output_path)
+            with _named_path():
+                _preflight_output(output_path)
             requests = [sources.TargetRequest(item.id, item.intended_url, tuple(item.redirect_hosts),
                                               item.intended_type == "synthetic_fixture", item.language)
                         for item in declared.source_targets]
@@ -911,8 +932,9 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
                 raise RevalidationError("capacity-exceeded") from None
             raise
         _check_budget(deadline)
-        _publish(output_path, bundle, observations, report, deadline,
-                 {m.content_digest(item.content): item.content for item in retrievals or [] if item.content is not None})
+        with _named_path():
+            _publish(output_path, bundle, observations, report, deadline,
+                     {m.content_digest(item.content): item.content for item in retrievals or [] if item.content is not None})
         return bundle
     except RevalidationError:
         raise

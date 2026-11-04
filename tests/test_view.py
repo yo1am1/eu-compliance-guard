@@ -2,6 +2,7 @@
 
 from contextlib import redirect_stderr, redirect_stdout
 import io
+import os
 import json
 from pathlib import Path
 import re
@@ -100,10 +101,22 @@ class RunViewTests(unittest.TestCase):
 
     def test_unverified_runs_are_refused(self):
         (self.runs / "run-incomplete").mkdir()
-        for target, code in ((self.runs / "missing", "incomplete-run"), (self.runs / "run-incomplete", "incomplete-run")):
+        for target, code in ((self.runs / "missing", "unsafe-path"), (self.runs / "run-incomplete", "incomplete-run")):
             with self.subTest(code=code, target=target.name), self.assertRaises(v.ViewError) as caught:
                 v.write_view(target)
             self.assertEqual(caught.exception.code, code)
+        previous = os.getcwd()
+        os.chdir(self.runs / "run-incomplete")  # An empty run argument must not mean the working directory.
+        try:
+            with self.assertRaises(v.ViewError) as caught:
+                v.write_view("")
+            self.assertEqual(caught.exception.code, "unsafe-path")
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(main(["view", "--run", ""]), 2)
+            self.assertIn("unsafe-path", stderr.getvalue())
+        finally:
+            os.chdir(previous)
         (self.run / "report.md").chmod(0o600)
         with open(self.run / "report.md", "ab") as handle:
             handle.write(b"tampered")
@@ -135,8 +148,22 @@ class RunViewTests(unittest.TestCase):
         stdout, stderr = io.StringIO(), io.StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):
             self.assertEqual(main(["view", "--run", str(self.runs / "PRIVATE-SECRET")]), 2)
-        self.assertIn("incomplete-run", stderr.getvalue())
+        self.assertIn("unsafe-path", stderr.getvalue())
         self.assertNotIn("PRIVATE-SECRET", stderr.getvalue() + stdout.getvalue())
+
+    def test_open_with_a_relative_run_path_uses_an_absolute_uri(self):
+        cwd = os.getcwd()
+        os.chdir(self.runs)
+        try:
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with patch("webbrowser.open", return_value=True) as opened, redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(main(["view", "--run", self.run.name, "--open"]), 0)
+            with patch("webbrowser.open", side_effect=RuntimeError("no display")), redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(main(["view", "--run", self.run.name, "--open"]), 0)
+        finally:
+            os.chdir(cwd)
+        self.assertTrue(opened.call_args.args[0].startswith("file:///"))
+        self.assertIn("no-browser", stderr.getvalue())
 
     def test_view_leads_with_owner_questions_and_groups_attention_by_area(self):
         html = v.write_view(self.run).read_text()
@@ -160,6 +187,70 @@ class RunViewTests(unittest.TestCase):
         full = next(item.after for item in successor.comparison.changes if item.after)
         self.assertIn(f'title="{full}"', html)
         self.assertNotIn(f">{full}<", html)
+
+    def test_legal_references_and_retrieval_show_their_source_type(self):
+        payload = json.loads(self.input.read_text())
+        payload["sources"][0]["source"].update(type="proposal", synthetic=False)
+        payload["source_targets"][0]["intended_type"] = "draft_guidance"
+        unpinned = dict(payload["obligations"][0]["source_provisions"][0], locator="Fictional section 2")
+        unpinned.pop("source_id"), unpinned.pop("revision")
+        payload["obligations"][0]["source_provisions"].append(unpinned)
+        self.input.write_text(json.dumps(payload))
+        bundle = r.run(self.input, self.runs / "run-20261025T000300Z")
+        html = v.render_html(bundle)
+        obligations = html[html.index("<h2>Candidate obligations</h2>"):html.index("<h2>Official-source retrieval</h2>")]
+        self.assertIn("source-example — Fictional section 1 (proposal)", obligations)
+        self.assertIn("target-example — Fictional section 2 (draft_guidance)", obligations)
+        attempt = m.SourceAttempt.model_validate({
+            "id": "attempt-ui", "source_target_id": "target-example", "intended_url": "https://example.invalid/a",
+            "publisher": "Fictional fixture authority", "intended_type": "engineering_practice", "language": "en",
+            "attempted_at": "2026-10-18T10:00:00Z", "state": "retrieval_failed",
+            "failure": {"code": "network-unavailable", "safe_message": "Fictional failure"},
+            "retrieval": {"requested_url": "https://example.invalid/a", "redirects": [], "bytes_read": 0,
+                          "started_at": "2026-10-18T10:00:00Z", "ended_at": "2026-10-18T10:00:00Z",
+                          "comparison": "not_compared"}})
+        html = v.render_html(bundle.model_copy(update={"source_attempts": [attempt]}))
+        retrieval = html[html.index("<h2>Official-source retrieval</h2>"):]
+        self.assertIn("<th scope=\"col\">Type</th>", retrieval)
+        self.assertIn("<td>engineering_practice</td>", retrieval)
+
+    def test_a_retrieval_that_needs_review_is_not_styled_as_confirmed(self):
+        digest = "sha256:" + "a" * 64
+        def attempt(admission):
+            return m.SourceAttempt.model_validate({
+                "id": f"attempt-{admission}", "source_target_id": "target-example", "intended_url": "https://example.invalid/a",
+                "publisher": "Fictional fixture authority", "intended_type": "synthetic_fixture", "language": "en",
+                "attempted_at": "2026-10-18T10:00:00Z", "state": "retrieved",
+                "retrieved_source": {"id": "source-example", "revision": 0},
+                "retrieval": {"requested_url": "https://example.invalid/a", "final_url": "https://example.invalid/a",
+                              "redirects": [], "bytes_read": 1, "status": 200, "digest": digest,
+                              "artifact_path": "sources/" + "a" * 64 + ".bin", "admission": admission,
+                              "admission_reason": "fictional-reason", "started_at": "2026-10-18T10:00:00Z",
+                              "ended_at": "2026-10-18T10:00:00Z", "comparison": "same_bytes"}})
+        for admission, styled in (("needs_review", False), ("accepted", True)):
+            with self.subTest(admission=admission):
+                html = v.render_html(self.bundle.model_copy(update={"source_attempts": [attempt(admission)]}))
+                retrieval = html[html.index("<h2>Official-source retrieval</h2>"):html.index("<h2>Eleven")]
+                self.assertEqual('<span class="tag ok">retrieved</span>' in retrieval, styled)
+                self.assertEqual('<span class="tag ok">same_bytes</span>' in retrieval, styled)
+
+    def test_a_removed_historical_obligation_is_named_in_view_and_report(self):
+        payload = json.loads(self.input.read_text())
+        payload["obligations"] = [item for item in payload["obligations"] if item["id"] != "obligation-unmapped"]
+        payload["applicability_decisions"] = [item for item in payload["applicability_decisions"]
+                                              if item["obligation"]["id"] != "obligation-unmapped"]
+        self.input.write_text(json.dumps(payload))
+        successor = r.run(self.input, self.runs / "run-20261025T000200Z", previous=self.run)
+        removed = next(item for item in self.bundle.obligation_dispositions if item.obligation_id == "obligation-unmapped")
+        overlay = next(item for item in successor.current_assessments if item.obligation_disposition_id == removed.id)
+        self.assertEqual(overlay.obligation_id, "obligation-unmapped")
+        html = v.render_html(successor)
+        table = html[html.index("Historical obligation"):]
+        self.assertIn("<td><code>obligation-unmapped</code></td>", table)
+        self.assertNotIn(f"<code>{removed.id}</code>", table)
+        report = (self.runs / "run-20261025T000200Z" / "report.md").read_text()
+        freshness = report[report.index("Historical claim freshness"):report.index("## Declared scope")]
+        self.assertIn("- Obligation id: obligation&#45;unmapped\n", freshness)
 
 
 if __name__ == "__main__":

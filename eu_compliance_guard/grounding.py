@@ -17,6 +17,7 @@ import math
 import os
 from pathlib import Path
 import re
+import stat
 
 from . import models as m, revalidation as r
 
@@ -55,8 +56,26 @@ CONCEPTS = {
     "accessibility": ("Accessibility", {"aria", "alt", "tabindex", "role", "label", "contrast", "a11y"}),
 }
 # Organisational facts are owner decisions or legal positions; code can never show them.
-NOT_OBSERVABLE = re.compile(r"lawful basis|legal basis|legitimate|establishment|controller|processor|\brole\b|"
-                            r"enterprise size|\bsize\b|sector|dpia|contract|policy|notice", re.I)
+# Words naming organisational or legal judgements that code cannot show (whole words, any case).
+NOT_OBSERVABLE_WORDS = frozenset({
+    "lawful", "legal", "legitimate", "establishment", "establishments", "controller", "controllers",
+    "processor", "processors", "role", "roles", "enterprise", "size", "sizes", "sector", "sectors",
+    "dpia", "contract", "contracts", "policy", "policies", "notice", "notices"})
+
+
+def _key_words(text: str) -> set[str]:
+    return set("".join(char.lower() if char.isalnum() else " " for char in text).split())
+
+
+def not_observable(scope: m.Scope) -> frozenset[str]:
+    """Ids of facts only a person can confirm: every lawful basis and size or sector fact, and any
+    fact whose key names an organisational or legal judgement."""
+    ids = {fact.id for fact in scope.size_and_sector}
+    ids.update(activity.lawful_basis.id for activity in scope.activities)
+    ids.update(fact.id for fact in m.scope_facts(scope) if _key_words(fact.key) & NOT_OBSERVABLE_WORDS)
+    return frozenset(ids)
+
+
 STOPWORDS = {"the", "and", "for", "with", "this", "that", "from", "are", "is", "of", "to", "in", "on", "by", "as", "or",
              "be", "if", "it", "at", "an", "a", "def", "return", "self", "none", "true", "false", "const", "let", "var",
              "function", "import", "public", "private", "class", "new", "not", "known", "unknown", "assumed"}
@@ -82,7 +101,7 @@ class Index:
     lines: list[Line] = field(default_factory=list)
     digests: dict[str, str] = field(default_factory=dict)
     document_frequency: Counter = field(default_factory=Counter)
-    skipped: int = 0
+    skipped: int = 0  # unreadable, unexaminable, binary or over-limit files, and folders that could not be listed
 
     @property
     def average_length(self) -> float:
@@ -97,11 +116,23 @@ def build_index(root: Path, exclude: frozenset[str] = frozenset()) -> Index:
     """Read text files below root without following symlinks; bounded by file count and bytes."""
     index = Index(root=root)
     total = 0
-    for directory, folders, files in os.walk(root, followlinks=False):
+
+    def unreadable(_error: OSError) -> None:
+        # A folder that cannot be listed is not covered by the index: count it, never drop it silently.
+        index.skipped += 1
+
+    for directory, folders, files in os.walk(root, onerror=unreadable, followlinks=False):
         folders[:] = sorted(name for name in folders if name not in SKIP_DIRS and not name.startswith("."))
         for name in sorted(files):
             path = Path(directory) / name
-            if path.is_symlink() or not path.is_file() or not _is_text(path) or path.relative_to(root).as_posix() in exclude:
+            if not _is_text(path) or path.relative_to(root).as_posix() in exclude:
+                continue
+            try:
+                info = os.lstat(path)
+            except OSError:
+                index.skipped += 1  # listed but not examinable, e.g. in a folder without search permission
+                continue
+            if not stat.S_ISREG(info.st_mode):  # symlinks, devices and sockets are never read
                 continue
             if len(index.digests) >= MAX_FILES or total >= MAX_TOTAL_BYTES:
                 index.skipped += 1
@@ -151,7 +182,9 @@ def search(index: Index, query: list[str], top: int = 3, k1: float = 1.2, b: flo
             if frequency:
                 idf = math.log(1 + (count - index.document_frequency[term] + 0.5) / (index.document_frequency[term] + 0.5))
                 score += weight * idf * frequency * (k1 + 1) / (frequency + k1 * (1 - b + b * length / average))
-        if score > 0 and set(query) & set(line.terms):
+        # A line sharing only concept vocabulary (gtag for "tracking") qualifies at its lower weight:
+        # the same relatedness test apply uses, so every candidate can be pinned.
+        if score > 0:
             scored.append((score, line))
     scored.sort(key=lambda item: (-item[0], item[1].path, item[1].number))
     return [{"location": f"{line.path}:{line.number}", "score": round(score, 2), "concepts": concepts_of(line.terms),
@@ -197,29 +230,60 @@ def _fact_query(fact: m.Fact) -> list[str]:
     return tokens(f"{fact.key} {value}")
 
 
+def _current_evidence(path: Path, declared: m.RevalidationInput) -> frozenset[str]:
+    """Ids of declared evidence whose file still has its pinned digest, read as a run reads it:
+    from the files root, never through a symlink."""
+    current = set()
+    try:
+        with r._parent(Path(os.path.abspath(path))) as (parent_fd, _), r.files_root(declared, parent_fd) as root_fd:
+            for selected in declared.evidence:
+                if selected.path is None or selected.evidence.availability != "available":
+                    continue
+                try:
+                    observed = r._read_file(root_fd, selected.path, limit=r.MAX_FILE_BYTES, retain=False)
+                except r.RevalidationError:
+                    continue  # too large to verify, so not current
+                if observed.availability == "available" and observed.digest == selected.evidence.digest:
+                    current.add(selected.evidence.id)
+    except OSError:
+        raise r.RevalidationError("unsafe-path") from None
+    return frozenset(current)
+
+
 def ground(path: str | os.PathLike, top: int = 3) -> dict:
-    """Candidate code evidence for each assumed/unknown fact, and touchpoints no fact covers."""
+    """Candidate code evidence for each assumed/unknown fact and each fact whose pinned evidence
+    changed or is missing (stale), and touchpoints no fact covers."""
     path = Path(path)
     declared, root = _declarations(path)
     index = build_index(root, _own_files(path, root))
     facts = {fact.id: fact for fact in m.scope_facts(declared.scope)}
-    cited = {ref.split(":")[0] for item in declared.evidence for ref in item.evidence.source_refs}
+    current = _current_evidence(path, declared)
+    # Only the cited lines of unchanged files are accounted for: the rest of a cited file, and the
+    # old line numbers of a changed one, may hold other touchpoints.
+    cited = {ref for item in declared.evidence if item.evidence.id in current for ref in item.evidence.source_refs}
+    unobservable = not_observable(declared.scope)
     results, covered = [], set()
+    terms_at = {f"{line.path}:{line.number}": line.terms for line in index.lines}
     for fact in facts.values():
-        if fact.basis not in ("assumed", "unknown") and not fact.conflicts:
+        stale = any(identity not in current for identity in fact.evidence_ids)
+        if fact.basis not in ("assumed", "unknown") and not fact.conflicts and not stale:
             continue
-        observable = not NOT_OBSERVABLE.search(fact.key)
-        candidates = search(index, _fact_query(fact), top) if observable else []
-        covered.update(item["location"] for item in candidates)
+        observable = fact.id not in unobservable
+        query = _fact_query(fact)
+        candidates = search(index, query, top) if observable else []
+        # A candidate found only through concept vocabulary (gtag for a cookie fact) does not show
+        # the fact, so it stays listed as a touchpoint no fact covers.
+        covered.update(item["location"] for item in candidates if set(query) & set(terms_at[item["location"]]))
         results.append({"fact": fact.id, "key": fact.key, "basis": fact.basis, "observable": observable,
-                        "candidates": candidates,
-                        "next": ("confirm a candidate with --apply, or ask the owner" if candidates
-                                 else "ask the owner; code cannot show this" if not observable
-                                 else "no code evidence found; ask the owner")})
-    undeclared = []
+                        "stale": stale, "candidates": candidates,
+                        "next": ("pinned evidence changed or is missing; " if stale else "")
+                        + ("confirm a candidate with --apply, or ask the owner" if candidates
+                           else "ask the owner; code cannot show this" if not observable
+                           else "no code evidence found; ask the owner")})
+    undeclared, accounted = [], covered | cited
     for key, (label, vocabulary) in CONCEPTS.items():
         hits = [line for line in index.lines if vocabulary & set(line.terms) and len(vocabulary & set(line.terms)) >= 2
-                and f"{line.path}:{line.number}" not in covered and line.path not in cited]
+                and f"{line.path}:{line.number}" not in accounted]
         if hits:
             undeclared.append({"concept": key, "label": label, "count": len(hits),
                                "examples": [f"{line.path}:{line.number}  {line.text}" for line in hits[:3]]})
@@ -230,7 +294,8 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
 def format_ground(report: dict) -> str:
     lines = [f"indexed {report['files']} files under the files root ({report['skipped']} skipped)"]
     for fact in report["facts"]:
-        lines.append(f"\nfact {fact['fact']} ({fact['basis']}): {fact['key']}")
+        stale = ", pinned evidence changed or missing" if fact["stale"] else ""
+        lines.append(f"\nfact {fact['fact']} ({fact['basis']}{stale}): {fact['key']}")
         if not fact["observable"]:
             lines.append("  organisational: code cannot show this; ask the owner")
         for item in fact["candidates"]:
@@ -282,12 +347,29 @@ def _bump_pins(data, kinds: dict[str, tuple[int, int]]) -> None:
         changes.update(moved)
 
 
-def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None = None) -> m.RevalidationInput:
+def code_evidence_id(relative: str) -> str:
+    """The evidence id `ground --apply` gives the code file at `relative` (one record per path)."""
+    return "evidence-code-" + hashlib.sha256(relative.encode()).hexdigest()[:16]
+
+
+def _cited(node, identity: str, skip) -> bool:
+    """Whether any value outside the record `skip` names the identifier."""
+    if node is skip:
+        return False
+    if isinstance(node, dict):
+        return any(_cited(value, identity, skip) for value in node.values())
+    if isinstance(node, list):
+        return any(_cited(value, identity, skip) for value in node)
+    return node == identity
+
+
+def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None = None, *,
+          write: bool = True) -> m.RevalidationInput:
     """Mark one technical fact observed, pinned to a code line whose terms match the fact.
 
     Adds (or extends) a code-file evidence record with the file's digest, raises the fact's and
     the scope's revisions and updates every pin to them. The file is rewritten only if the result
-    validates.
+    validates; with write=False nothing is written, so a caller can check several pins first.
     """
     path = Path(path)
     declared, root = _declarations(path)
@@ -295,10 +377,13 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
     fact = facts.get(fact_id)
     if fact is None:
         raise r.RevalidationError("invalid-input")
-    if NOT_OBSERVABLE.search(fact.key):
+    if fact.id in not_observable(declared.scope):
         raise GroundingError("not-observable")
     relative, _, number = location.rpartition(":")
-    if not relative or not number.isdigit():
+    # ASCII decimal without leading zeros, as ground prints it: str.isdigit() alone also accepts
+    # other scripts' digits and superscripts, which would store one line under several refs. No
+    # indexed file has more than nine digits of lines, and int() refuses very long digit strings.
+    if not relative or not (number.isascii() and number.isdigit()) or number.startswith("0") or len(number) > 9:
         raise GroundingError("bad-location")
     try:
         m.SourceFile(path=relative, digest="sha256:" + "0" * 64)
@@ -320,12 +405,18 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
         raise GroundingError("unrelated-line")
     now = now or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     digest = m.content_digest(raw)
+    # Code evidence of this fact whose file changed or is gone is replaced by the new pin, so a
+    # fact re-pinned to another file stops being stale.
+    current = _current_evidence(path, declared)
+    outdated = {item.evidence.id for item in declared.evidence
+                if item.path and item.evidence.id == code_evidence_id(item.path)
+                and item.evidence.id not in current and item.evidence.id in fact.evidence_ids}
     with r._parent(path) as (parent_fd, name):
         observed = r._read_file(parent_fd, name, limit=m.MAX_REQUEST_BYTES, retain=True)
     if observed.availability != "available":
         raise r.RevalidationError("unsafe-path")
     data = json.loads(observed.content)
-    evidence_id = "evidence-code-" + hashlib.sha256(relative.encode()).hexdigest()[:16]
+    evidence_id = code_evidence_id(relative)
     selected = next((item for item in data.setdefault("evidence", []) if item["evidence"]["id"] == evidence_id), None)
     if selected is None:
         selected = {"path": relative, "evidence": {
@@ -359,21 +450,46 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
     for copy in copies:
         if copy["id"] == fact.id:
             copy.update(revision=fact.revision + 1, basis="observed", observed_at=now,
-                        evidence_ids=sorted(set(copy.get("evidence_ids", [])) | {evidence_id}))
+                        evidence_ids=sorted((set(copy.get("evidence_ids", [])) - outdated) | {evidence_id}))
+    # A dropped record that nothing else cites any more would only leave an unresolved evidence gap.
+    data["evidence"] = [item for item in data["evidence"] if item["evidence"]["id"] not in outdated
+                        or item["evidence"]["id"] == evidence_id or _cited(data, item["evidence"]["id"], item)]
     _bump_pins(data, revisions)
     record = m.RevalidationInput.model_validate(data)
+    if not write:
+        return record
     content = (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
     with r._parent(path) as (parent_fd, name):
-        # Created exclusively without following links, so a planted temp symlink is replaced, never written through.
-        temporary = "." + name + ".tmp"
-        try:
-            os.unlink(temporary, dir_fd=parent_fd)
-        except FileNotFoundError:
-            pass
-        r._write(parent_fd, temporary, content, float("inf"))
-        os.replace(temporary, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
-        os.fsync(parent_fd)
+        _replace(parent_fd, name, content)
     return record
+
+
+def _replace(parent_fd: int, name: str, content: bytes) -> None:
+    """Atomically replace a writable project file, keeping its permission bits.
+
+    Like an editor, a read-only file is refused rather than replaced: os.access for the
+    caller, and the owner's write bit, which root's access check ignores.
+    """
+    info = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+    if not stat.S_ISREG(info.st_mode):
+        raise r.RevalidationError("unsafe-path")
+    mode = stat.S_IMODE(info.st_mode) & 0o777
+    if not mode & stat.S_IWUSR or not os.access(name, os.W_OK, dir_fd=parent_fd, follow_symlinks=False):
+        raise r.RevalidationError("io-failed")
+    # Created exclusively without following links, so a planted temp symlink is replaced, never written through.
+    temporary = "." + name + ".tmp"
+    try:
+        os.unlink(temporary, dir_fd=parent_fd)
+    except FileNotFoundError:
+        pass
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=parent_fd)
+    with os.fdopen(fd, "wb") as handle:
+        os.fchmod(fd, mode)
+        handle.write(content)
+        handle.flush()
+        os.fsync(fd)
+    os.replace(temporary, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+    os.fsync(parent_fd)
 
 
 class GroundingError(ValueError):

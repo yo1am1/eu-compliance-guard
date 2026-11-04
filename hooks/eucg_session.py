@@ -65,7 +65,9 @@ def project_id(project: Path) -> str | None:
 
 
 def state_dir(identity: str) -> Path:
-    base = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
+    # As in the CLI: a relative XDG_STATE_HOME is invalid (XDG Base Directory spec) and ignored.
+    configured = os.environ.get("XDG_STATE_HOME", "")
+    base = Path(configured if os.path.isabs(configured) else Path.home() / ".local/state")
     return Path(os.path.realpath(base)) / "eu-compliance-guard" / identity
 
 
@@ -95,7 +97,10 @@ def latest_run(identity: str | None) -> str:
             return "Latest run belongs to another project; use /eucg-status."
         run, scope = bundle["run"], bundle["declarations"]["scope"]
         states = [item.get("state") for item in bundle.get("requirement_assessments", [])]
-        attempts = [item.get("state") for item in bundle.get("source_attempts", [])]
+        attempts = bundle.get("source_attempts", [])
+        # As the bundle's own rule: retrieved bytes are confirmed only once admitted, not merely fetched.
+        confirmed = sum(1 for item in attempts if item.get("state") == "retrieved"
+                        and isinstance(item.get("retrieval"), dict) and item["retrieval"].get("admission") == "accepted")
         gaps = len(bundle.get("gaps", []))
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return "Latest run directory could not be summarized; use /eucg-status."
@@ -105,7 +110,7 @@ def latest_run(identity: str | None) -> str:
                f"requirements {states.count('supported')} supported / {states.count('unresolved')} unresolved / "
                f"{states.count('conflicting')} conflicting")
     if attempts:
-        summary += f", source attempts {attempts.count('retrieved')} retrieved / {len(attempts) - attempts.count('retrieved')} not confirmed"
+        summary += f", source attempts {confirmed} confirmed / {len(attempts) - confirmed} not confirmed"
     return summary + ". Processing state is not a compliance verdict."
 
 

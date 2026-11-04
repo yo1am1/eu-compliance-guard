@@ -1,14 +1,16 @@
 """Split retained legal-act text into articles and suggest articles for a statement.
 
 Official Journal XHTML marks each article with `oj-ti-art` (number) and `oj-sti-art`
-(title); older EUR-Lex HTML uses `ti-art`/`sti-art`. Plain text falls back to lines that
-start with "Article N". The text is shown as an unreviewed candidate next to a declared
-provision; a suggestion is a search result, never a mapping or a legal conclusion.
+(title); older EUR-Lex HTML uses `ti-art`/`sti-art`. Unmarked pages and plain-text lines
+fall back to paragraphs that read "Article N". The text is shown as an unreviewed
+candidate next to a declared provision; a suggestion is a search result, never a mapping
+or a legal conclusion.
 """
 from __future__ import annotations
 
 from collections import Counter
 from html.parser import HTMLParser
+import itertools
 import math
 import re
 
@@ -19,8 +21,8 @@ MAX_ARTICLE_CHARS = 20000
 MAX_PARAGRAPHS = 50000
 MAX_PAGE_CHARS = 8 * 1024 * 1024
 BREAKS = frozenset({"p", "div", "td", "li", "tr", "br", "h1", "h2", "h3", "h4", "table"})
-ARTICLE = re.compile(r"^\s*Article\s+(\d+[a-z]?)\b", re.I)
-ARTICLE_ONLY = re.compile(r"^Article\s+(\d+[a-z]?)$", re.I)
+# Code, styling, fallback content and site navigation of a saved page are never legal text.
+SKIPPED = frozenset({"script", "style", "noscript", "template", "nav", "footer"})
 # Words that describe the project or the task rather than the legal subject matter.
 NOISE = frozenset({"code", "app", "py", "ts", "js", "determine", "decide", "whether", "currently", "define", "declare",
                    "document", "put", "place", "give", "provide", "users", "user", "customer", "customers"})
@@ -55,6 +57,7 @@ class _Paragraphs(HTMLParser):
         self.classes: tuple[str, ...] = ()
         self.buffer: list[str] = []
         self.size = 0
+        self.skipped = 0  # depth inside SKIPPED elements
 
     def _flush(self):
         text = _tidy("".join(self.buffer))
@@ -63,17 +66,21 @@ class _Paragraphs(HTMLParser):
         self.classes, self.buffer = (), []
 
     def handle_starttag(self, tag, attrs):
+        if tag in SKIPPED:
+            self.skipped += 1
         if tag in BREAKS:
             self._flush()
             if tag == "p":
                 self.classes = tuple((dict(attrs).get("class") or "").split())
 
     def handle_endtag(self, tag):
+        if tag in SKIPPED and self.skipped:
+            self.skipped -= 1
         if tag in BREAKS:
             self._flush()
 
     def handle_data(self, data):
-        if self.size < MAX_PAGE_CHARS:
+        if not self.skipped and self.size < MAX_PAGE_CHARS:
             self.buffer.append(data)
             self.size += len(data)
 
@@ -86,31 +93,107 @@ def _is_title(classes) -> bool:
     return any(name.endswith("sti-art") for name in classes)
 
 
-# Upper-case "ANNEX" headings only: body text such as "Annex III shall apply" stays in its article.
-END = re.compile(r"^(?:ANNEX(?:\s+[IVXLC\d]+)?$|Done at\b)")
+def _numeral(word: str) -> bool:
+    """'12', 'XIV', or an inserted '10a' / 'IIIa'."""
+    if len(word) > 1 and "a" <= word[-1] <= "z":
+        word = word[:-1]
+    return word.isascii() and (word.isdigit() or not word.strip("IVXLC"))
+
+
+def _article_number(text: str) -> str | None:
+    """'Article 5' -> '5', 'Article 10a' -> '10a'; any other paragraph is not an article heading.
+
+    "Article 6(1) applies" is a reference, and "‘Article 6a" is another act's article quoted by an amendment.
+    """
+    words = text.split()
+    if len(words) != 2 or words[0].lower() != "article":
+        return None
+    number = words[1]
+    digits = number[:-1] if len(number) > 1 and number[-1].isascii() and number[-1].isalpha() else number
+    return number if digits.isascii() and digits.isdigit() else None
+
+
+# An amending act quotes the text it inserts: "‘ANNEX IIIa" or "‘CHAPTER IIa" stays in the amending article.
+OPENING_QUOTES = ("‘", "“", "\"", "'", "«", "„")
 
 
 def _is_end(classes, text: str) -> bool:
-    """An annex heading or "Done at …" closes the last article."""
-    return any(name.endswith("doc-ti") for name in classes) or bool(END.match(text))
+    """An annex heading or "Done at …" closes the last article.
+
+    Upper-case "ANNEX" headings only: body text such as "Annex III shall apply" stays in its article.
+    """
+    if text.startswith(OPENING_QUOTES):
+        return False
+    if any(name.endswith("doc-ti") for name in classes) or text[:7] == "Done at" and not text[7:8].isalnum():
+        return True
+    words = text.split()
+    return words[:1] == ["ANNEX"] and (len(words) == 1 or len(words) == 2 and _numeral(words[1]))
+
+
+# Headings of the divisions above articles: "CHAPTER III", "Section 2", "TITLE IIa", "PART 1".
+DIVISIONS = frozenset({"CHAPTER", "Chapter", "TITLE", "Title", "PART", "Part", "SECTION", "Section"})
+
+
+def _is_division(classes, text: str, marked: bool) -> bool:
+    """A chapter, title, part or section heading closes the article before it.
+
+    Marked pages say so by class (`oj-ti-section-1`, consolidated `title-division-1`); elsewhere the
+    paragraph must read just like "CHAPTER III". The division's own name then falls outside any article.
+    """
+    if text.startswith(OPENING_QUOTES):
+        return False
+    if any("ti-section-" in name or name.startswith("title-division") for name in classes):
+        return True
+    words = text.split()
+    return not marked and len(words) == 2 and words[0] in DIVISIONS and _numeral(words[1])
+
+
+def _follows(number: str, previous: str | None) -> bool:
+    """'2' follows '1', and '1a' or '1b' follows '1': the next heading of the same enacting terms."""
+    def split(value: str) -> tuple[int, str]:
+        letter = value[-1] if value[-1].isalpha() else ""
+        return int(value[:len(value) - len(letter)]), letter
+
+    if previous is None:
+        return False
+    (count, letter), (last, last_letter) = split(number), split(previous)
+    return count == last + 1 and not letter or count == last and letter > last_letter
 
 
 def _segment(paragraphs) -> dict[str, dict]:
-    """Class-marked articles when the page has them, else paragraphs that read exactly "Article N"."""
+    """Class-marked articles when the page has them, else paragraphs that read exactly "Article N".
+
+    Only a paragraph that is just "Article N" opens an article. A marked heading that is not, such as
+    an amendment's quoted "‘Article 6a", stays text of the amending article. An annex heading or
+    closing formula after article text ends the enacting terms unless the very next article heading
+    continues their numbering: a later correlation table or annexed agreement, which repeats or
+    jumps numbers, opens nothing. A number seen twice (a contents list, then the body) keeps the
+    occurrence with the most text, the first one on a tie.
+    """
     marked = any(_is_number(classes) for classes, _ in paragraphs)
     found: dict[str, dict] = {}
-    current = None
-    expect_title = False
+    current = previous = repeat = None  # repeat: the key a later occurrence of a number may take over
+    expect_title = wrote = ended = final = False
     for classes, text in paragraphs:
         if _is_end(classes, text):
-            current, expect_title = None, False  # annexes and the closing formula belong to no article
+            current, expect_title, ended = None, False, ended or wrote  # annexes belong to no article
             continue
-        match = ARTICLE_ONLY.match(text)
-        if (_is_number(classes) if marked else match is not None):
-            match = match or ARTICLE.match(text)
+        if _is_division(classes, text, marked):
+            current, expect_title = None, False  # nor do chapter and section headings
+            continue
+        number = _article_number(text) if _is_number(classes) or not marked else None
+        if number is not None:
+            key = f"Article {number}"
             current = None
-            if match and len(found) < MAX_ARTICLES and f"Article {match.group(1)}" not in found:
-                current = found[f"Article {match.group(1)}"] = {"title": "", "text": ""}
+            if ended and not final:
+                # The first heading after an end decides: the next number means the end was a stray marker.
+                ended = key in found or not _follows(number, previous)
+                final = ended
+            repeat = key if key in found else None
+            if not final and (repeat or len(found) < MAX_ARTICLES):
+                current = {"title": "", "text": ""}
+                found.setdefault(key, current)
+                previous = number
             expect_title = True
             continue
         if current is None:
@@ -119,20 +202,24 @@ def _segment(paragraphs) -> dict[str, dict]:
             current["title"] = text
         elif len(current["text"]) < MAX_ARTICLE_CHARS:
             current["text"] += " " + text
+            wrote = True
+            if repeat is not None and len(current["text"]) > len(found[repeat]["text"]):
+                found[repeat] = current  # keep only the best occurrence, so repeats cost no memory
         expect_title = False
     return found
 
 
 def _tidy(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
+    return " ".join(text.split())
 
 
 def parse(content: bytes, media_type: str) -> dict[str, dict]:
     """Map "Article N" to {"title", "text"}; empty when the format is not supported."""
     try:
-        text = content.decode("utf-8")
+        text = content.decode("utf-8-sig")  # a leading byte order mark is not part of the first line
     except UnicodeDecodeError:
         return {}
+    media_type = media_type.lower()  # media types are case-insensitive; admission accepts any case
     if media_type in ("text/html", "application/xhtml+xml"):
         parser = _Paragraphs()
         try:
@@ -141,26 +228,15 @@ def parse(content: bytes, media_type: str) -> dict[str, dict]:
         except (AssertionError, ValueError):
             return {}
         parser._flush()
-        return {key: {"title": item["title"], "text": _tidy(item["text"])[:MAX_ARTICLE_CHARS]}
-                for key, item in _segment(parser.paragraphs).items()}
-    if media_type == "text/plain":
-        articles, current = {}, None
-        for line in text.splitlines():
-            # Only a line that is just "Article N" opens an article; "Article 6(1) applies" is a reference.
-            match = ARTICLE_ONLY.match(line.strip())
-            if _is_end((), line.strip()):
-                current = None
-            elif match:
-                # A repeated number (an annex correlation table) never reopens an article.
-                key = f"Article {match.group(1)}"
-                current = None if key in articles or len(articles) >= MAX_ARTICLES else articles.setdefault(key, {"title": "", "text": ""})
-            elif current is not None:
-                if not current["title"] and line.strip():
-                    current["title"] = _tidy(line)
-                elif len(current["text"]) < MAX_ARTICLE_CHARS:
-                    current["text"] += " " + line
-        return {key: {"title": item["title"], "text": _tidy(item["text"])[:MAX_ARTICLE_CHARS]} for key, item in articles.items()}
-    return {}
+        paragraphs = parser.paragraphs
+    elif media_type == "text/plain":
+        # Each non-blank line is a paragraph of an unmarked page, so both follow the same rules.
+        lines = (line for line in map(_tidy, text.splitlines()) if line)
+        paragraphs = [((), line) for line in itertools.islice(lines, MAX_PARAGRAPHS)]
+    else:
+        return {}
+    return {key: {"title": item["title"], "text": _tidy(item["text"])[:MAX_ARTICLE_CHARS]}
+            for key, item in _segment(paragraphs).items()}
 
 
 def article_key(locator: str) -> str | None:

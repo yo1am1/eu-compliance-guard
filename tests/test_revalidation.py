@@ -270,6 +270,74 @@ class WorkflowTests(unittest.TestCase):
                 self.assertEqual(bundle.requirement_assessments[0].state, "unresolved")
                 self.assertTrue(bundle.requirement_assessments[0].gaps)
 
+    def test_requirement_gaps_blame_mapped_obligations_only_when_one_is_open(self):
+        baseline = deepcopy(self.payload)
+        mapped_gap = "Mapped obligations retain unresolved, insufficient or untested methods."
+        (self.root / "other.txt").write_bytes(b"fictional other bytes")
+        for dependency in ("fact", "origin", "open-obligation"):
+            self.payload = deepcopy(baseline)
+            requirement = self.payload["requirements"][0]
+            if dependency == "fact":
+                requirement["fact_refs"] = [{"id": "fact-assumed", "revision": 0}]
+            elif dependency == "origin":
+                requirement.update(origin={"path": "other.txt", "digest": m.content_digest(b"different")}, locator="line 1")
+            else:
+                self.payload["evidence_reviews"] = []
+            self.save()
+            bundle = self.assemble()
+            assessment = bundle.requirement_assessments[0]
+            passed = [item.outcome for item in bundle.obligation_dispositions[0].required_method_dispositions] == ["passed"]
+            with self.subTest(dependency=dependency):
+                self.assertEqual(assessment.state, "unresolved")
+                self.assertEqual(passed, dependency != "open-obligation")
+                self.assertEqual(mapped_gap in assessment.gaps, not passed)
+                self.assertEqual(f"Requirement requirement-example: {mapped_gap}" in bundle.gaps, not passed)
+                self.assertEqual(len(assessment.gaps), 1)
+
+    def test_not_applicable_obligation_is_not_reported_as_missing_evidence(self):
+        self.payload["applicability_decisions"][0]["applicability"] = "not_applicable"
+        self.payload["obligations"][0]["required_methods"] += ["technical"]
+        baseline = deepcopy(self.payload)
+        for reviewed in (True, False):
+            self.payload = deepcopy(baseline)
+            if not reviewed:
+                self.payload["evidence_reviews"] = []
+            self.save()
+            bundle = self.assemble()
+            disposition = bundle.obligation_dispositions[0]
+            method = disposition.required_method_dispositions[0]
+            assessment = bundle.requirement_assessments[0]
+            with self.subTest(reviewed=reviewed):
+                self.assertEqual(disposition.applicability, "not_applicable")
+                self.assertEqual(method.outcome, "unresolved_review")
+                self.assertEqual(method.missing_evidence, ["Obligation reviewed as not applicable; this method was not assessed."])
+                technical = disposition.required_method_dispositions[1]
+                self.assertEqual((technical.method, technical.outcome), ("technical", "not_tested"))
+                self.assertEqual(technical.missing_evidence, ["Obligation reviewed as not applicable; this method was not assessed."])
+                self.assertEqual([gap for gap in bundle.gaps if gap.startswith("Obligation obligation-example")],
+                                 [f"Obligation obligation-example, method {name}: not assessed because the obligation "
+                                  "was reviewed as not applicable." for name in ("document", "technical")])
+                self.assertEqual(assessment.state, "unresolved")
+                self.assertEqual(assessment.gaps, ["A mapped obligation was reviewed as not applicable; it cannot support this requirement."])
+        self.payload = deepcopy(baseline)
+        self.payload["evidence_reviews"][0].update(state="insufficient", rationale="Fictional reviewed insufficiency.")
+        self.save()
+        bundle = self.assemble()
+        self.assertEqual(bundle.obligation_dispositions[0].required_method_dispositions[0].outcome, "observed_failure")
+        self.assertEqual(bundle.requirement_assessments[0].state, "conflicting")
+
+    def test_bad_requirement_origin_is_one_gap_and_one_action(self):
+        (self.root / "other.txt").write_bytes(b"fictional other bytes")
+        for origin in ({"path": "other.txt", "digest": m.content_digest(b"different")},
+                       {"path": "missing-origin.txt", "digest": m.content_digest(b"missing")}):
+            self.payload["requirements"][0].update(origin=origin, locator="line 1")
+            self.save()
+            bundle = self.assemble()
+            with self.subTest(path=origin["path"]):
+                self.assertEqual([gap for gap in bundle.gaps if "origin" in gap],
+                                 ["Requirement requirement-example: Declared requirement origin unavailable or corrupt."])
+                self.assertEqual(len([action for action in bundle.next_actions if "origin" in action]), 1)
+
     def test_independent_verification_does_not_follow_unretained_attestation(self):
         self.payload["evidence"][0]["evidence"]["provenance"] = "independently_verified"
         self.save()
@@ -470,6 +538,27 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "unsafe-path")
         self.assertEqual(list(runs.iterdir()), [])
 
+    def test_missing_or_overlong_path_components_report_unsafe_path(self):
+        runs = self.root / "real-runs"
+        runs.mkdir(mode=0o700)
+        overlong = "x" * 256
+        # Missing declarations are io-failed, as in state-dir, next, ground and pr-check.
+        cases = {
+            "missing output parent": (self.input, runs / "missing-parent/run", False, "unsafe-path"),
+            "missing output parent before fetching": (self.input, runs / "missing-parent/run", True, "unsafe-path"),
+            "overlong output name": (self.input, runs / overlong, False, "unsafe-path"),
+            "overlong output name before fetching": (self.input, runs / overlong, True, "unsafe-path"),
+            "missing input folder": (self.root / "missing-folder/input.json", runs / "run-a", False, "io-failed"),
+            "overlong input folder": (self.root / overlong / "input.json", runs / "run-b", False, "unsafe-path"),
+            "missing input file": (self.root / "missing.json", runs / "run-c", False, "io-failed"),
+        }
+        for case, (input_path, output_path, fetch, expected) in cases.items():
+            with self.subTest(case=case):
+                with self.assertRaises(r.RevalidationError) as caught:
+                    r.run(input_path, output_path, fetch_official=fetch, transport_factory=AssertionError)
+                self.assertEqual(caught.exception.code, expected)
+        self.assertEqual(list(runs.iterdir()), [])
+
     def test_failures_and_interrupts_leave_incomplete_directory_without_marker(self):
         for failure in (OSError("PRIVATE_SENTINEL"), KeyboardInterrupt()):
             for after_marker in (False, True):
@@ -495,12 +584,16 @@ class WorkflowTests(unittest.TestCase):
         with patch.object(m, "RevalidationBundle", side_effect=semantic.exception), self.assertRaises(r.RevalidationError) as caught:
             self.assemble()
         self.assertEqual(caught.exception.code, "invalid-output")
-        template = deepcopy(self.payload["obligations"][0])
-        self.payload["obligations"] = [{**template, "id": f"obligation-{i}", "required_methods": [f"method-{j}" for j in range(7)]}
-                                       for i in range(200)]
-        self.payload["requirements"] = []
-        self.payload["applicability_decisions"] = []
-        self.payload["evidence_reviews"] = []
+        # Every requirement repeats the review and evidence identifiers of its one obligation's 200
+        # methods: valid declarations whose derived assessments exceed the bundle's aggregate bound.
+        self.payload["obligations"] = self.payload["obligations"][:1]
+        self.payload["obligations"][0]["required_methods"] = [f"method-{i}" for i in range(200)]
+        evidence = self.payload["evidence"][0]
+        self.payload["evidence"] += [{"evidence": {**evidence["evidence"], "id": f"evidence-{i}"}} for i in range(199)]
+        review = self.payload["evidence_reviews"][0]
+        self.payload["evidence_reviews"] = [{**review, "id": f"review-{i}", "method": f"method-{i}",
+                                             "evidence_ids": [self.payload["evidence"][i]["evidence"]["id"]]} for i in range(200)]
+        self.payload["requirements"] = [{**self.payload["requirements"][0], "id": f"requirement-{i}"} for i in range(200)]
         self.save()
         with self.assertRaises(r.RevalidationError) as caught:
             r.run(self.input, self.root / "derived-over-capacity")
