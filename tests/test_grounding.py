@@ -1,6 +1,7 @@
 """Local evidence grounding on a synthetic project; no network, model or target execution."""
 
 from contextlib import redirect_stderr, redirect_stdout
+import hashlib
 import io
 import json
 import os
@@ -98,6 +99,45 @@ class GroundingTests(unittest.TestCase):
         web.write_text(CODE["app/web.py"])
         g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
         self.assertNotIn("fact-cookie-lifetime", [item["fact"] for item in g.ground(self.declarations)["facts"]])
+
+    def test_repinning_a_stale_fact_to_another_file_drops_the_old_evidence(self):
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+        (self.project / "app/cookies.py").write_text(CODE["app/web.py"])
+        (self.project / "app/web.py").unlink()
+        stale = {item["fact"]: item for item in g.ground(self.declarations)["facts"]}["fact-cookie-lifetime"]
+        self.assertEqual((stale["stale"], stale["candidates"][0]["location"]), (True, "app/cookies.py:2"))
+        code, _, _ = self.cli("ground", "--input", str(self.declarations), "--apply", "fact-cookie-lifetime=app/cookies.py:2")
+        self.assertEqual(code, 0)
+        self.assertNotIn("fact-cookie-lifetime", [item["fact"] for item in g.ground(self.declarations)["facts"]])
+        declared = r.load_input(self.declarations)
+        new = "evidence-code-" + hashlib.sha256(b"app/cookies.py").hexdigest()[:16]
+        lifetime = next(item for item in m.scope_facts(declared.scope) if item.id == "fact-cookie-lifetime")
+        self.assertEqual(lifetime.evidence_ids, [new])
+        # No fact cites the deleted file's record any more, so it is gone too.
+        self.assertEqual([item.path for item in declared.evidence], ["app/cookies.py"])
+        runs = Path(self.temporary.name) / "runs"
+        runs.mkdir(mode=0o700)
+        bundle = r.run(self.declarations, runs / "run-1")
+        self.assertFalse(any("evidence-code-" in gap or gap.startswith("Fact fact-cookie-lifetime") for gap in bundle.gaps),
+                         bundle.gaps)
+
+    def test_repinning_keeps_old_evidence_another_fact_still_cites(self):
+        data = json.loads(self.declarations.read_text())
+        data["scope"]["roles"].append(fact("fact-cookie-name", "Analytics cookie name"))
+        self.declarations.write_text(json.dumps(data, indent=2))
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+        g.apply(self.declarations, "fact-cookie-name", "app/web.py:2")
+        (self.project / "app/cookies.py").write_text(CODE["app/web.py"])
+        (self.project / "app/web.py").unlink()
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/cookies.py:2")
+        declared = r.load_input(self.declarations)
+        facts = {item.id: item for item in m.scope_facts(declared.scope)}
+        self.assertEqual(len(facts["fact-cookie-lifetime"].evidence_ids), 1)
+        # The other fact still relies on the missing file: it stays stale, with its record kept.
+        self.assertEqual(sorted(item.path for item in declared.evidence), ["app/cookies.py", "app/web.py"])
+        listed = {item["fact"]: item for item in g.ground(self.declarations)["facts"]}
+        self.assertTrue(listed["fact-cookie-name"]["stale"])
+        self.assertNotIn("fact-cookie-lifetime", listed)
 
     def test_concept_vocabulary_finds_lines_the_fact_key_does_not_name(self):
         (self.project / "web").mkdir()

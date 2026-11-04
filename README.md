@@ -275,8 +275,9 @@ or is missing, it lists ranked `file:line` candidates, and it also lists touchpo
 that no fact covers. Organisational facts are flagged, because code can never show
 them. `--apply` accepts a line only if it shares terms with the fact. It then records
 the fact as `observed` with the file as evidence, which closes that fact's gap until
-the file changes; `ground` then lists it again to be pinned anew. Repeated `--apply`
-values are all checked first: if one is refused, none is written.
+the file changes; `ground` then lists it again to be pinned anew. Pinning it anew, in
+the same or another file, drops its code evidence for a changed or deleted file.
+Repeated `--apply` values are all checked first: if one is refused, none is written.
 
 ### Pull-request check
 

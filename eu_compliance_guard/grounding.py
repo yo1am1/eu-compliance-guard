@@ -352,6 +352,17 @@ def code_evidence_id(relative: str) -> str:
     return "evidence-code-" + hashlib.sha256(relative.encode()).hexdigest()[:16]
 
 
+def _cited(node, identity: str, skip) -> bool:
+    """Whether any value outside the record `skip` names the identifier."""
+    if node is skip:
+        return False
+    if isinstance(node, dict):
+        return any(_cited(value, identity, skip) for value in node.values())
+    if isinstance(node, list):
+        return any(_cited(value, identity, skip) for value in node)
+    return node == identity
+
+
 def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None = None, *,
           write: bool = True) -> m.RevalidationInput:
     """Mark one technical fact observed, pinned to a code line whose terms match the fact.
@@ -393,6 +404,12 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
         raise GroundingError("unrelated-line")
     now = now or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     digest = m.content_digest(raw)
+    # Code evidence of this fact whose file changed or is gone is replaced by the new pin, so a
+    # fact re-pinned to another file stops being stale.
+    current = _current_evidence(path, declared)
+    outdated = {item.evidence.id for item in declared.evidence
+                if item.path and item.evidence.id == code_evidence_id(item.path)
+                and item.evidence.id not in current and item.evidence.id in fact.evidence_ids}
     with r._parent(path) as (parent_fd, name):
         observed = r._read_file(parent_fd, name, limit=m.MAX_REQUEST_BYTES, retain=True)
     if observed.availability != "available":
@@ -432,7 +449,10 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
     for copy in copies:
         if copy["id"] == fact.id:
             copy.update(revision=fact.revision + 1, basis="observed", observed_at=now,
-                        evidence_ids=sorted(set(copy.get("evidence_ids", [])) | {evidence_id}))
+                        evidence_ids=sorted((set(copy.get("evidence_ids", [])) - outdated) | {evidence_id}))
+    # A dropped record that nothing else cites any more would only leave an unresolved evidence gap.
+    data["evidence"] = [item for item in data["evidence"] if item["evidence"]["id"] not in outdated
+                        or item["evidence"]["id"] == evidence_id or _cited(data, item["evidence"]["id"], item)]
     _bump_pins(data, revisions)
     record = m.RevalidationInput.model_validate(data)
     if not write:
