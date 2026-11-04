@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import models as m
+from . import models as m, sources
 from .grounding import not_observable
 
 class NoRun(LookupError):
@@ -17,7 +17,7 @@ class NoRun(LookupError):
 
 
 # Earlier kinds unblock later ones (facts feed decisions, reviewed text feeds provisions).
-KINDS = ("retrieve", "fact", "source", "applicability", "mapping", "family")
+KINDS = ("retrieve", "fact", "source", "applicability", "mapping", "review", "family")
 
 
 def _step(kind: str, subject: str, unblocks: set[str], action: str, command: str | None = None) -> dict:
@@ -45,8 +45,21 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
                 and any(pin.source_target_id == target_id for pin in obligations[obligation].source_provisions)
                 for requirement in mapped}
 
+    def fetchable(target) -> bool:
+        if target.intended_type == "synthetic_fixture":
+            return False
+        try:
+            sources.allowed_hosts(sources.TargetRequest(target.id, target.intended_url, tuple(target.redirect_hosts)))
+        except sources.RetrievalFailure:
+            return False
+        return True
+
     retrieved = {item.source_target_id for item in bundle.source_attempts if item.retrieved_source}
-    missing = [target for target in unselected if target.id not in retrieved]
+    missing = [target for target in unselected if target.id not in retrieved and fetchable(target)]
+    for target in unselected:
+        if target.id not in retrieved and not fetchable(target):
+            steps.append(_step("source", target.id, citing(target.id),
+                               f"Download {target.id} by hand (the official fetch refuses it), then declare it as a selected source."))
     if missing:
         unblocks = set().union(*(citing(target.id) for target in missing))
         steps.append(_step("retrieve", "", unblocks,
@@ -66,6 +79,7 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
             relied.setdefault(ref.id, set()).update(by_obligation.get(obligation, set()))
     # A fact copied into several activities is one question, asked once.
     unobservable = not_observable(declared.scope)
+    ready = {item.id for item in bundle.evidence if item.availability == "available"}
     for fact in {item.id: item for item in m.scope_facts(declared.scope)}.values():
         if fact.basis in ("assumed", "unknown") or fact.conflicts:
             observable = fact.id not in unobservable
@@ -73,6 +87,10 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
                                f"Confirm '{fact.key}' (now {fact.basis})"
                                + (": look for code evidence." if observable else f": ask {fact.owner or 'the project owner'}."),
                                "eu-compliance-guard ground" if observable else None))
+        elif any(identity not in ready for identity in fact.evidence_ids):
+            steps.append(_step("fact", fact.id, relied.get(fact.id, set()),
+                               f"Ground '{fact.key}' again: its pinned evidence changed or is missing.",
+                               "eu-compliance-guard ground"))
 
     for obligation, mapped in sorted(by_obligation.items()):
         decision = decisions.get(obligation)
@@ -86,6 +104,23 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         if not requirement.obligation_refs:
             steps.append(_step("mapping", requirement.id, {requirement.id},
                                f"Map {requirement.id} to a candidate obligation; the report lists articles to read."))
+
+    dispositions = {item.obligation_id: item for item in bundle.obligation_dispositions}
+    for obligation, mapped in sorted(by_obligation.items()):
+        disposition = dispositions.get(obligation)
+        if disposition is None or disposition.applicability == "unresolved":
+            continue
+        methods = sorted(item.method for item in disposition.required_method_dispositions if item.outcome != "passed")
+        if methods:
+            steps.append(_step("review", obligation, mapped,
+                               f"Review the evidence for {obligation}: {', '.join(methods)} not passed yet."))
+
+    # An open requirement always has a step, even when its reason is not one of the kinds above.
+    covered = set().union(*(step["requirements"] for step in steps))
+    for requirement in requirements:
+        if requirement.id not in covered:
+            steps.append(_step("review", requirement.id, {requirement.id},
+                               f"Resolve {requirement.id}: the report lists its open gaps."))
 
     unscreened = [item.family for item in bundle.family_screenings if item.applicability == "unresolved"]
     if unscreened:

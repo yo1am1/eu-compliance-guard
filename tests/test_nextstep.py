@@ -63,6 +63,29 @@ class NextStepTests(unittest.TestCase):
         steps = n.next_steps(v.verify_run(self.run_bundle()), top=10)
         self.assertEqual(sum(step["subject"] == fact["id"] for step in steps), 1)
 
+    def test_every_open_requirement_has_a_step_and_changed_evidence_asks_to_ground_again(self):
+        fact = next(item for item in self.payload["scope"]["roles"] if item["basis"] == "declared")
+        fact["evidence_ids"] = ["evidence-example"]
+        for requirement in self.payload["requirements"]:
+            requirement["fact_refs"] = [{"id": fact["id"], "revision": fact["revision"]}]
+        (self.root / "revalidation-synthetic/evidence.txt").write_bytes(b"changed after the declaration")
+        bundle = v.verify_run(self.run_bundle())
+        steps = n.next_steps(bundle, top=100)
+        open_ids = {item.requirement.id for item in bundle.requirement_assessments if item.state != "supported"}
+        self.assertTrue(open_ids)
+        self.assertLessEqual(open_ids, set().union(*(step["requirements"] for step in steps)))
+        again = [step for step in steps if step["kind"] == "fact" and step["subject"] == fact["id"]]
+        self.assertEqual(len(again), 1)
+        self.assertIn("again", again[0]["action"])
+
+    def test_targets_the_fetch_refuses_are_never_offered_for_retrieval(self):
+        target = dict(self.payload["source_targets"][0], id="target-national", intended_type="national_act",
+                      intended_url="https://www.legifrance.gouv.fr/example", intended_identifier="FICTIONAL-FR")
+        self.payload["source_targets"].append(target)
+        steps = n.next_steps(v.verify_run(self.run_bundle()), top=100)
+        self.assertFalse([step for step in steps if step["kind"] == "retrieve"])
+        self.assertTrue([step for step in steps if step["kind"] == "source" and step["subject"] == "target-national"])
+
     def test_cli_uses_the_newest_completed_run_and_reports_missing_runs(self):
         older = self.run_bundle("run-20261025T000000Z")
         newer = self.run_bundle("run-20261026T000000Z")

@@ -17,7 +17,7 @@ export type RunSummary = {
 }
 
 export type NextStep = {
-  kind: 'retrieve' | 'fact' | 'source' | 'applicability' | 'mapping' | 'family'
+  kind: 'retrieve' | 'fact' | 'source' | 'applicability' | 'mapping' | 'review' | 'family'
   subject: string
   unblocks: number
 }

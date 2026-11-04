@@ -90,7 +90,7 @@ export function daysOld(date: string, nowMs: number): number | null {
   return Number.isNaN(at) ? null : Math.max(0, Math.floor((nowMs - at) / 86_400_000))
 }
 
-const KINDS = ['retrieve', 'fact', 'source', 'applicability', 'mapping', 'family'] as const
+const KINDS = ['retrieve', 'fact', 'source', 'applicability', 'mapping', 'review', 'family'] as const
 
 // Parses `next --json` output into fixed-format steps; free-text actions never reach the band.
 export function parseSteps(dir: string, text: string): NextSteps | null {
@@ -123,6 +123,7 @@ export function describeStep(step: NextStep): string {
     source: `Read and approve the ${words(step.subject)} text`,
     applicability: `Decide whether ${words(step.subject)} applies`,
     mapping: `Link ${words(step.subject)} to a legal duty`,
+    review: `Review the evidence for ${words(step.subject)}`,
     family: 'Check which areas of EU law apply',
   }[step.kind]
   return `${what} · unblocks ${step.unblocks} open requirement${step.unblocks === 1 ? '' : 's'}`
