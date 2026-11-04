@@ -99,6 +99,53 @@ class AuthoringTests(unittest.TestCase):
                 self.assertEqual(report["errors"][0]["at"], at)
                 self.assertIn(problem, report["errors"][0]["problem"])
 
+    def test_identifiers_with_colons_keep_the_json_location(self):
+        for identity in ("fact-unknown", "fact:x"):
+            payload = deepcopy(self.payload)
+            payload["scope"]["roles"][2].update(id=identity, evidence_ids=["nope"])
+            with self.subTest(identity=identity):
+                self.assertEqual(self.check(payload)["errors"],
+                                 [{"at": "scope.roles[2].evidence_ids", "problem": "unknown reference nope"}])
+
+    def test_bound_and_scope_problems_name_their_json_location(self):
+        def activity(index):
+            return {"id": f"activity-{index}", "purpose": "Fictional processing", "subjects": [], "data_categories": [],
+                    "roles": [], "lawful_basis": deepcopy(self.payload["scope"]["roles"][0]), "recipients": [],
+                    "locations": [], "stores": [], "retention": [], "evidence_owner": "Fictional owner"}
+
+        def evidence(index):
+            item = deepcopy(self.payload["evidence"][0])
+            item["evidence"]["id"] = f"evidence-{index}"
+            item["path"] = f"revalidation-synthetic/evidence-{index}.txt"
+            return item
+
+        provision = self.payload["obligations"][0]["source_provisions"][0]
+        cases = [
+            (lambda p: p["scope"].update(project_id="other"), "scope.project_id", "differs from the envelope project_id"),
+            (lambda p: p["scope"].update(activities=[activity(index) for index in range(101)]),
+             "scope.activities", "more than 100 processing activities"),
+            (lambda p: p["scope"].update(roles=[deepcopy(p["scope"]["roles"][0]) for _ in range(501)]),
+             "scope", "more than 500 fact occurrences"),
+            (lambda p: p["scope"]["roles"].append({**deepcopy(p["scope"]["roles"][0]), "value": "other"}),
+             "scope.roles[3]", "conflicting copies of fact identity fact-declared"),
+            (lambda p: p["evidence"].extend(evidence(index) for index in range(31)),
+             "evidence[31].path", "more than 32 distinct selected files"),
+            (lambda p: p["evidence"][0].update(path=p["sources"][0]["file"]["path"]),
+             "evidence[0].path", "conflicting selected file digests"),
+            (lambda p: p["obligations"][1].update(source_provisions=[deepcopy(provision) for _ in range(1001)]),
+             "obligations[1]", "record exceeds nested collection limit"),
+            (lambda p: p["obligations"][1]["source_provisions"][0].update(source_target_id="nowhere"),
+             "obligations[1].source_provisions[0].source_target_id", "unknown reference nowhere"),
+            (lambda p: p["requirements"][1].update(project_id="other"), "requirements[1].project_id",
+             "cross-project declaration (differs from the envelope project_id)"),
+            (lambda p: p.update(synthetic=False), "synthetic", "synthetic declarations require a synthetic envelope"),
+        ]
+        for change, at, problem in cases:
+            payload = deepcopy(self.payload)
+            change(payload)
+            with self.subTest(at=at):
+                self.assertEqual(self.check(payload)["errors"][:1], [{"at": at, "problem": problem}])
+
     def test_field_errors_json_errors_and_files_never_echo_values(self):
         payload = deepcopy(self.payload)
         payload["synthetic"] = SECRET

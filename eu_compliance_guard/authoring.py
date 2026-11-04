@@ -21,7 +21,6 @@ DEFAULT_PATH = ".eu-compliance-guard/declarations.json"
 MAX_PROBLEMS = 50
 ENCODING = "declarations must be UTF-8 JSON without a byte-order mark"
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
-LOCATED = re.compile(r"^[a-z_]+(?:\[\d+\]|\[\])?[^:]{0,200}: ")
 
 
 def starter(project_id: str, assessment_date: str | None = None, jurisdictions: list[str] | None = None,
@@ -173,10 +172,12 @@ def _check(path, previous) -> dict:
                 declared = m.parse_record(m.RevalidationInput, raw)
             except ValidationError as error:
                 for detail in error.errors(include_input=False, include_url=False):
-                    at, problem = _location(detail["loc"], detail["type"]), detail["msg"].removeprefix("Value error, ")
-                    # Cross-reference checks carry their own location: "<path>: <problem>".
-                    if at == "(document)" and LOCATED.match(problem):
-                        at, problem = problem.split(": ", 1)
+                    reason = detail.get("ctx", {}).get("error")
+                    if not detail["loc"] and isinstance(reason, m.LocatedProblem):
+                        # Cross-reference and bound checks carry their own JSON location.
+                        at, problem = reason.at, reason.problem
+                    else:
+                        at, problem = _location(detail["loc"], detail["type"]), detail["msg"].removeprefix("Value error, ")
                     errors.append({"at": at, "problem": problem})
                 return report
             try:
