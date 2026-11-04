@@ -119,6 +119,14 @@ class AuthoringTests(unittest.TestCase):
         self.assertIn("missing", next(item for item in self.check()["errors"] if item["at"] == "evidence[0].path")["problem"])
         self.assertIn("not found", a.check(self.root / "absent/declarations.json")["errors"][0]["problem"])
 
+    def test_byte_order_marks_and_utf16_are_reported_as_encoding_problems(self):
+        text = json.dumps(self.payload)
+        for name, raw in (("utf-8 bom", b"\xef\xbb\xbf" + text.encode()), ("utf-16", text.encode("utf-16")),
+                          ("utf-16-le without bom", text.encode("utf-16-le")), ("invalid utf-8", b"\xff" + text.encode())):
+            with self.subTest(encoding=name):
+                self.assertEqual(self.check(raw=raw)["errors"],
+                                 [{"at": "(file)", "problem": "declarations must be UTF-8 JSON without a byte-order mark"}])
+
     def test_official_and_unofficial_targets_and_cli_exit_codes(self):
         payload = deepcopy(self.payload)
         for identifier, url in (("target-eurlex", "https://eur-lex.europa.eu/eli/reg/2016/679/oj"),

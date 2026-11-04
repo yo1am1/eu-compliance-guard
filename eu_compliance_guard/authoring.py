@@ -5,6 +5,7 @@ declared values, file contents or evidence. Checking is not a legal assessment.
 """
 from __future__ import annotations
 
+import codecs
 from datetime import date
 import json
 import os
@@ -17,6 +18,7 @@ from . import models as m, revalidation as r
 
 DEFAULT_PATH = ".eu-compliance-guard/declarations.json"
 MAX_PROBLEMS = 50
+ENCODING = "declarations must be UTF-8 JSON without a byte-order mark"
 FIELD = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 LOCATED = re.compile(r"^[a-z_]+(?:\[\d+\]|\[\])?[^:]{0,200}: ")
@@ -119,14 +121,20 @@ def check(path: str | os.PathLike, previous: str | os.PathLike | None = None) ->
                 errors.append({"at": "(file)", "problem": "declarations file is " + observed.availability})
                 return report
             raw = observed.content
+            # json.loads(bytes) would silently accept a byte-order mark or UTF-16/32, which the
+            # record parser then rejects at line 1, column 1. JSON text never holds a raw NUL byte.
+            if raw.startswith(codecs.BOM_UTF8) or b"\x00" in raw:
+                errors.append({"at": "(file)", "problem": ENCODING})
+                return report
             try:
                 r._check_json_depth(raw)
-                json.loads(raw, object_pairs_hook=r._pairs, parse_float=r._finite, parse_constant=r._reject_constant)
+                json.loads(raw.decode("utf-8"), object_pairs_hook=r._pairs, parse_float=r._finite,
+                           parse_constant=r._reject_constant)
             except json.JSONDecodeError as error:
                 errors.append({"at": f"line {error.lineno}, column {error.colno}", "problem": "invalid JSON: " + error.msg})
                 return report
             except UnicodeDecodeError:
-                errors.append({"at": "(file)", "problem": "declarations must be UTF-8 JSON"})
+                errors.append({"at": "(file)", "problem": ENCODING})
                 return report
             except r.RevalidationError as error:
                 errors.append({"at": "(document)", "problem": "JSON nesting deeper than 32 levels" if error.code == "capacity-exceeded"
