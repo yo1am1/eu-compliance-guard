@@ -76,6 +76,12 @@ class ArticleTests(unittest.TestCase):
         self.assertEqual(parsed, a.parse(text, "text/plain"))
         self.assertEqual(parsed["Article 1"], {"title": "Fictional subject-matter", "text": "Body one."})
 
+    def test_media_types_match_without_regard_to_case(self):
+        text = b"Article 1\nFictional title\nBody.\n"
+        self.assertEqual(a.parse(text, "TEXT/PLAIN"), {"Article 1": {"title": "Fictional title", "text": "Body."}})
+        self.assertEqual(a.parse(XHTML, "Application/XHTML+XML"), a.parse(XHTML, "application/xhtml+xml"))
+        self.assertEqual(list(a.parse(b"<p>Article 1</p><p>Fictional title</p><p>Body.</p>", "Text/HTML")), ["Article 1"])
+
     def test_locators_normalise_to_article_keys(self):
         self.assertEqual(a.article_key("Article 9(2)(a)"), "Article 9")
         self.assertEqual(a.article_key("Art. 17"), "Article 17")

@@ -133,6 +133,7 @@ def parse(content: bytes, media_type: str) -> dict[str, dict]:
         text = content.decode("utf-8-sig")  # a leading byte order mark is not part of the first line
     except UnicodeDecodeError:
         return {}
+    media_type = media_type.lower()  # media types are case-insensitive; admission accepts any case
     if media_type in ("text/html", "application/xhtml+xml"):
         parser = _Paragraphs()
         try:
