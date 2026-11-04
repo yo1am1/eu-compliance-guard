@@ -162,7 +162,7 @@ It holds the scope and facts, requirements, source targets, selected sources,
 candidate obligations, applicability decisions, evidence references and reviews.
 
 File paths resolve relative to the declarations file, or to the project folder (its
-parent) when `"files_root": "project"`, which `init` sets. Only explicitly selected
+parent) when `"files_root": "project"`, which `init` sets for the default `.eu-compliance-guard/` folder (elsewhere it sets `"declarations_dir"`). Only explicitly selected
 regular files are read; nothing is discovered, crawled or executed. Facts keep their
 basis (`declared`, `observed`, `assumed`, `unknown`). Changing a versioned record
 requires a higher `revision`; `check` names the exact location of a stale pin.

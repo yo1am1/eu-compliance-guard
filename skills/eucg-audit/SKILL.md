@@ -50,7 +50,7 @@ Use the CLI command from the SessionStart context, written `<cli>` below, or
 
 ## Ground the assumptions in the code
 
-`init` sets `"files_root": "project"`, so selected paths resolve from the project folder.
+With the default path, `init` sets `"files_root": "project"`, so selected paths resolve from the project folder.
 Run `<cli> ground`. For each assumed or unknown fact it lists ranked `file:line`
 candidates from a local index (no network, no model), flags organisational facts that
 code can never show, and lists possible touchpoints that no fact covers.

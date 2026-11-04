@@ -54,6 +54,23 @@ class AuthoringTests(unittest.TestCase):
         code, _, stderr = self.cli("init", "--project-id", "bad id!", "--path", str(self.root / "x.json"))
         self.assertEqual(code, 2)
         self.assertFalse((self.root / "x.json").exists())
+        self.assertEqual(record.files_root, "project")
+
+    def test_init_outside_the_dedicated_folder_resolves_files_beside_the_declarations(self):
+        path = self.root / "project/decl.json"
+        self.assertEqual(self.cli("init", "--project-id", "shop", "--path", str(path))[0], 0)
+        self.assertEqual(m.parse_record(m.RevalidationInput, path.read_bytes()).files_root, "declarations_dir")
+
+    def test_init_rejects_an_empty_date_and_symlinked_folders(self):
+        code, _, stderr = self.cli("init", "--project-id", "shop", "--path", str(self.root / "d.json"), "--assessment-date", "")
+        self.assertEqual(code, 2)
+        self.assertFalse((self.root / "d.json").exists())
+        (self.root / "real").mkdir()
+        (self.root / "link").symlink_to(self.root / "real")
+        code, _, stderr = self.cli("init", "--project-id", "shop", "--path", str(self.root / "link/sub/d.json"))
+        self.assertEqual(code, 2)
+        self.assertIn("unsafe-path", stderr)
+        self.assertFalse((self.root / "real/sub").exists())
 
     def test_valid_fixture_reports_counts_files_targets_and_warnings(self):
         report = self.check()

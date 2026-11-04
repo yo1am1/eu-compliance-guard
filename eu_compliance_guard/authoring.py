@@ -23,14 +23,14 @@ LOCATED = re.compile(r"^[a-z_]+(?:\[\d+\]|\[\])?[^:]{0,200}: ")
 
 
 def starter(project_id: str, assessment_date: str | None = None, jurisdictions: list[str] | None = None,
-            synthetic: bool = False) -> m.RevalidationInput:
+            synthetic: bool = False, files_root: str = "project") -> m.RevalidationInput:
     """The smallest valid declaration: scope only, every register empty and therefore an explicit gap."""
     return m.RevalidationInput.model_validate({
         "schema_version": 1, "project_id": project_id, "synthetic": synthetic,
         "declaration_run_id": "declarations", "declaration_manifest_id": "declarations",
-        "files_root": "project",
+        "files_root": files_root,
         "scope": {"id": "scope", "revision": 0, "project_id": project_id,
-                  "assessment_date": assessment_date or date.today().isoformat(), "environment": "production",
+                  "assessment_date": date.today().isoformat() if assessment_date is None else assessment_date, "environment": "production",
                   "activities": [], "establishment": [], "markets": [], "customer_types": [], "roles": [],
                   "size_and_sector": [], "jurisdictions": jurisdictions or ["EU"], "included_scenarios": [],
                   "exclusions": [], "permission_id": "declared-scope"},
@@ -39,8 +39,14 @@ def starter(project_id: str, assessment_date: str | None = None, jurisdictions: 
 
 def init(path: str | os.PathLike, project_id: str, **options) -> Path:
     """Write a starter declaration; an existing file is never replaced."""
-    record = starter(project_id, **options)
     path = Path(path)
+    # Paths resolve against the project (the parent) only for the dedicated subfolder;
+    # anywhere else that parent could be a folder of several projects.
+    root = "project" if path.parent.name == ".eu-compliance-guard" else "declarations_dir"
+    record = starter(project_id, files_root=root, **options)
+    absolute = Path(os.path.abspath(path.parent))
+    if any(item.is_symlink() for item in (absolute, *absolute.parents)):
+        raise r.RevalidationError("unsafe-path")
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o644)
