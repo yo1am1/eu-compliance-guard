@@ -233,12 +233,16 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
     cited = {ref for item in declared.evidence for ref in item.evidence.source_refs}
     unobservable = not_observable(declared.scope)
     results, covered = [], set()
+    terms_at = {f"{line.path}:{line.number}": line.terms for line in index.lines}
     for fact in facts.values():
         if fact.basis not in ("assumed", "unknown") and not fact.conflicts:
             continue
         observable = fact.id not in unobservable
-        candidates = search(index, _fact_query(fact), top) if observable else []
-        covered.update(item["location"] for item in candidates)
+        query = _fact_query(fact)
+        candidates = search(index, query, top) if observable else []
+        # A candidate found only through concept vocabulary (gtag for a cookie fact) does not show
+        # the fact, so it stays listed as a touchpoint no fact covers.
+        covered.update(item["location"] for item in candidates if set(query) & set(terms_at[item["location"]]))
         results.append({"fact": fact.id, "key": fact.key, "basis": fact.basis, "observable": observable,
                         "candidates": candidates,
                         "next": ("confirm a candidate with --apply, or ask the owner" if candidates

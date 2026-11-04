@@ -82,10 +82,22 @@ class GroundingTests(unittest.TestCase):
         report = g.ground(self.declarations)
         facts = {item["fact"]: item for item in report["facts"]}
         self.assertEqual([item["location"] for item in facts["fact-tracking"]["candidates"]][:1], ["web/head.html:1"])
-        examples = [example for item in report["undeclared"] for example in item["examples"]]
-        self.assertFalse(any(example.startswith("web/head.html:1 ") for example in examples), examples)
         # Lines that name the fact's own terms still rank first.
         self.assertEqual(facts["fact-cookie-lifetime"]["candidates"][0]["location"], "app/web.py:2")
+
+    def test_a_concept_only_candidate_stays_an_uncovered_touchpoint(self):
+        (self.project / "web").mkdir()
+        (self.project / "web/head.html").write_text(
+            '<script>gtag("config", "G-FICTION"); hotjar.init(1234); mixpanel.init("fictional")</script>\n')
+        report = g.ground(self.declarations)
+        facts = {item["fact"]: item for item in report["facts"]}
+        # The cookie-lifetime fact offers the tracker line through the tracking vocabulary only ...
+        self.assertIn("web/head.html:1", [item["location"] for item in facts["fact-cookie-lifetime"]["candidates"]])
+        # ... which does not show a cookie lifetime, so no fact covers that tracker yet.
+        examples = [example for item in report["undeclared"] for example in item["examples"]]
+        self.assertTrue(any(example.startswith("web/head.html:1 ") for example in examples), examples)
+        # A candidate naming the fact's own terms is covered.
+        self.assertFalse(any(example.startswith("app/web.py:2 ") for example in examples), examples)
 
     def test_tokens_split_identifiers(self):
         self.assertEqual(g.tokens("response.set_cookie(maxAge=395)"), ["response", "set", "cookie", "max", "age", "395"])
