@@ -1,6 +1,6 @@
 [project]
 name = "eu-compliance-guard"
-version = "1.0.0"
+version = "1.1.0"
 description = "Read-only EU requirements-to-law revalidation CLI and Claude Code plugin"
 readme = "README.md"
 requires-python = ">=3.12"

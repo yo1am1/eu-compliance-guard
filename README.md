@@ -10,9 +10,10 @@ It is read-only and never gives a compliance verdict. A named human reviewer mak
 every legal decision, and the tool records who decided what, based on which sources
 and evidence. No real compliance audit is implied by any output, test or example.
 
-**Version 1.0.0.** This is the stable MVP of the read-only workflow: declarations,
-official-source retrieval, reports, predecessor revalidation and the Claude Code
-plugin. See the [changelog](CHANGELOG.md).
+**Version 1.1.0.** The read-only workflow (declarations, official-source retrieval,
+reports, predecessor revalidation and the Claude Code plugin), plus code-grounded
+facts, article text beside each reference, the next best step, a pull-request check
+and a side panel. See the [changelog](CHANGELOG.md).
 
 ## Quick start (Claude Code)
 

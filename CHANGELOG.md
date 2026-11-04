@@ -1,5 +1,55 @@
 # Changelog
 
+## 1.1.0 — 2026-11-04
+
+Grounded assumptions, article text and guidance on what to do next.
+
+### Added
+
+- **Grounding (`ground`):** a local, explainable index of the project's code (Okapi
+  BM25 over identifier-split tokens with a legal-concept lexicon; no network, model
+  or embeddings). It ranks `file:line` candidates for each assumed or unknown fact and
+  lists touchpoints no fact covers. `ground --apply FACT=PATH:LINE` pins a confirmed
+  technical fact as `observed`, with the file's digest as evidence; organisational
+  facts are refused. A later change to the file reopens the gap.
+- **Act text from the Publications Office:** `publications.europa.eu` (Cellar) joins
+  the fixed host registry as the sixth host, with the target's language tag sent as
+  `Accept-Language` and a same-host http→https redirect upgrade only for that host.
+- **Article text in the report:** each declared "Article N" reference expands to the
+  article's title and text from the act bytes the run retained. Each requirement
+  lists up to three articles to read, ranked by a local text search that bridges
+  everyday words to legal vocabulary. Both are labelled unreviewed candidates.
+- **Next best step (`next`, `/eucg-next`):** open steps ranked by how many open
+  requirements each one unblocks (retrieve text, confirm a fact, review a source,
+  decide applicability, map a requirement, screen families), in the CLI, the report,
+  the band and a skill that walks through step 1 without filling in review data.
+- **Pull-request check (`pr-check`, `/eucg-pr`):** deterministic screening of a
+  diff's added lines for legal concepts with candidate families, whether the
+  declarations mention each one, and evidence or requirements in changed files.
+  Markdown for a PR comment, JSON, and `--strict`. A GitHub Actions example keeps one
+  marked comment updated.
+- **Side panel (`/eucg-panel`, band Panel button):** a pane beside the chat with the
+  top three steps, the facts the owner still has to confirm and open gaps by area.
+
+### Changed
+
+- The band shows the next best step and has Next step and Panel buttons.
+- Report IDs wrap at hyphens.
+
+### Fixed (release review)
+
+- `ground --apply` never follows a planted temp-file symlink and reads declarations
+  without following links; a bare relative `--input` resolves the project root.
+- Oversized project files are skipped without being read whole.
+- Plain-text acts no longer open an article at a reference such as "Article 6(1)".
+- Source targets with an invalid language tag fail as `invalid-language` instead of
+  being fetched in English.
+- Diff paths can no longer break out of PR comment code spans; broad words alone no
+  longer count as a concept being mentioned.
+- The band ranks each run once, keeps a failed ranking instead of retrying every turn,
+  and never lets an older run's ranking replace the newest.
+- Skills never pin evidence or record review fields the owner did not give.
+
 ## 1.0.0 — 2026-11-03
 
 First stable MVP of the read-only requirements-to-law revalidation workflow.
