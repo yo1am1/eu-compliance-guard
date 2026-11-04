@@ -247,7 +247,9 @@ as new changes. A renewal recorded in the same run as another relevant change do
 count, because the review cannot be shown to follow that change: the run withdraws
 support and says so, and the reviews must be renewed again after that run.
 `check --previous` warns about withdrawn obligations and family screenings that the
-declarations do not renew yet. Any other new or changed review record, including one moved to a
+declarations do not renew yet. A family screening that the declarations set back to
+`unresolved` claims no support, so nothing is withdrawn from it; declaring an
+applicability again is a changed record that needs a fresh `reviewed_at`. Any other new or changed review record, including one moved to a
 renamed or re-added obligation, cannot carry support. An attestation dated after the
 run that reads it is always a review gap.
 

@@ -298,7 +298,8 @@ def renewal_problems(previous, declared, now: str | None = None) -> list[str]:
                             "decision and every evidence review a higher revision and a reviewed_at after that run, "
                             "or support stays withdrawn")
     for screening in declared.family_screenings:
-        if screening.family in families and ("family", screening.family) not in renewals:
+        if (screening.family in families and screening.applicability != "unresolved"
+                and ("family", screening.family) not in renewals):
             problems.append(f"Family {screening.family}: the predecessor withdrew this screening; renew it with a "
                             "reviewed_at after that run, or it stays withdrawn")
     return problems
@@ -443,11 +444,13 @@ def compare(previous, current, previous_digest):
             assessment["gaps"].append("Mapped historical dependencies changed or incomplete; renew review.")
             assessment["next_actions"].append("Obtain accountable review of the changed dependency comparison.")
     declared_families = {item.family for item in previous.declarations.family_screenings if item.applicability != "unresolved"}
-    screened = {item.family for item in current.declarations.family_screenings}
+    screened = {item.family: item.applicability for item in current.declarations.family_screenings}
     for screening in data["family_screenings"]:
         family = screening["family"]
-        if family not in screened:
-            continue  # No screening record to withdraw; a re-added one must be a renewal anyway.
+        if screened.get(family, "unresolved") == "unresolved":
+            # No record, or one that now declares no applicability, carries no support to withdraw;
+            # declaring support again is a changed record that needs a renewal anyway.
+            continue
         renewed = ("family", family) in renewals
         # Like obligations, the marker is carried whatever else leaves the screening unresolved now,
         # and support the predecessor declared is withdrawn even if it could not confirm it then.

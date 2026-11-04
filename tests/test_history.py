@@ -200,6 +200,35 @@ class HistoryTests(unittest.TestCase):
         self.save()
         self.assertEqual(family(r.run(self.input, self.root / "fam-4", previous=self.root / "fam-3")), "applicable")
 
+    def test_a_screening_declared_unresolved_again_withdraws_nothing(self):
+        decision = self.payload["applicability_decisions"][0]
+        self.payload["family_screenings"] = [{
+            "family": "gdpr", "synthetic": True, "scope": decision["scope"], "assessment_date": decision["assessment_date"],
+            "applicability": "applicable", "rationale": "Fictional screening.", "fact_refs": decision["fact_refs"],
+            "source_refs": [{"id": "source-example", "revision": 0}], "reviewer": "Fictional reviewer",
+            "reviewed_at": decision["reviewed_at"], "gaps": []}]
+        self.save()
+        screening = lambda bundle: next(item for item in bundle.family_screenings if item.family == "gdpr")
+        self.assertEqual(screening(r.run(self.input, self.root / "unres-1")).applicability, "applicable")
+        self.payload["family_screenings"][0].update(applicability="unresolved", reviewer=None, reviewed_at=None)
+        self.save()
+        for name, previous in (("unres-2", "unres-1"), ("unres-3", "unres-2")):
+            bundle = r.run(self.input, self.root / name, previous=self.root / previous)
+            with self.subTest(run=name):
+                self.assertEqual(screening(bundle).applicability, "unresolved")
+                self.assertNotIn(h.FAMILY_WITHDRAWN_GAP, screening(bundle).gaps)
+                self.assertFalse([gap for gap in bundle.gaps if h.FAMILY_WITHDRAWN_GAP in gap])
+        declared = r.load_input(self.input)
+        problems = h.renewal_problems(h.load_run(self.root / "unres-3")[0], declared)
+        self.assertFalse([problem for problem in problems if problem.startswith("Family ")])
+        # Declaring support again with the old review date is a changed record, not a renewal.
+        self.payload["family_screenings"][0].update(applicability="applicable", reviewer="Fictional reviewer",
+                                                    reviewed_at=decision["reviewed_at"])
+        self.save()
+        again = screening(r.run(self.input, self.root / "unres-4", previous=self.root / "unres-3"))
+        self.assertEqual(again.applicability, "unresolved")
+        self.assertIn(h.FAMILY_WITHDRAWN_GAP, again.gaps)
+
     def test_family_withdrawal_is_carried_while_the_screening_is_unresolved_for_another_reason(self):
         from datetime import datetime, timedelta, timezone
 
