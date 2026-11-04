@@ -58,6 +58,7 @@ _MEDIA = re.compile(r"^[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+-]+$")
 _CHARSET = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
 FAILURES = {
     "synthetic-target-not-fetched": "Fictional fixture targets are never contacted.",
+    "invalid-language": "The target's language is not a plain language tag such as en or de, so it was not fetched.",
     "unsafe-url": "The URL is not a credential-free HTTPS URL on port 443.",
     "host-not-official": "The host is not in the reviewed official-source registry.",
     "redirect-host-not-official": "A selected redirect host is not in the reviewed official-source registry.",
@@ -270,7 +271,9 @@ def fetch(request: TargetRequest, transport, *, limit: int, deadline: float,
             raise RetrievalFailure("download-budget-exhausted")
         hosts = allowed_hosts(request)
         # Cellar refuses requests without a language; only a plain language tag is ever sent.
-        language = request.language if LANGUAGE.match(request.language) else "en"
+        if not LANGUAGE.fullmatch(request.language):
+            raise RetrievalFailure("invalid-language")
+        language = request.language
         url = request.url
         seen = {url}
         for hop in range(MAX_REDIRECTS + 1):

@@ -182,9 +182,11 @@ class FetchTests(unittest.TestCase):
             downgrade = FakeTransport(responses={(HOST, target_of(URL)): FakeResponse(302, [("Location", location)])})
             with self.subTest(location=location):
                 self.assertEqual(fetch(downgrade).failure, "unsafe-redirect")
-        odd = FakeTransport(responses={(HOST, target_of(URL)): FakeResponse(body=PAGE)})
-        s.fetch(s.TargetRequest("t", URL, language="en\r\nX: y"), odd, limit=1000, deadline=time.monotonic() + 30)
-        self.assertEqual(odd.languages, ["en"])
+        for language in ("en\r\nX: y", "en\n", "Deutsch"):
+            odd = FakeTransport(responses={(HOST, target_of(URL)): FakeResponse(body=PAGE)})
+            with self.subTest(language=language):
+                result = s.fetch(s.TargetRequest("t", URL, language=language), odd, limit=1000, deadline=time.monotonic() + 30)
+                self.assertEqual((result.failure, getattr(odd, "languages", [])), ("invalid-language", []))
 
     def test_public_to_private_redirect_is_refused_after_fresh_resolution(self):
         other = "https://curia.europa.eu/case"
