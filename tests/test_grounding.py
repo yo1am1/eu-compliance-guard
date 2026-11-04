@@ -136,6 +136,27 @@ class GroundingTests(unittest.TestCase):
         self.assertEqual((line.path, line.number), ("app/web.py", 6))
         self.assertNotIn("null", g._fact_query(m.Fact.model_validate(fact("f", "Cookie lifetime"))))
 
+    def test_regrounding_one_fact_keeps_others_stale_and_the_next_run_accepts_revisions(self):
+        data = json.loads(self.declarations.read_text())
+        data["scope"]["roles"].append(fact("fact-cookie-name", "Analytics cookie name"))
+        self.declarations.write_text(json.dumps(data, indent=2))
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+        g.apply(self.declarations, "fact-cookie-name", "app/web.py:2")
+        runs = Path(self.temporary.name) / "runs"
+        runs.mkdir(mode=0o700)
+        r.run(self.declarations, runs / "run-1")
+        web = self.project / "app/web.py"
+        web.write_text("# moved\n" + web.read_text())
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:3")
+        self.assertEqual(a.check(self.declarations, runs / "run-1")["valid"], True)
+        bundle = r.run(self.declarations, runs / "run-2", previous=runs / "run-1")
+        declared = {item.id: item for item in m.scope_facts(bundle.declarations.scope)}
+        [evidence] = bundle.declarations.evidence
+        self.assertEqual(evidence.evidence.source_refs, ["app/web.py:3"])
+        self.assertEqual(declared["fact-cookie-lifetime"].basis, "observed")
+        # The other fact was confirmed against the old bytes: it is a question again.
+        self.assertEqual((declared["fact-cookie-name"].basis, declared["fact-cookie-name"].evidence_ids), ("assumed", []))
+
     def test_oversized_files_are_skipped_without_reading_them_whole(self):
         (self.project / "dump.sql").write_bytes(b"cookie " * (g.MAX_FILE_BYTES // 7 + 10))
         index = g.build_index(self.project)

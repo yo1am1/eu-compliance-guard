@@ -245,16 +245,41 @@ def format_ground(report: dict) -> str:
     return "\n".join(lines)
 
 
+def _rewrite_pins(node, changes: dict[str, tuple[int, int]], top: bool = True) -> bool:
+    """Move {id, revision} pins inside a record (not the record itself) to the new revisions."""
+    changed = False
+    if isinstance(node, dict):
+        if not top and set(node) == {"id", "revision"} and node["id"] in changes and node["revision"] == changes[node["id"]][0]:
+            node["revision"] = changes[node["id"]][1]
+            return True
+        for value in node.values():
+            changed |= _rewrite_pins(value, changes, False)
+    elif isinstance(node, list):
+        for value in node:
+            changed |= _rewrite_pins(value, changes, False)
+    return changed
+
+
 def _bump_pins(data, kinds: dict[str, tuple[int, int]]) -> None:
-    """Update {id, revision} pins of the given ids in the fact/scope pin fields only."""
-    for name in ("requirements", "applicability_decisions", "family_screenings"):
-        for item in data.get(name, []):
-            for pin in item.get("fact_refs", []):
-                if pin["id"] in kinds and pin["revision"] == kinds[pin["id"]][0]:
-                    pin["revision"] = kinds[pin["id"]][1]
-            scope = item.get("scope")
-            if isinstance(scope, dict) and scope.get("id") in kinds and scope.get("revision") == kinds[scope["id"]][0]:
-                scope["revision"] = kinds[scope["id"]][1]
+    """Move every pin to the new revisions and raise the revision of each record whose pins moved.
+
+    A record that pins a changed record has changed too, so its own revision rises and the
+    records pinning it follow, until nothing moves (`check --previous` then accepts the file).
+    """
+    changes = dict(kinds)
+    while True:
+        moved = {}
+        for name, items in data.items():
+            if name == "scope" or not isinstance(items, list):
+                continue
+            for item in items:
+                if isinstance(item, dict) and _rewrite_pins(item, changes) and isinstance(item.get("revision"), int) \
+                        and isinstance(item.get("id"), str) and item["id"] not in changes:
+                    moved[item["id"]] = (item["revision"], item["revision"] + 1)
+                    item["revision"] += 1
+        if not moved:
+            return
+        changes.update(moved)
 
 
 def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None = None) -> m.RevalidationInput:
@@ -309,9 +334,10 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
             "manifest_id": data["declaration_manifest_id"], "media_type": "text/plain", "redaction": "safe",
             "availability": "available", "retention_until": None, "source_refs": [], "browser_context": None}}
         data["evidence"].append(selected)
+    # One record per file (one digest per path). When the file changed, the other facts pinned to
+    # it were confirmed against bytes that no longer exist: they go back to assumed, to be grounded again.
+    renewed = selected["evidence"]["digest"] != digest
     selected["evidence"].update(digest=digest, captured_at=now)
-    if location not in selected["evidence"]["source_refs"]:
-        selected["evidence"]["source_refs"].append(location)
     revisions = {fact.id: (fact.revision, fact.revision + 1),
                  declared.scope.id: (declared.scope.revision, declared.scope.revision + 1)}
     scope = data["scope"]
@@ -320,6 +346,16 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
     for activity in scope.get("activities", []):
         copies += [activity["lawful_basis"], *(item for key in ("roles", "recipients", "locations", "stores", "retention")
                                                for item in activity.get(key, []))]
+    if renewed:
+        selected["evidence"]["source_refs"] = []
+        for copy in copies:
+            if copy["id"] != fact.id and evidence_id in copy.get("evidence_ids", []):
+                old = facts[copy["id"]].revision
+                revisions[copy["id"]] = (old, old + 1)
+                copy.update(revision=old + 1, basis="assumed",
+                            evidence_ids=[item for item in copy["evidence_ids"] if item != evidence_id])
+    if location not in selected["evidence"]["source_refs"]:
+        selected["evidence"]["source_refs"].append(location)
     for copy in copies:
         if copy["id"] == fact.id:
             copy.update(revision=fact.revision + 1, basis="observed", observed_at=now,
