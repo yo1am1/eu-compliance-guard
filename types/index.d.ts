@@ -11,6 +11,13 @@ export type RunSummary = {
   attempts: { retrieved: number; total: number }
 }
 
+export type NextStep = {
+  dir: string
+  kind: 'retrieve' | 'fact' | 'source' | 'applicability' | 'mapping' | 'family'
+  subject: string
+  unblocks: number
+}
+
 export type Band = {
   isActive: boolean
   level: string
@@ -21,6 +28,6 @@ export type Band = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'eu-compliance-guard': { band: Band; isFolded: boolean; lastView: string | null }
+    'eu-compliance-guard': { band: Band; isFolded: boolean; lastView: string | null; next: NextStep | null }
   }
 }

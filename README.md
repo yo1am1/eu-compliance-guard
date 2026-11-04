@@ -42,15 +42,18 @@ In your project:
 | `/eucg [lite\|full\|strict\|off]` | Mode: notices EU legal touchpoints while coding and keeps declarations and gaps explicit |
 | `/eucg-review [target]` | Maps a diff to the eleven candidate legal families and the facts to declare |
 | `/eucg-audit [--fetch-official] [--previous <run>]` | Prepares declarations, runs the private report and ranks what needs attention |
+| `/eucg-next` | Walks through the step that unblocks the most open requirements |
 | `/eucg-gaps` | Ledger of open review gaps from the latest run |
 | `/eucg-status` | The latest run at a glance |
 | `/eucg-help` | Reference card |
 
 **Band above the prompt.** This needs Claude Code 2.1.290 or later, in the terminal or
 the desktop app. In projects with `.eu-compliance-guard/`, it shows the latest run's
-state, open gaps, supported requirements, assessment-date age and source attempts. It
-has **Audit**, **Review diff**, **Gaps**, **Open report** and **Help** buttons, and `–`
-folds it to one line. It shows counts and fixed-format fields only, never gap text.
+state, open gaps, supported requirements, assessment-date age and source attempts, plus
+the next best step (for example `Next: confirm fact-minimum-age · unblocks 2 open
+requirements`). It has **Next step**, **Audit**, **Review diff**, **Gaps**, **Open report**
+and **Help** buttons, and `–` folds it to one line. It shows counts and fixed-format
+fields only, never gap text.
 
 **Open report** writes a static HTML view of the verified run and opens it in your
 browser. The page has no scripts, loads nothing and escapes every value. When the run
@@ -81,6 +84,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `revalidate --input <file> --output <new run dir> [--offline \| --fetch-official] [--previous <run dir>]` | Assemble and publish a private run |
 | `ground [--input <file>] [--top N] [--json] [--apply <fact>=<path>:<line>]…` | Rank code evidence for each assumed or unknown fact with a local index. `--apply` marks a confirmed technical fact `observed`, pinned to that file's digest |
 | `state-dir [--input <file>]` | Print and create (0700) the private run storage for the declared `project_id` |
+| `next [--run <run dir>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
 | `view --run <run dir> [--open]` | Verify a run and write `<parent>/views/<run>.html`; optionally open it |
 
 ```sh

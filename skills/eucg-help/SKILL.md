@@ -26,6 +26,7 @@ write files or run the CLI.
 | **eucg** | `/eucg` | The mode itself: notice touchpoints, keep declarations and gaps explicit. |
 | **eucg-review** | `/eucg-review` | Maps a diff to the eleven candidate families and the facts to declare. |
 | **eucg-audit** | `/eucg-audit` | Prepares declarations, runs the private report and ranks what needs attention. |
+| **eucg-next** | `/eucg-next` | Walks through the step that unblocks the most open requirements. |
 | **eucg-gaps** | `/eucg-gaps` | Ledger of open review gaps from the latest run. |
 | **eucg-status** | `/eucg-status` | The latest run at a glance. |
 | **eucg-help** | `/eucg-help` | This card. |
@@ -33,8 +34,8 @@ write files or run the CLI.
 ## Band and report view
 
 In Claude Code (terminal or desktop app), a band above the prompt shows the latest
-run: state, gaps, supported requirements and assessment age. It has buttons for
-Audit, Review diff, Gaps, Open report and Help, plus `–` to fold it. Open report
+run: state, gaps, supported requirements, assessment age and the next best step. It
+has buttons for Next step, Audit, Review diff, Gaps, Open report and Help, plus `–` to fold it. Open report
 writes a static HTML view of the verified run and opens it in your browser.
 
 ## CLI
@@ -48,6 +49,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 - Runs are private (0700/0600) and immutable. Use a new directory per run.
 - Exit 0: report written, possibly partial. Exit 2: invalid input or output.
 - `ground [--apply <fact>=<path>:<line>]` finds code evidence for assumed facts with a local index and pins confirmed technical facts as observed.
+- `next [--run <run dir>] [--top N] [--json]` ranks the open steps of the newest (or given) run by how many open requirements each unblocks.
 - `state-dir` prints (and creates, 0700) the private run storage for this project's `project_id`.
 - `view --run <run dir> [--open]` writes
   `<parent>/views/<run>.html` from a verified run (the run itself is unchanged).

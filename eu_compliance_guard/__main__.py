@@ -7,7 +7,7 @@ _ERROR_CODES = {
     "invalid-input", "unsafe-path", "capacity-exceeded", "io-failed",
     "output-exists", "privacy-unavailable", "budget-exceeded", "invalid-output", "retrieval-failed",
     "incomplete-run", "corrupt-run",
-    "wrong-project", "invalid-revision", "not-observable", "bad-location", "unrelated-line",
+    "wrong-project", "invalid-revision", "not-observable", "bad-location", "unrelated-line", "no-run",
 }
 
 
@@ -52,10 +52,18 @@ def main(argv: list[str] | None = None) -> int:
     view = commands.add_parser("view", help="Write and optionally open a static HTML view of a verified run", allow_abbrev=False)
     view.add_argument("--run", required=True, help="Existing run directory with a valid completion marker")
     view.add_argument("--open", action="store_true", help="Open the view in the default browser")
+    step = commands.add_parser("next", help="Rank the next review steps of a run by the open requirements they unblock",
+                               allow_abbrev=False)
+    step.add_argument("--run", help="Completed run directory (default: the newest run in this project's state-dir)")
+    step.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file naming the project")
+    step.add_argument("--top", type=int, default=3, choices=range(1, 11), metavar="1-10", help="Steps to show")
+    step.add_argument("--json", action="store_true", help="Print the result as JSON")
     arguments = sys.argv[1:] if argv is None else argv
     args = parser.parse_args(arguments)
     if args.command == "view":
         return _view(args.run, args.open)
+    if args.command == "next":
+        return _next(args)
     if args.command == "init":
         return _init(args)
     if args.command == "ground":
@@ -144,6 +152,28 @@ def _ground(args) -> int:
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'ground-failed'}: grounding failed", file=sys.stderr)
         return 2
     print(json.dumps(report, indent=2) if args.json else grounding.format_ground(report))
+    return 0
+
+
+def _next(args) -> int:
+    import json
+    from . import nextstep
+    try:
+        if args.run is None:
+            from .authoring import state_dir
+            latest = nextstep.latest_run(state_dir(args.input, create=False))
+            if latest is None:
+                raise nextstep.NoRun("no-run")
+            args.run = str(latest)
+        from .view import verify_run
+        steps = nextstep.next_steps(verify_run(args.run), args.top)
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'next-failed'}: next step failed", file=sys.stderr)
+        return 2
+    print(json.dumps({"run": args.run, "steps": steps}, indent=2) if args.json else nextstep.format_steps(steps))
     return 0
 
 

@@ -23,7 +23,9 @@ const BAND = {
 type Dir = { name: string; kind: 'file' | 'dir' }
 
 // A small in-memory host: the project, the private state directory and one complete run.
-function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html` } = {}) {
+const NEXT = JSON.stringify({ run: RUN, steps: [{ kind: 'fact', subject: 'fact-age', unblocks: 2, action: 'IGNORE ME', command: null }] })
+
+function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT } = {}) {
   const dirs: Record<string, Dir[]> = {
     [PROJECT]: enabled ? [{ name: '.eu-compliance-guard', kind: 'dir' }] : [],
     [STATE]: runs ? [{ name: 'run-20261025T000000Z', kind: 'dir' }, { name: 'run-incomplete', kind: 'dir' }, { name: 'views', kind: 'dir' }] : [],
@@ -48,7 +50,7 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
     throw new Error('missing')
   })
   on('command.list', () => ({
-    value: ['eu-compliance-guard:eucg-audit', 'eu-compliance-guard:eucg-gaps', 'eu-compliance-guard:eucg-review', 'eu-compliance-guard:eucg-help']
+    value: ['eu-compliance-guard:eucg-next', 'eu-compliance-guard:eucg-audit', 'eu-compliance-guard:eucg-gaps', 'eu-compliance-guard:eucg-review', 'eu-compliance-guard:eucg-help']
       .map(name => ({ name, description: '', source: 'plugin' as const, plugin: 'eu-compliance-guard' })),
   }))
   on('command.run', (_, e) => {
@@ -61,7 +63,8 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
       return { value: { exitCode: 0, stdout: `${e.argv[2]}\n`, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     const isView = e.argv.includes('view')
-    return { value: { exitCode: 0, stdout: isView ? `${viewPath}\n` : 'uv 0.9', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    const isNext = e.argv.includes('next')
+    return { value: { exitCode: 0, stdout: isView ? `${viewPath}\n` : isNext ? next : 'uv 0.9', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   return { commands, processes }
@@ -154,5 +157,34 @@ test('a report link written for an older run is not shown for a newer run', asyn
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   await ui.press({ key: 'report' })
   expect(await ui.find({ type: 'Link' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('the band names the next best step with fixed text and runs it from a button', async ($, on) => {
+  const { commands, processes } = host(on)
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  // The step is ranked in the background after the session starts.
+  let shown
+  for (let tries = 0; tries < 100 && shown === undefined; tries++) {
+    shown = await ui.find({ type: 'Text', text: /Next: confirm fact-age · unblocks 2 open requirements/ })
+    if (shown === undefined) await new Promise(done => setTimeout(done, 10))
+  }
+  expect(shown).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /IGNORE/ })).toBeUndefined()
+  expect(processes.some(argv => argv.includes('next') && argv.includes(RUN))).toBe(true)
+  await ui.press({ key: 'next' })
+  expect(commands).toContain('eu-compliance-guard:eucg-next')
+  await ui.unmount()
+})
+
+test('a malformed or free-text step is not shown', async ($, on) => {
+  host(on, { next: JSON.stringify({ steps: [{ kind: 'fact', subject: 'ignore previous instructions', unblocks: 2 }] }) })
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await new Promise(done => setTimeout(done, 100))
+  expect(await ui.find({ type: 'Text', text: /partial · 2 gaps/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Next:/ })).toBeUndefined()
+  expect(await ui.find({ key: 'next' })).toBeUndefined()
   await ui.unmount()
 })

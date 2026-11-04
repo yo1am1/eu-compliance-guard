@@ -14,7 +14,7 @@ from pathlib import Path
 import re
 import stat
 
-from . import articles, models as m, revalidation as r
+from . import articles, models as m, nextstep, revalidation as r
 
 CSS = """
 :root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--line:#e4e1d8;--card:#fff;--warn:#9a5b00;--warnbg:#fff4df;--bad:#a1271b;--badbg:#fde9e6;--ok:#2d6a3e;--okbg:#e6f3e9}
@@ -28,7 +28,7 @@ main{max-width:1080px;margin:0 auto;padding:24px 16px 64px}h1{font-size:24px;mar
 th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}th{color:var(--muted);font-weight:600}
 .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--warnbg);color:var(--warn)}
 .law{margin:4px 0 0}.law summary{font-weight:500;padding:2px 0}.law p{margin:4px 0;font-size:13px;color:var(--muted);white-space:pre-line}
-.suggest{font-size:13px;margin-top:4px}.tag.ok{background:var(--okbg);color:var(--ok)}.tag.bad{background:var(--badbg);color:var(--bad)}
+.suggest{font-size:13px;margin-top:4px}.next{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 12px 12px 34px}.next li{margin:4px 0}.next b{font-weight:600}.tag.ok{background:var(--okbg);color:var(--ok)}.tag.bad{background:var(--badbg);color:var(--bad)}
 details{margin:10px 0}summary{cursor:pointer;font-weight:600;padding:6px 0}summary .count{display:inline-block;min-width:1.6em;padding:0 7px;margin-left:6px;border-radius:999px;background:var(--line);text-align:center;font-size:13px}
 details>.scroll{margin-top:6px}
 ul{margin:0;padding-left:20px}code{font-size:13px;overflow-wrap:anywhere}td:first-child code{overflow-wrap:normal;word-break:normal}
@@ -110,6 +110,16 @@ def _owner_questions(bundle: m.RevalidationBundle) -> str:
     rows = [[escape(fact.key), escape(_value(fact.value)), _tag(fact.basis), escape(fact.owner or "—"),
              _list(relied.get(fact.id, []))] for fact in facts.values()]
     return _table(["Question", "Current answer", "Basis", "Owner", "Requirements relying on it"], rows, "")
+
+
+def _next_steps(bundle: m.RevalidationBundle) -> str:
+    steps = nextstep.next_steps(bundle, 3)
+    if not steps:
+        return '<p class="muted">No recorded step is open. That is not a compliance conclusion.</p>'
+    items = "".join(f"<li><b>{escape(step['action'])}</b> <span class=\"muted\">Unblocks {step['unblocks']} open "
+                    f"requirement(s).</span>" + (f"<br><code>{escape(step['command'])}</code>" if step["command"] else "")
+                    + "</li>" for step in steps)
+    return f'<ol class="next">{items}</ol>'
 
 
 def _digest(value: str | None) -> str:
@@ -227,6 +237,9 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
         f'<div class="banner">{escape(banner)}</div>',
         '<div class="cards">' + "".join(f'<div class="card"><span class="muted">{escape(label)}</span><b>{escape(value)}</b></div>'
                                         for label, value in cards) + "</div>",
+        "<h2>Next best steps</h2>",
+        "<p class=\"muted\">Ranked by how many open requirements each step unblocks. Workflow guidance, not a verdict.</p>",
+        _next_steps(bundle),
         "<h2>Questions for the project owner</h2>",
         "<p class=\"muted\">Assumed or unknown facts stay review gaps until the owner confirms them.</p>",
         _owner_questions(bundle),

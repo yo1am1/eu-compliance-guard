@@ -1,4 +1,4 @@
-import type { RunSummary } from '../../types'
+import type { NextStep, RunSummary } from '../../types'
 
 const SAFE = /^[A-Za-z0-9][A-Za-z0-9_.:+-]{0,127}$/
 
@@ -42,4 +42,34 @@ export function summarize(dir: string, text: string): RunSummary | null {
 export function daysOld(date: string, nowMs: number): number | null {
   const at = Date.parse(date + 'T00:00:00Z')
   return Number.isNaN(at) ? null : Math.max(0, Math.floor((nowMs - at) / 86_400_000))
+}
+
+const KINDS = ['retrieve', 'fact', 'source', 'applicability', 'mapping', 'family'] as const
+
+// Parses `next --json` output into a fixed-format step; free-text actions never reach the band.
+export function parseStep(dir: string, text: string): NextStep | null {
+  let value: any
+  try {
+    value = JSON.parse(text)
+  } catch {
+    return null
+  }
+  const step = Array.isArray(value?.steps) ? value.steps[0] : undefined
+  if (step === undefined || step === null || typeof step !== 'object') return null
+  if (!KINDS.includes(step.kind)) return null
+  const subject = step.subject === '' ? '' : SAFE.test(step.subject ?? '') ? step.subject : null
+  if (subject === null || !Number.isInteger(step.unblocks) || step.unblocks < 0 || step.unblocks > 100_000) return null
+  return { dir, kind: step.kind, subject, unblocks: step.unblocks }
+}
+
+export function describeStep(step: NextStep): string {
+  const what = {
+    retrieve: 'fetch official text',
+    fact: `confirm ${step.subject}`,
+    source: `review source ${step.subject}`,
+    applicability: `decide ${step.subject}`,
+    mapping: `map ${step.subject}`,
+    family: 'screen legal families',
+  }[step.kind]
+  return `Next: ${what} · unblocks ${step.unblocks} open requirement${step.unblocks === 1 ? '' : 's'}`
 }

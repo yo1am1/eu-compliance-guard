@@ -1,8 +1,8 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Band } from '../../types'
-import { daysOld, summarize } from './summary'
+import type { Band, NextStep } from '../../types'
+import { daysOld, describeStep, parseStep, summarize } from './summary'
 
 const LEVELS = ['lite', 'full', 'strict', 'off']
 const PROJECT_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/
@@ -10,6 +10,7 @@ const EMPTY: Band = { isActive: false, level: 'full', stateDir: '', run: null, p
 const band = atom({ plugin: 'eu-compliance-guard', key: 'band' } as const, EMPTY)
 const isFolded = atom({ plugin: 'eu-compliance-guard', key: 'isFolded' } as const, false)
 const lastView = atom({ plugin: 'eu-compliance-guard', key: 'lastView' } as const, null)
+const nextStep = atom({ plugin: 'eu-compliance-guard', key: 'next' } as const, null as NextStep | null)
 
 // The same default level the SessionStart hook reads: EUCG_DEFAULT_MODE, then the config file.
 async function readLevel($: EngineInterface, home: string): Promise<string> {
@@ -67,6 +68,31 @@ async function refresh($: EngineInterface): Promise<void> {
     }
   }
   await update($, band, () => ({ isActive, level, stateDir, run, problem }))
+  // Ranked once per run, in the background, so a slow interpreter start never holds the session.
+  if (run !== null && (await read($, nextStep))?.dir !== run.dir) void rankNext($, run.dir)
+}
+
+// Runs the plugin's own CLI: uv with the locked environment when available, else python3 on PYTHONPATH.
+// -P keeps the session's directory off sys.path, so a project's own package cannot stand in for the CLI.
+async function cli($: EngineInterface, args: string[], timeoutMs = 120_000) {
+  const root = $.plugin.root
+  const hasUv = await $.process.run(['uv', '--version']).then(r => r.exitCode === 0).catch(() => false)
+  const argv = hasUv
+    ? ['uv', 'run', '--project', root, '--locked', '--no-dev', 'python', '-P', '-m', 'eu_compliance_guard', ...args]
+    : ['python3', '-P', '-m', 'eu_compliance_guard', ...args]
+  return $.process.run(argv, { timeoutMs, ...(hasUv ? {} : { env: { PYTHONPATH: root } }) }).catch(() => undefined)
+}
+
+// The CLI refuses symlinked path components; a home folder may be one (for example /home -> /var/home).
+async function resolve($: EngineInterface, linked: string) {
+  const resolved = await $.process.run(['realpath', '--', linked]).catch(() => undefined)
+  return resolved?.exitCode === 0 && resolved.stdout.trim() !== '' ? resolved.stdout.trim() : linked
+}
+
+async function rankNext($: EngineInterface, dir: string) {
+  const result = await cli($, ['next', '--run', await resolve($, dir), '--json', '--top', '1'], 60_000)
+  const step = result?.exitCode === 0 ? parseStep(dir, result.stdout) : null
+  await update($, nextStep, () => step ?? null)
 }
 
 // Plugin skills may be listed bare or under the plugin's namespace.
@@ -82,18 +108,7 @@ async function runSkill($: EngineInterface, name: string) {
 
 // Writes the run's HTML view with the plugin's own CLI and opens it in the default browser.
 async function openReport($: EngineInterface, linked: string) {
-  const root = $.plugin.root
-  // The CLI refuses symlinked path components; a home folder may be one (for example /home -> /var/home).
-  const resolved = await $.process.run(['realpath', '--', linked]).catch(() => undefined)
-  const dir = resolved?.exitCode === 0 && resolved.stdout.trim() !== '' ? resolved.stdout.trim() : linked
-  const hasUv = await $.process.run(['uv', '--version']).then(r => r.exitCode === 0).catch(() => false)
-  // -P keeps the session's directory off sys.path, so a project's own package cannot stand in for the CLI.
-  const argv = hasUv
-    ? ['uv', 'run', '--project', root, '--locked', '--no-dev', 'python', '-P', '-m', 'eu_compliance_guard', 'view', '--run', dir, '--open']
-    : ['python3', '-P', '-m', 'eu_compliance_guard', 'view', '--run', dir, '--open']
-  const result = await $.process
-    .run(argv, { timeoutMs: 120_000, ...(hasUv ? {} : { env: { PYTHONPATH: root } }) })
-    .catch(() => undefined)
+  const result = await cli($, ['view', '--run', await resolve($, linked), '--open'])
   const path = result?.exitCode === 0 ? result.stdout.trim().split('\n').pop() ?? '' : ''
   if (path === '') {
     // stderr carries only the CLI's fixed safe code.
@@ -141,6 +156,8 @@ export const register: Register = on => {
       )
     }
     const view = await read($, lastView)
+    const step = await read($, nextStep)
+    const stepForRun = run && step?.dir === run.dir ? step : null
     // A view written for an older run must not stand for the newest run the band summarizes.
     const runName = run ? run.dir.replace(/\/+$/, '').split('/').pop() : null
     const viewForRun = view && runName && view.endsWith(`/views/${runName}.html`) ? view : null
@@ -157,8 +174,10 @@ export const register: Register = on => {
           {run ? <Text dimColor>{` · assessed ${run.assessmentDate}${age === null ? '' : ` (${age}d ago)`}`}</Text> : null}
           {run && run.attempts.total > 0 ? <Text dimColor>{` · sources ${run.attempts.retrieved}/${run.attempts.total} retrieved`}</Text> : null}
         </Text>
+        {stepForRun ? <Text color="cyan">{describeStep(stepForRun)}</Text> : null}
         <Box flexDirection="row" gap={1}>
-          <Button key="audit" label="Audit" variant="primary" hotkey="a" onPress={() => runSkill($, 'eucg-audit')} />
+          {stepForRun ? <Button key="next" label="Next step" variant="primary" hotkey="n" onPress={() => runSkill($, 'eucg-next')} /> : null}
+          <Button key="audit" label="Audit" variant={stepForRun ? undefined : 'primary'} hotkey="a" onPress={() => runSkill($, 'eucg-audit')} />
           <Button key="review" label="Review diff" hotkey="r" onPress={() => runSkill($, 'eucg-review')} />
           {run ? <Button key="gaps" label="Gaps" hotkey="g" onPress={() => runSkill($, 'eucg-gaps')} /> : null}
           {run ? <Button key="report" label="Open report" hotkey="o" onPress={() => openReport($, run.dir)} /> : null}
