@@ -134,6 +134,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `ground [--input <file>] [--top N] [--json] [--apply <fact>=<path>:<line>]…` | Rank code evidence for each assumed or unknown fact, and each fact whose pinned evidence changed, with a local index. `--apply` marks a confirmed technical fact `observed`, pinned to that file's digest |
 | `state-dir [--input <file>]` | Print and create (0700) the private run storage for the declared `project_id` |
 | `next [--run <run dir>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
+| `score [--run <run dir>] [--against <run dir>] [--top N] [--json]` | Show the review progress of the newest (or given) run: separate meters, points out of 10, never a compliance score. Exit 0 whatever the points |
 | `pr-check [--diff <file>\|-] [--input <file>] [--markdown\|--json] [--strict]` | Screen a diff's added lines for legal touchpoints, undeclared concepts and pinned evidence in changed files; `--strict` exits 1 when something needs attention |
 | `view --run <run dir> [--open]` | Verify a run and write `<parent>/views/<run>.html`; optionally open it |
 
@@ -264,6 +265,39 @@ shield them from a later change; reading exactly the declared bytes again is no 
 bytes establish only matching recorded inputs, never current law or renewed
 approval. Incomplete dependency attribution and any known change to family
 screenings withdraw support conservatively.
+
+### Review progress
+
+`score` (and the top of the HTML view, the band and the panel) shows how far the
+recorded review of one run has come. Each meter gives points out of 10 for one stage
+of the review chain. There is no total, sum or average, and no meter is a compliance
+score or verdict: they count recorded review steps of that run only. The decision is
+recorded in [`docs/decisions/dashboard-review-progress.md`](docs/decisions/dashboard-review-progress.md).
+
+Points for `done` of `total` items: "not scored" when nothing is declared, 0 only when
+none are closed, 10 only when all are, otherwise `10 × done ÷ total` rounded down and
+kept between 1 and 9. Each meter names how many more items raise it.
+
+| Meter | Counts | Raise it by |
+| --- | --- | --- |
+| Alignment | requirements the run records as supported | closing each requirement's named blockers (mapping, facts, evidence, origin, decisions, reviews) |
+| Law text | obligations whose every pin points at a listed locator of a selected source with no open source gap (duties need a binding source) | retrieving or downloading the official text, reviewing it as a source and pinning listed locators |
+| Facts | distinct declared facts that are declared or observed, without conflicts or changed evidence | `ground`, `ground --apply`, or the owner confirming organisational facts |
+| Decisions | obligations with an accepted `applicable` or `not_applicable` decision | recording accountable applicability decisions |
+| Mapping | requirements with at least one `obligation_refs` entry | mapping each requirement to a candidate obligation |
+| Reviews | non-technical review methods of obligations that may apply, recorded as complete | recording accountable evidence reviews |
+
+Alignment also shows a ceiling when this run cannot reach 10 for a structural
+reason: technical methods (this workflow never runs them) or real sources an offline
+run cannot confirm (`revalidate --fetch-official`). Unmapped or methodless
+requirements are blockers, not ceilings. The eleven legal families appear as a
+coverage line ("k of 11 families screened"), and record hygiene (requirements located
+in project files, requirements with evidence referenced, origins unchanged) as
+unscored counts. The status is one of `declarations incomplete`, `needs attention`
+(a reviewer recorded insufficient evidence, a change needs re-review, declared
+evidence or a requirement origin changed), `in review` or `recorded steps closed`;
+none of them is a verdict. `--against` adds point changes only when that run is the
+recorded parent and used the same tool version; the trend never changes the status.
 
 ### Grounding assumptions in the code
 

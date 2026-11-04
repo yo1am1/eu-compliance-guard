@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Review progress: `score` shows separate meters for one run (Alignment, Law text,
+  Facts, Decisions, Mapping, Reviews), each points out of 10 for recorded review
+  steps, with a family screening line and unscored record hygiene. There is no total
+  and no verdict; see `docs/decisions/dashboard-review-progress.md`.
+
 ## 1.2.0 — 2026-11-05
 
 Licence change and the Great Auditor fixes: 83 confirmed defects found by an agent

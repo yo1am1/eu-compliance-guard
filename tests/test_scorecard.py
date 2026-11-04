@@ -1,6 +1,8 @@
 """Review-progress scorecard on synthetic runs: points per meter, never a total or a verdict."""
 
+from contextlib import redirect_stderr, redirect_stdout
 from copy import deepcopy
+import io
 import json
 import os
 from pathlib import Path
@@ -12,6 +14,7 @@ from unittest.mock import patch
 from pydantic import ValidationError
 
 from eu_compliance_guard import history as h, models as m, revalidation as r, scorecard as s
+from eu_compliance_guard.__main__ import main
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "fixtures/revalidation-synthetic.json"
@@ -293,6 +296,82 @@ class ScorecardTests(unittest.TestCase):
             change(broken)
             with self.subTest(change=change), self.assertRaises(ValidationError):
                 m.parse_record(m.Scorecard, json.dumps(broken))
+
+
+class ScoreCliTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="eucg-score-cli-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.root.chmod(0o700)
+        (self.root / "revalidation-synthetic").mkdir()
+        for name in ("source.txt", "evidence.txt"):
+            (self.root / "revalidation-synthetic" / name).write_bytes((FIXTURE.parent / "revalidation-synthetic" / name).read_bytes())
+        self.input = self.root / "input.json"
+        self.input.write_text(FIXTURE.read_text())
+        self.state = self.root / "state"
+        self.state.mkdir(mode=0o700)
+
+    def cli(self, *argv, state=None):
+        out, err = io.StringIO(), io.StringIO()
+        with patch("eu_compliance_guard.authoring.state_dir", return_value=state or self.state), \
+                redirect_stdout(out), redirect_stderr(err):
+            code = main(["score", *argv])
+        return code, out.getvalue(), err.getvalue()
+
+    def test_text_and_json_describe_the_newest_run_and_exit_zero_whatever_the_points(self):
+        r.run(self.input, self.state / "run-20261025T000000Z")
+        newer = r.run(self.input, self.state / "run-20261026T000000Z")
+        code, out, err = self.cli()
+        self.assertEqual((code, err), (0, ""))
+        self.assertIn(f"run {newer.run.id}", out)
+        self.assertIn("Alignment  ■■■■■□□□□□  5/10  1 of 2 requirements supported  +5 pts: close 1 more", out)
+        self.assertIn("Screening: 0 of 11 families screened (not scored)", out)
+        self.assertTrue(out.startswith("FICTIONAL DATA"))
+        self.assertTrue(out.rstrip().endswith(m.SCORE_NOTICE))
+        self.assertEqual(banned_words(out), [])
+        code, out, err = self.cli("--json", "--top", "2")
+        self.assertEqual(code, 0)
+        result = json.loads(out)
+        self.assertEqual(result["run"], str(self.state / "run-20261026T000000Z"))
+        card = m.parse_record(m.Scorecard, json.dumps(result["scorecard"]))
+        self.assertEqual(points(card), [5, 10, 3, 5, 5, 5])
+        self.assertEqual(len(result["steps"]), 2)
+        self.assertEqual(result["steps"][0]["kind"], card.next_step.kind)
+
+    def test_against_a_run_that_is_not_the_parent_gives_no_deltas_and_no_error(self):
+        older = self.state / "run-20261025T000000Z"
+        r.run(self.input, older)
+        newer = self.state / "run-20261026T000000Z"
+        r.run(self.input, newer)
+        code, out, err = self.cli("--run", str(newer), "--against", str(older), "--json")
+        self.assertEqual((code, err), (0, ""))
+        trend = json.loads(out)["scorecard"]["trend"]
+        self.assertEqual((trend["comparable"], trend["reason"], trend["deltas"]), (False, "not_parent", []))
+        child = self.state / "run-20261027T000000Z"
+        r.run(self.input, child, previous=newer)
+        code, out, _ = self.cli("--run", str(child), "--against", str(newer))
+        self.assertEqual(code, 0)
+        self.assertIn("Since ", out)
+        self.assertIn("Alignment 5/10 → 5/10", out)
+
+    def test_missing_and_corrupt_runs_fail_with_fixed_codes(self):
+        empty = self.root / "empty"
+        empty.mkdir()
+        self.assertEqual(self.cli(state=empty), (2, "", "eu-compliance-guard: no-run: score failed\n"))
+        run = self.state / "run-20261025T000000Z"
+        r.run(self.input, run)
+        (run / "report.md").write_text("tampered")
+        code, out, err = self.cli("--run", str(run))
+        self.assertEqual((code, out), (2, ""))
+        self.assertEqual(err, "eu-compliance-guard: corrupt-run: score failed\n")
+        code, out, err = self.cli("--run", str(self.root / "nowhere"), "--json")
+        self.assertEqual((code, out), (2, ""))
+        self.assertTrue(err.startswith("eu-compliance-guard: ") and err.endswith(": score failed\n"))
+        self.assertNotIn(str(self.root), err)
+        with self.assertRaises(SystemExit) as caught, redirect_stderr(io.StringIO()):
+            main(["score", "--top", "0"])
+        self.assertEqual(caught.exception.code, 2)
 
 
 if __name__ == "__main__":

@@ -129,6 +129,14 @@ def _command(argv: list[str] | None) -> int:
     step.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file naming the project")
     step.add_argument("--top", type=int, default=3, choices=range(1, 11), metavar="1-10", help="Steps to show")
     step.add_argument("--json", action="store_true", help="Print the result as JSON")
+    score = commands.add_parser("score", help="Show the review progress of a run: separate meters, points out of 10, "
+                                               "never a compliance score", allow_abbrev=False)
+    score.add_argument("--run", help="Completed run directory (default: the newest run in this project's state-dir)")
+    score.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file naming the project")
+    score.add_argument("--against", help="Completed run to compare with; deltas only when it is the run's recorded parent")
+    score.add_argument("--top", type=int, default=3, choices=range(1, 11), metavar="1-10",
+                       help="Next steps to include in --json")
+    score.add_argument("--json", action="store_true", help="Print the result as JSON")
     pr = commands.add_parser("pr-check", help="Screen a unified diff for EU legal touchpoints (for pull requests and CI)",
                              allow_abbrev=False)
     pr.add_argument("--diff", default="-", help="Unified diff file, or - for standard input (default)")
@@ -144,6 +152,8 @@ def _command(argv: list[str] | None) -> int:
         return _view(args.run, args.open)
     if args.command == "next":
         return _next(args)
+    if args.command == "score":
+        return _score(args)
     if args.command == "pr-check":
         return _pr_check(args)
     if args.command == "init":
@@ -269,6 +279,33 @@ def _next(args) -> int:
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'next-failed'}: next step failed", file=sys.stderr)
         return 2
     _emit(json.dumps({"run": args.run, "steps": steps}, indent=2) if args.json else nextstep.format_steps(steps))
+    return 0
+
+
+def _score(args) -> int:
+    """Exit 0 whatever the points: there is deliberately no threshold to pass or fail."""
+    import json
+    from . import nextstep, scorecard
+    try:
+        if args.run is None:
+            from .authoring import state_dir
+            latest = nextstep.latest_run(state_dir(args.input, create=False))
+            if latest is None:
+                raise nextstep.NoRun("no-run")
+            args.run = str(latest)
+        from .view import verify_run
+        bundle = verify_run(args.run)
+        previous = verify_run(args.against) if args.against is not None else None
+        card = scorecard.score(bundle, previous)
+        steps = nextstep.next_steps(bundle, args.top) if args.json else []
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'score-failed'}: score failed", file=sys.stderr)
+        return 2
+    _emit(json.dumps({"run": args.run, "scorecard": card.model_dump(mode="json"), "steps": steps}, indent=2)
+          if args.json else scorecard.format_text(card))
     return 0
 
 
