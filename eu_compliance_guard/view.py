@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from collections import Counter
 from html import escape
+import json
 import os
 from pathlib import Path
+import re
 import stat
 
 from . import models as m, revalidation as r
@@ -26,6 +28,8 @@ main{max-width:1080px;margin:0 auto;padding:24px 16px 64px}h1{font-size:24px;mar
 th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}th{color:var(--muted);font-weight:600}
 .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--warnbg);color:var(--warn)}
 .tag.ok{background:var(--okbg);color:var(--ok)}.tag.bad{background:var(--badbg);color:var(--bad)}
+details{margin:10px 0}summary{cursor:pointer;font-weight:600;padding:6px 0}summary .count{display:inline-block;min-width:1.6em;padding:0 7px;margin-left:6px;border-radius:999px;background:var(--line);text-align:center;font-size:13px}
+details>.scroll{margin-top:6px}
 ul{margin:0;padding-left:20px}code{font-size:13px;word-break:break-all}
 """
 
@@ -63,6 +67,56 @@ def _gap_row(gap: str) -> list[str]:
     return [_tag(area), f"<code>{escape(subject.split(' ', 2 if area == 'source target' else 1)[-1])}</code>", escape(detail)]
 
 
+# Most actionable areas first; long, low-signal groups start collapsed.
+AREAS = [("requirement", "Requirements", True), ("obligation", "Candidate obligations", True),
+         ("historical", "Changed since the previous run", True), ("source target", "Source targets", True),
+         ("source", "Selected sources", True), ("evidence", "Evidence", True), ("fact", "Facts to confirm", False),
+         ("family", "Legal families to screen", False)]
+
+
+def _attention(gaps: list[str]) -> str:
+    groups: dict[str, list] = {}
+    for gap in gaps:
+        row = _gap_row(gap)
+        area = re.sub(r"<[^>]+>", "", row[0])
+        groups.setdefault(area if area in {key for key, _, _ in AREAS} else "coverage", []).append(row)
+    if not groups:
+        return '<p class="muted">No open gaps recorded. That is not a compliance conclusion.</p>'
+    parts = []
+    for key, label, is_open in [*AREAS, ("coverage", "Coverage and scope", True)]:
+        rows = groups.get(key)
+        if rows:
+            parts.append(f'<details{" open" if is_open else ""}><summary>{escape(label)} <span class="count">{len(rows)}</span>'
+                         f"</summary>{_table(['Area', 'Item', 'What is open'], rows, '')}</details>")
+    return "".join(parts)
+
+
+def _value(value) -> str:
+    return "not known" if value in (None, "", [], {}) else value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+
+
+def _owner_questions(bundle: m.RevalidationBundle) -> str:
+    """Assumed, unknown or conflicting facts as questions, with the requirements that rely on them."""
+    declared = bundle.declarations
+    relied: dict[str, list[str]] = {}
+    for requirement in declared.requirements:
+        for pin in requirement.fact_refs:
+            relied.setdefault(pin.id, []).append(requirement.id)
+    facts = {item.id: item for item in m.scope_facts(declared.scope)
+             if item.basis in ("assumed", "unknown") or item.conflicts}
+    if not facts:
+        return '<p class="muted">Every declared fact is marked declared or observed.</p>'
+    rows = [[escape(fact.key), escape(_value(fact.value)), _tag(fact.basis), escape(fact.owner or "—"),
+             _list(relied.get(fact.id, []))] for fact in facts.values()]
+    return _table(["Question", "Current answer", "Basis", "Owner", "Requirements relying on it"], rows, "")
+
+
+def _digest(value: str | None) -> str:
+    if value is None:
+        return '<span class="muted">—</span>'
+    return f'<code title="{escape(value, quote=True)}">{escape(value.removeprefix("sha256:")[:12])}…</code>'
+
+
 def render_html(bundle: m.RevalidationBundle) -> str:
     """Every dynamic value passes through html.escape; nothing executes or loads."""
     declared = bundle.declarations
@@ -98,19 +152,23 @@ def render_html(bundle: m.RevalidationBundle) -> str:
                     for item in bundle.source_attempts]
     family_rows = [[escape(item.family), _tag(item.applicability), escape(item.reviewer or "—"), _list(item.gaps)]
                    for item in bundle.family_screenings]
+    # Disposition ids derive from obligation ids, so the current run names the historical ones too.
+    by_disposition = {item.id: item.obligation_id for item in bundle.obligation_dispositions}
     comparison_html = ""
     if bundle.comparison is not None:
         comparison_html = (
             "<h2>Predecessor comparison</h2>"
             f'<p>Historical run <code>{escape(bundle.comparison.previous_run_id)}</code>. '
             "Matching recorded inputs renew neither legal currency nor reviewer approval.</p>"
-            + _table(["Dependency", "ID or path", "Previous digest", "Current digest"],
-                [[escape(item.kind), escape(item.identity), escape(item.before or "not present"),
-                  escape(item.after or "not present")] for item in bundle.comparison.changes],
+            + _table(["Change", "Dependency", "ID or path", "Before", "After"],
+                [[_tag("added" if item.before is None else "removed" if item.after is None else "changed"),
+                  escape(item.kind), escape(item.identity), _digest(item.before), _digest(item.after)]
+                 for item in bundle.comparison.changes],
                 "Recorded dependencies unchanged.")
-            + _table(["Historical disposition", "Freshness", "Changed dependencies", "Review actions and uncertainty"],
-                [[escape(item.obligation_disposition_id), _tag(item.freshness), _list(item.changed_dependencies),
-                  _list(item.reasons)] for item in bundle.current_assessments], "No historical dispositions."))
+            + _table(["Historical obligation", "Freshness", "Changed dependencies", "Review actions and uncertainty"],
+                [[f"<code>{escape(by_disposition.get(item.obligation_disposition_id, item.obligation_disposition_id))}</code>",
+                  _tag(item.freshness), _list(item.changed_dependencies), _list(item.reasons)]
+                 for item in bundle.current_assessments], "No historical dispositions."))
     banner = ("FICTIONAL / SYNTHETIC DATA. Every conclusion below is fictional and establishes no real EU duty."
               if bundle.synthetic else "Recorded declarations and self-attested reviews. Not a compliance verdict.")
     parts = [
@@ -124,10 +182,12 @@ def render_html(bundle: m.RevalidationBundle) -> str:
         f'<div class="banner">{escape(banner)}</div>',
         '<div class="cards">' + "".join(f'<div class="card"><span class="muted">{escape(label)}</span><b>{escape(value)}</b></div>'
                                         for label, value in cards) + "</div>",
+        "<h2>Questions for the project owner</h2>",
+        "<p class=\"muted\">Assumed or unknown facts stay review gaps until the owner confirms them.</p>",
+        _owner_questions(bundle),
         "<h2>What needs attention</h2>",
         "<p class=\"muted\">Review gaps are open questions, not established violations. Reviewed deficiencies record a named reviewer's assessment.</p>",
-        _table(["Area", "Item", "What is open"], [_gap_row(gap) for gap in bundle.gaps],
-               "No open gaps recorded. That is not a compliance conclusion."),
+        _attention(bundle.gaps),
         "<h2>Requirements</h2>",
         _table(["ID", "Statement", "Location", "State", "Gaps"], requirement_rows, "No requirements declared: a coverage gap."),
         "<h2>Candidate obligations</h2>",

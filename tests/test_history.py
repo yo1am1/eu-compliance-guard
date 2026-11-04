@@ -75,7 +75,7 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(self.prior.requirement_assessments[0].state, "supported")
         html = view.render_html(successor)
         self.assertIn("Predecessor comparison", html)
-        self.assertIn(overlay.obligation_disposition_id, html)
+        self.assertIn('<td><code>obligation-example</code></td><td><span class="tag ">stale</span>', html)
         self.assertIn("stale", html)
         self.assertIn('scope="col"', html)
         self.assertIn('tabindex="0" role="region"', html)

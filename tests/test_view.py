@@ -95,6 +95,29 @@ class RunViewTests(unittest.TestCase):
         self.assertIn("incomplete-run", stderr.getvalue())
         self.assertNotIn("PRIVATE-SECRET", stderr.getvalue() + stdout.getvalue())
 
+    def test_view_leads_with_owner_questions_and_groups_attention_by_area(self):
+        html = v.write_view(self.run).read_text()
+        questions = html.index("Questions for the project owner")
+        self.assertLess(questions, html.index("What needs attention"))
+        unknown = next(fact for fact in m.scope_facts(self.bundle.declarations.scope) if fact.basis == "unknown")
+        self.assertIn(f"<td>{unknown.key}</td>", html)
+        self.assertIn("<details open><summary>Requirements <span class=\"count\">", html)
+        self.assertIn("<details><summary>Legal families to screen <span class=\"count\">11</span>", html)
+        self.assertNotRegex(html, r"(?i)<script|https?://")
+
+    def test_comparison_names_change_types_and_obligations_not_raw_digests(self):
+        payload = json.loads(self.input.read_text())
+        payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        self.input.write_text(json.dumps(payload))
+        from eu_compliance_guard import revalidation as rv
+        successor = rv.run(self.input, self.runs / "run-20261025T000100Z", previous=self.run)
+        html = v.render_html(successor)
+        self.assertIn('<span class="tag ">changed</span></td><td>requirement</td><td>requirement-example</td>', html)
+        self.assertIn("<code>obligation-example</code>", html)
+        full = next(item.after for item in successor.comparison.changes if item.after)
+        self.assertIn(f'title="{full}"', html)
+        self.assertNotIn(f">{full}<", html)
+
 
 if __name__ == "__main__":
     unittest.main()
