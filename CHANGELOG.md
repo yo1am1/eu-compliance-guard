@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Licence changed from MIT to GNU AGPL-3.0-only, with an attribution notice
+  (`NOTICE`, section 7(b)). Releases 1.0.0 and 1.1.0 remain MIT.
+
 ## 1.1.0 — 2026-11-04
 
 Grounded assumptions, article text and guidance on what to do next.
