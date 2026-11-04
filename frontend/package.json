@@ -2,7 +2,7 @@
   "name": "eu-compliance-guard-dashboard",
   "version": "0.1.0",
   "private": true,
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "types": "node scripts/contract.mjs",
