@@ -150,7 +150,10 @@ eu-compliance-guard view --run "$runs/run-002" --open
 Exit codes: 0 means the artifacts were published, even when the report is partial
 (`check`: the declarations are valid). 2 means invalid input or an unusable path;
 diagnostics are fixed codes such as `invalid-input` or `output-exists`, never input
-values. 130 means the run was interrupted.
+values. Output that cannot be written (a closed pipe or a full disk) is
+`io-failed: output failed` with exit 2, even when the command's work, such as a published
+run or rewritten declarations, is already done. Characters the console cannot encode are
+printed as backslash escapes. 130 means the run was interrupted.
 
 ### Declarations
 
