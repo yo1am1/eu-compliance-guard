@@ -116,7 +116,13 @@ def check(path: str | os.PathLike, previous: str | os.PathLike | None = None) ->
     r._primitives()
     try:
         with r._parent(path) as (fd, name):
-            observed = r._read_file(fd, name, limit=m.MAX_REQUEST_BYTES, retain=True)
+            try:
+                observed = r._read_file(fd, name, limit=m.MAX_REQUEST_BYTES, retain=True)
+            except r.RevalidationError as error:
+                if error.code != "capacity-exceeded":
+                    raise
+                errors.append({"at": "(file)", "problem": "declarations file exceeds the 4 MiB limit"})
+                return report
             if observed.availability != "available":
                 errors.append({"at": "(file)", "problem": "declarations file is " + observed.availability})
                 return report

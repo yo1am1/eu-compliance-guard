@@ -127,6 +127,16 @@ class AuthoringTests(unittest.TestCase):
                 self.assertEqual(self.check(raw=raw)["errors"],
                                  [{"at": "(file)", "problem": "declarations must be UTF-8 JSON without a byte-order mark"}])
 
+    def test_oversized_declarations_are_a_located_problem_in_the_report(self):
+        text = json.dumps(self.payload).encode()
+        exact = text[:-1] + b" " * (m.MAX_REQUEST_BYTES - len(text)) + text[-1:]
+        self.assertTrue(self.check(raw=exact)["valid"])
+        self.input.write_bytes(exact[:-1] + b" " + exact[-1:])
+        code, stdout, stderr = self.cli("check", "--input", str(self.input), "--json")
+        self.assertEqual((code, stderr), (2, ""))
+        self.assertEqual(json.loads(stdout)["errors"],
+                         [{"at": "(file)", "problem": "declarations file exceeds the 4 MiB limit"}])
+
     def test_official_and_unofficial_targets_and_cli_exit_codes(self):
         payload = deepcopy(self.payload)
         for identifier, url in (("target-eurlex", "https://eur-lex.europa.eu/eli/reg/2016/679/oj"),
