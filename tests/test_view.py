@@ -76,6 +76,28 @@ class RunViewTests(unittest.TestCase):
         self.assertIn("not a mapping", html)
         self.assertNotRegex(html, r"(?i)<script")
 
+    def test_an_excerpt_comes_from_the_pinned_source_not_another_source_of_the_target(self):
+        import copy
+        folder = self.root / "revalidation-synthetic"
+        old = "FICTIONAL SOURCE — SYNTHETIC EXAMPLE ONLY\nArticle 1\nFictional OLD title\nOLD wording.\n".encode()
+        new = "FICTIONAL SOURCE — SYNTHETIC EXAMPLE ONLY\nArticle 1\nFictional NEW title\nNEW wording.\n".encode()
+        (folder / "old.txt").write_bytes(old)
+        (folder / "new.txt").write_bytes(new)
+        payload = json.loads(FIXTURE.read_text().replace("Fictional section 1", "Article 1"))
+        first = payload["sources"][0]
+        first.update(file={"path": "revalidation-synthetic/old.txt", "digest": m.content_digest(old)})
+        first["source"].update(content_digest=m.content_digest(old), id="source-old")
+        second = copy.deepcopy(first)
+        second.update(file={"path": "revalidation-synthetic/new.txt", "digest": m.content_digest(new)})
+        second["source"].update(content_digest=m.content_digest(new), id="source-example")
+        payload["sources"] = [first, second]
+        self.input.write_text(json.dumps(payload))
+        run = self.runs / "run-20261025T000002Z"
+        r.run(self.input, run)
+        html = v.write_view(run).read_text()
+        self.assertIn("Article 1 — Fictional NEW title", html)
+        self.assertNotIn("OLD wording", html)
+
     def test_unverified_runs_are_refused(self):
         (self.runs / "run-incomplete").mkdir()
         for target, code in ((self.runs / "missing", "incomplete-run"), (self.runs / "run-incomplete", "incomplete-run")):

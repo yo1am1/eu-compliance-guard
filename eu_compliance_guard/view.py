@@ -149,9 +149,25 @@ def catalogue(bundle: m.RevalidationBundle, contents: dict[str, bytes]) -> dict[
     return found
 
 
-def _article(target: str, locator: str, acts: dict[str, dict[str, dict]]) -> str:
-    key = articles.article_key(locator)
-    item = acts.get(target, {}).get(key) if key else None
+def source_catalogue(bundle: m.RevalidationBundle, contents: dict[str, bytes]) -> dict[str, dict[str, dict]]:
+    """Articles per declared source id, from that source's own retained bytes."""
+    found: dict[str, dict[str, dict]] = {}
+    for selected in bundle.declarations.sources:
+        path = "sources/" + selected.source.content_digest.removeprefix("sha256:") + ".bin"
+        if path in contents:
+            parsed = articles.parse(contents[path], selected.media_type)
+            if parsed:
+                found[selected.source.id] = parsed
+    return found
+
+
+def _article(pin: m.ProvisionRef, acts: dict[str, dict[str, dict]], by_source: dict[str, dict[str, dict]]) -> str:
+    """A pin naming a source shows that source's text; only an unpinned target falls back to the target's."""
+    key = articles.article_key(pin.locator)
+    origin = pin.source_id if pin.source_id else pin.source_target_id
+    pool = by_source.get(pin.source_id, {}) if pin.source_id else acts.get(pin.source_target_id, {})
+    item = pool.get(key) if key else None
+    target = origin
     if item is None:
         return ""
     text = item["text"] if len(item["text"]) <= EXCERPT_CHARS else item["text"][:EXCERPT_CHARS].rsplit(" ", 1)[0] + " …"
@@ -172,6 +188,7 @@ def _suggestions(statement: str, index: articles.ArticleIndex) -> str:
 def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None = None) -> str:
     """Every dynamic value passes through html.escape; nothing executes or loads."""
     acts = catalogue(bundle, contents or {})
+    by_source = source_catalogue(bundle, contents or {})
     index = articles.ArticleIndex(acts)
     declared = bundle.declarations
     obligations = {item.id: item for item in declared.obligations}
@@ -196,7 +213,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
         obligation = obligations[disposition.obligation_id]
         decision = decisions[disposition.obligation_id]
         references = "".join(f"<li>{escape(f'{pin.source_id or pin.source_target_id} — {pin.locator}')}"
-                             f"{_article(pin.source_target_id, pin.locator, acts)}</li>" for pin in obligation.source_provisions)
+                             f"{_article(pin, acts, by_source)}</li>" for pin in obligation.source_provisions)
         methods = " ".join(_tag(f"{item.method}: {item.outcome}") for item in disposition.required_method_dispositions)
         obligation_rows.append([f"<code>{escape(obligation.id)}</code>", escape(f"{obligation.family} · {obligation.classification}"),
                                 f"<ul>{references}</ul>" if references else "—", _tag(decision.applicability) + f'<br><span class="muted">{escape(decision.reviewer or "no reviewer")}</span>',
