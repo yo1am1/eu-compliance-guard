@@ -31,7 +31,7 @@ th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px soli
 .suggest{font-size:13px;margin-top:4px}.tag.ok{background:var(--okbg);color:var(--ok)}.tag.bad{background:var(--badbg);color:var(--bad)}
 details{margin:10px 0}summary{cursor:pointer;font-weight:600;padding:6px 0}summary .count{display:inline-block;min-width:1.6em;padding:0 7px;margin-left:6px;border-radius:999px;background:var(--line);text-align:center;font-size:13px}
 details>.scroll{margin-top:6px}
-ul{margin:0;padding-left:20px}code{font-size:13px;word-break:break-all}
+ul{margin:0;padding-left:20px}code{font-size:13px;overflow-wrap:anywhere}td:first-child code{overflow-wrap:normal;word-break:normal}
 """
 
 
