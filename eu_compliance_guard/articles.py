@@ -20,6 +20,8 @@ MAX_ARTICLE_CHARS = 20000
 MAX_PARAGRAPHS = 50000
 MAX_PAGE_CHARS = 8 * 1024 * 1024
 BREAKS = frozenset({"p", "div", "td", "li", "tr", "br", "h1", "h2", "h3", "h4", "table"})
+# Code, styling, fallback content and site navigation of a saved page are never legal text.
+SKIPPED = frozenset({"script", "style", "noscript", "template", "nav", "footer"})
 ARTICLE = re.compile(r"^\s*Article\s+(\d+[a-z]?)\b", re.I)
 ARTICLE_ONLY = re.compile(r"^Article\s+(\d+[a-z]?)$", re.I)
 # Words that describe the project or the task rather than the legal subject matter.
@@ -56,6 +58,7 @@ class _Paragraphs(HTMLParser):
         self.classes: tuple[str, ...] = ()
         self.buffer: list[str] = []
         self.size = 0
+        self.skipped = 0  # depth inside SKIPPED elements
 
     def _flush(self):
         text = _tidy("".join(self.buffer))
@@ -64,17 +67,21 @@ class _Paragraphs(HTMLParser):
         self.classes, self.buffer = (), []
 
     def handle_starttag(self, tag, attrs):
+        if tag in SKIPPED:
+            self.skipped += 1
         if tag in BREAKS:
             self._flush()
             if tag == "p":
                 self.classes = tuple((dict(attrs).get("class") or "").split())
 
     def handle_endtag(self, tag):
+        if tag in SKIPPED and self.skipped:
+            self.skipped -= 1
         if tag in BREAKS:
             self._flush()
 
     def handle_data(self, data):
-        if self.size < MAX_PAGE_CHARS:
+        if not self.skipped and self.size < MAX_PAGE_CHARS:
             self.buffer.append(data)
             self.size += len(data)
 

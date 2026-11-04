@@ -90,6 +90,19 @@ class ArticleTests(unittest.TestCase):
         self.assertEqual(parsed["Article 7"]["title"], "")
         self.assertEqual(parsed["Article 8"], {"title": "Fictional title", "text": "Body."})
 
+    def test_scripts_styles_and_page_chrome_are_not_article_text(self):
+        page = (b'<!doctype html><html><head><style>p{color:red}</style></head><body>'
+                b'<p class="oj-ti-art">Article 1</p><p class="oj-sti-art">Fictional title</p><p class="oj-normal">Fictional body.</p>'
+                b"<script>track('cookie consent');</script><style>.x{margin:0}</style><script src='x.js'/>"
+                b"<noscript><p>Enable JavaScript</p></noscript><template><p>Fictional cookie banner</p></template>"
+                b'<p class="oj-ti-art">Article 2</p><p class="oj-sti-art">Last</p><p class="oj-normal">Last body.</p>'
+                b'<nav><a href="#">Cookies</a></nav><footer><a href="#">Legal notice</a> | <a href="#">Cookies policy</a></footer>'
+                b'</body></html>')
+        parsed = a.parse(page, "text/html")
+        self.assertEqual(parsed, {"Article 1": {"title": "Fictional title", "text": "Fictional body."},
+                                  "Article 2": {"title": "Last", "text": "Last body."}})
+        self.assertEqual(a.suggest("Cookie tracking banner", {"page": parsed}), [])
+
     def test_locators_normalise_to_article_keys(self):
         self.assertEqual(a.article_key("Article 9(2)(a)"), "Article 9")
         self.assertEqual(a.article_key("Art. 17"), "Article 17")
