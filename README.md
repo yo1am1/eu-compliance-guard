@@ -316,4 +316,8 @@ change OS policy.
 - [Specifications](specs/eu-compliance-audit/requirements.md): preserved historical snapshots
   from [agentic-setup](https://github.com/yo1am1/agentic-setup). Their paths and draft labels
   describe their original home and are kept unchanged.
-- [License](LICENSE) and [dependency notices](THIRD_PARTY_NOTICES.md).
+- [License](LICENSE): GNU AGPL-3.0-only from 1.2.0 (1.0.0 and 1.1.0 stay MIT). If you
+  modify it or run it as a service, publish your source under the AGPL and credit
+  EU Compliance Guard as [NOTICE](NOTICE) requires. Contributions need the author's
+  agreement to relicense, so the project can also offer a paid service.
+- [Dependency notices](THIRD_PARTY_NOTICES.md).

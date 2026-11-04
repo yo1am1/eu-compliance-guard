@@ -8,7 +8,7 @@
   },
   "homepage": "https://github.com/yo1am1/eu-compliance-guard",
   "repository": "https://github.com/yo1am1/eu-compliance-guard",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "keywords": [
     "eu-law",
     "gdpr",
