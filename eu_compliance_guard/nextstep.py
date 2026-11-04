@@ -46,7 +46,8 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
                 for requirement in mapped}
 
     def fetchable(target) -> bool:
-        if target.intended_type == "synthetic_fixture":
+        # The refusals `sources.fetch` makes before any network use, so a retry could never succeed.
+        if target.intended_type == "synthetic_fixture" or not sources.LANGUAGE.fullmatch(target.language):
             return False
         try:
             sources.allowed_hosts(sources.TargetRequest(target.id, target.intended_url, tuple(target.redirect_hosts)))

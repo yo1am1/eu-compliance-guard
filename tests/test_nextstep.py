@@ -87,6 +87,17 @@ class NextStepTests(unittest.TestCase):
         self.assertFalse([step for step in steps if step["kind"] == "retrieve"])
         self.assertTrue([step for step in steps if step["kind"] == "source" and step["subject"] == "target-national"])
 
+    def test_a_language_the_fetch_refuses_is_never_offered_for_retrieval(self):
+        official = dict(self.payload["source_targets"][0], intended_type="eu_act", intended_identifier="FICTIONAL-EU",
+                        intended_url="https://eur-lex.europa.eu/example", jurisdiction="EU")
+        self.payload["source_targets"] += [dict(official, id="target-language", language="english"),
+                                           dict(official, id="target-fetchable")]
+        steps = n.next_steps(v.verify_run(self.run_bundle()), top=100)
+        retrieve = [step for step in steps if step["kind"] == "retrieve"]
+        self.assertEqual(len(retrieve), 1)
+        self.assertIn(" 1 declared source target(s)", retrieve[0]["action"])
+        self.assertTrue([step for step in steps if step["kind"] == "source" and step["subject"] == "target-language"])
+
     def test_family_step_names_only_outcomes_the_model_accepts(self):
         steps = n.next_steps(v.verify_run(self.run_bundle()), top=100)
         family = next(step for step in steps if step["kind"] == "family")
