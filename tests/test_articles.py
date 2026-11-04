@@ -70,6 +70,12 @@ class ArticleTests(unittest.TestCase):
         self.assertEqual(a.parse(b"%PDF-1.7", "application/pdf"), {})
         self.assertEqual(a.parse(b"\xff\xfe", "text/plain"), {})
 
+    def test_a_utf8_byte_order_mark_does_not_hide_the_first_article(self):
+        text = "Article 1\nFictional subject-matter\nBody one.\nArticle 2\nFictional erasure\nBody two.\n".encode()
+        parsed = a.parse(b"\xef\xbb\xbf" + text, "text/plain")
+        self.assertEqual(parsed, a.parse(text, "text/plain"))
+        self.assertEqual(parsed["Article 1"], {"title": "Fictional subject-matter", "text": "Body one."})
+
     def test_locators_normalise_to_article_keys(self):
         self.assertEqual(a.article_key("Article 9(2)(a)"), "Article 9")
         self.assertEqual(a.article_key("Art. 17"), "Article 17")

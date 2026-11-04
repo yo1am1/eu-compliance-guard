@@ -130,7 +130,7 @@ def _tidy(text: str) -> str:
 def parse(content: bytes, media_type: str) -> dict[str, dict]:
     """Map "Article N" to {"title", "text"}; empty when the format is not supported."""
     try:
-        text = content.decode("utf-8")
+        text = content.decode("utf-8-sig")  # a leading byte order mark is not part of the first line
     except UnicodeDecodeError:
         return {}
     if media_type in ("text/html", "application/xhtml+xml"):
