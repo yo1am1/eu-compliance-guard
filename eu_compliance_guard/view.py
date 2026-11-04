@@ -225,7 +225,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
                     for item in bundle.source_attempts]
     family_rows = [[escape(item.family), _tag(item.applicability), escape(item.reviewer or "—"), _list(item.gaps)]
                    for item in bundle.family_screenings]
-    # Disposition ids derive from obligation ids, so the current run names the historical ones too.
+    # Older runs did not record the historical obligation; fall back to the current run's dispositions.
     by_disposition = {item.id: item.obligation_id for item in bundle.obligation_dispositions}
     comparison_html = ""
     if bundle.comparison is not None:
@@ -239,7 +239,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
                  for item in bundle.comparison.changes],
                 "Recorded dependencies unchanged.")
             + _table(["Historical obligation", "Freshness", "Changed dependencies", "Review actions and uncertainty"],
-                [[f"<code>{escape(by_disposition.get(item.obligation_disposition_id, item.obligation_disposition_id))}</code>",
+                [[f"<code>{escape(item.obligation_id or by_disposition.get(item.obligation_disposition_id, item.obligation_disposition_id))}</code>",
                   _tag(item.freshness), _list(item.changed_dependencies), _list(item.reasons)]
                  for item in bundle.current_assessments], "No historical dispositions."))
     banner = ("FICTIONAL / SYNTHETIC DATA. Every conclusion below is fictional and establishes no real EU duty."

@@ -513,6 +513,8 @@ class CurrentAssessment(Record):
     historical_run_id: Id
     finding_assessment_id: Id | None = None
     obligation_disposition_id: Id | None = None
+    # The historical disposition's obligation, named even when this run removed or renamed it.
+    obligation_id: Id | None = None
     expected_manifest_id: Id
     observed_manifest_id: Id | None = None
     checked_at: Timestamp
@@ -525,6 +527,8 @@ class CurrentAssessment(Record):
     def assessment_target(self) -> CurrentAssessment:
         if (self.finding_assessment_id is None) == (self.obligation_disposition_id is None):
             raise ValueError("current overlay must reference exactly one historical assessment")
+        if self.obligation_id is not None and self.obligation_disposition_id is None:
+            raise ValueError("only an obligation disposition overlay names an obligation")
         if self.freshness == "current_for_recorded_inputs":
             if self.observed_manifest_id is None or self.changed_dependencies:
                 raise ValueError("current claim requires observed inputs without relevant changes")

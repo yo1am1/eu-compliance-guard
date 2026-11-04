@@ -188,6 +188,24 @@ class RunViewTests(unittest.TestCase):
         self.assertIn(f'title="{full}"', html)
         self.assertNotIn(f">{full}<", html)
 
+    def test_a_removed_historical_obligation_is_named_in_view_and_report(self):
+        payload = json.loads(self.input.read_text())
+        payload["obligations"] = [item for item in payload["obligations"] if item["id"] != "obligation-unmapped"]
+        payload["applicability_decisions"] = [item for item in payload["applicability_decisions"]
+                                              if item["obligation"]["id"] != "obligation-unmapped"]
+        self.input.write_text(json.dumps(payload))
+        successor = r.run(self.input, self.runs / "run-20261025T000200Z", previous=self.run)
+        removed = next(item for item in self.bundle.obligation_dispositions if item.obligation_id == "obligation-unmapped")
+        overlay = next(item for item in successor.current_assessments if item.obligation_disposition_id == removed.id)
+        self.assertEqual(overlay.obligation_id, "obligation-unmapped")
+        html = v.render_html(successor)
+        table = html[html.index("Historical obligation"):]
+        self.assertIn("<td><code>obligation-unmapped</code></td>", table)
+        self.assertNotIn(f"<code>{removed.id}</code>", table)
+        report = (self.runs / "run-20261025T000200Z" / "report.md").read_text()
+        freshness = report[report.index("Historical claim freshness"):report.index("## Declared scope")]
+        self.assertIn("- Obligation id: obligation&#45;unmapped\n", freshness)
+
 
 if __name__ == "__main__":
     unittest.main()

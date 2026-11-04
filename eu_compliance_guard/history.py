@@ -407,6 +407,7 @@ def compare(previous, current, previous_digest):
             reasons.append("Only recorded dependencies match; bytes renew neither legal currency nor reviewer approval.")
         overlays.append(m.CurrentAssessment(id=r._derived_id("current", f"{current.run.id}:{disposition.id}"), revision=0,
             project_id=current.project_id, historical_run_id=previous.run.id, obligation_disposition_id=disposition.id,
+            obligation_id=identity,
             expected_manifest_id=previous.manifest.id, observed_manifest_id=current.manifest.id,
             checked_at=current.run.ended_at, freshness=freshness, reasons=reasons,
             changed_dependencies=[f"{kind}:{key}" for kind, key in relevant[:MAX_LISTED_CHANGES]],

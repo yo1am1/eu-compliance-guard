@@ -252,6 +252,7 @@ export type Freshness = "current_for_recorded_inputs" | "stale" | "unknown";
 export type HistoricalRunId = string;
 export type Id7 = string;
 export type ObligationDispositionId = string | null;
+export type ObligationId = string | null;
 export type ObservedManifestId = string | null;
 export type ProjectId11 = string;
 /**
@@ -335,7 +336,7 @@ export type Applicability1 = "applicable" | "not_applicable" | "unresolved";
 export type ApplicabilityDecisionId = string;
 export type Id10 = string;
 export type ManualReview = "pending" | "supported" | "unsupported" | "unresolved";
-export type ObligationId = string;
+export type ObligationId1 = string;
 export type ObligationRevision = number;
 export type ProjectId14 = string;
 export type Rationale1 = string;
@@ -2217,6 +2218,7 @@ export interface CurrentAssessment {
   historical_run_id: HistoricalRunId;
   id: Id7;
   obligation_disposition_id?: ObligationDispositionId;
+  obligation_id?: ObligationId;
   observed_manifest_id?: ObservedManifestId;
   project_id: ProjectId11;
   reasons: Reasons;
@@ -2307,7 +2309,7 @@ export interface ObligationDisposition {
   applicability_decision_id: ApplicabilityDecisionId;
   id: Id10;
   manual_review: ManualReview;
-  obligation_id: ObligationId;
+  obligation_id: ObligationId1;
   obligation_revision: ObligationRevision;
   project_id: ProjectId14;
   rationale: Rationale1;
