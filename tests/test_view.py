@@ -105,6 +105,18 @@ class RunViewTests(unittest.TestCase):
             with self.subTest(code=code, target=target.name), self.assertRaises(v.ViewError) as caught:
                 v.write_view(target)
             self.assertEqual(caught.exception.code, code)
+        previous = os.getcwd()
+        os.chdir(self.runs / "run-incomplete")  # An empty run argument must not mean the working directory.
+        try:
+            with self.assertRaises(v.ViewError) as caught:
+                v.write_view("")
+            self.assertEqual(caught.exception.code, "unsafe-path")
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(main(["view", "--run", ""]), 2)
+            self.assertIn("unsafe-path", stderr.getvalue())
+        finally:
+            os.chdir(previous)
         (self.run / "report.md").chmod(0o600)
         with open(self.run / "report.md", "ab") as handle:
             handle.write(b"tampered")

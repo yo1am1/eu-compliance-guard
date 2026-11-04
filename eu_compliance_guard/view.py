@@ -293,6 +293,8 @@ def verify_run(run_dir: str | os.PathLike, contents: dict[str, bytes] | None = N
 
 def write_view(run_dir: str | os.PathLike) -> Path:
     """Write ``<parent>/views/<run>.html`` (0700 directory, 0600 file), replacing an older view."""
+    if not os.fspath(run_dir):
+        raise ViewError("unsafe-path")  # Path("") is ".": never fall back to the working directory.
     run_dir = Path(run_dir)
     contents: dict[str, bytes] = {}
     html = render_html(verify_run(run_dir, contents), contents).encode("utf-8")
