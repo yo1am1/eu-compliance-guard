@@ -195,6 +195,9 @@ source targets, and only to six exact hosts: `eur-lex.europa.eu`, `curia.europa.
 `publications.europa.eu` (the Publications Office's machine endpoint, Cellar). For
 Cellar alone, its own same-host `http://` redirect is upgraded to https; every other
 downgrade is refused. Requests carry the target's language as `Accept-Language`.
+A base CELEX (`resource/celex/32002L0058`) returns the act as first published; for the
+law in force use a consolidated CELEX such as `02002L0058-20091219`, and have a reviewer
+confirm that it is the latest consolidation.
 
 - Requests use HTTPS on port 443 only, with no credentials and no proxy.
 - DNS answers must all be public, and the connection is pinned to a validated
