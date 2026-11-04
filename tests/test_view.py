@@ -188,6 +188,32 @@ class RunViewTests(unittest.TestCase):
         self.assertIn(f'title="{full}"', html)
         self.assertNotIn(f">{full}<", html)
 
+    def test_legal_references_and_retrieval_show_their_source_type(self):
+        payload = json.loads(self.input.read_text())
+        payload["sources"][0]["source"].update(type="proposal", synthetic=False)
+        payload["source_targets"][0]["intended_type"] = "draft_guidance"
+        unpinned = dict(payload["obligations"][0]["source_provisions"][0], locator="Fictional section 2")
+        unpinned.pop("source_id"), unpinned.pop("revision")
+        payload["obligations"][0]["source_provisions"].append(unpinned)
+        self.input.write_text(json.dumps(payload))
+        bundle = r.run(self.input, self.runs / "run-20261025T000300Z")
+        html = v.render_html(bundle)
+        obligations = html[html.index("<h2>Candidate obligations</h2>"):html.index("<h2>Official-source retrieval</h2>")]
+        self.assertIn("source-example — Fictional section 1 (proposal)", obligations)
+        self.assertIn("target-example — Fictional section 2 (draft_guidance)", obligations)
+        attempt = m.SourceAttempt.model_validate({
+            "id": "attempt-ui", "source_target_id": "target-example", "intended_url": "https://example.invalid/a",
+            "publisher": "Fictional fixture authority", "intended_type": "engineering_practice", "language": "en",
+            "attempted_at": "2026-10-18T10:00:00Z", "state": "retrieval_failed",
+            "failure": {"code": "network-unavailable", "safe_message": "Fictional failure"},
+            "retrieval": {"requested_url": "https://example.invalid/a", "redirects": [], "bytes_read": 0,
+                          "started_at": "2026-10-18T10:00:00Z", "ended_at": "2026-10-18T10:00:00Z",
+                          "comparison": "not_compared"}})
+        html = v.render_html(bundle.model_copy(update={"source_attempts": [attempt]}))
+        retrieval = html[html.index("<h2>Official-source retrieval</h2>"):]
+        self.assertIn("<th scope=\"col\">Type</th>", retrieval)
+        self.assertIn("<td>engineering_practice</td>", retrieval)
+
     def test_a_removed_historical_obligation_is_named_in_view_and_report(self):
         payload = json.loads(self.input.read_text())
         payload["obligations"] = [item for item in payload["obligations"] if item["id"] != "obligation-unmapped"]

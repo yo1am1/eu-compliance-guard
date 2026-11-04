@@ -192,6 +192,10 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
     index = articles.ArticleIndex(acts)
     declared = bundle.declarations
     obligations = {item.id: item for item in declared.obligations}
+    # Official law, guidance, proposals and engineering practice must not look alike: a pinned
+    # reference shows its source's declared type, an unpinned one its target's intended type.
+    source_types = {item.source.id: item.source.type for item in declared.sources}
+    target_types = {item.id: item.intended_type for item in declared.source_targets}
     decisions = {item.obligation.id: item for item in bundle.effective_applicability_decisions}
     requirement_states = Counter(item.state for item in bundle.requirement_assessments)
     applicability = Counter(item.applicability for item in bundle.obligation_dispositions)
@@ -212,13 +216,14 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
     for disposition in bundle.obligation_dispositions:
         obligation = obligations[disposition.obligation_id]
         decision = decisions[disposition.obligation_id]
-        references = "".join(f"<li>{escape(f'{pin.source_id or pin.source_target_id} — {pin.locator}')}"
+        references = "".join(f"<li>{escape(f'{pin.source_id or pin.source_target_id} — {pin.locator}')} "
+                             f"({escape(source_types.get(pin.source_id) or target_types.get(pin.source_target_id) or 'type not declared')})"
                              f"{_article(pin, acts, by_source)}</li>" for pin in obligation.source_provisions)
         methods = " ".join(_tag(f"{item.method}: {item.outcome}") for item in disposition.required_method_dispositions)
         obligation_rows.append([f"<code>{escape(obligation.id)}</code>", escape(f"{obligation.family} · {obligation.classification}"),
                                 f"<ul>{references}</ul>" if references else "—", _tag(decision.applicability) + f'<br><span class="muted">{escape(decision.reviewer or "no reviewer")}</span>',
                                 methods or '<span class="muted">none declared</span>'])
-    attempt_rows = [[f"<code>{escape(item.source_target_id)}</code>", _tag(item.state),
+    attempt_rows = [[f"<code>{escape(item.source_target_id)}</code>", escape(item.intended_type), _tag(item.state),
                      f"<code>{escape(item.retrieval.final_url or item.retrieval.requested_url)}</code>",
                      escape(str(item.retrieval.status or "—")), _tag(item.retrieval.comparison),
                      escape(f"{item.failure.code}: {item.failure.safe_message}" if item.failure else "—")]
@@ -271,7 +276,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
                "No candidate obligations declared: a coverage gap."),
         "<h2>Official-source retrieval</h2>",
         "<p class=\"muted\">Official hosting establishes neither binding status, completeness, applicability nor currency.</p>",
-        _table(["Target", "State", "URL", "HTTP", "Compared", "Failure"], attempt_rows, "No retrieval was requested for this run."),
+        _table(["Target", "Type", "State", "URL", "HTTP", "Compared", "Failure"], attempt_rows, "No retrieval was requested for this run."),
         comparison_html,
         "<h2>Eleven candidate legal families</h2>",
         _table(["Family", "Applicability", "Reviewer", "Gaps"], family_rows, ""),
