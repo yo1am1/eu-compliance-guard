@@ -85,16 +85,19 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
     unobservable = not_observable(declared.scope)
     ready = {item.id for item in bundle.evidence if item.availability == "available"}
     for fact in {item.id: item for item in m.scope_facts(declared.scope)}.values():
+        # `ground --apply` refuses organisational facts, so only technical ones are sent there.
+        observable = fact.id not in unobservable
+        ask = f"ask {fact.owner or 'the project owner'}."
         if fact.basis in ("assumed", "unknown") or fact.conflicts:
-            observable = fact.id not in unobservable
             steps.append(_step("fact", fact.id, relied.get(fact.id, set()),
                                f"Confirm '{fact.key}' (now {fact.basis})"
-                               + (": look for code evidence." if observable else f": ask {fact.owner or 'the project owner'}."),
+                               + (": look for code evidence." if observable else ": " + ask),
                                "eu-compliance-guard ground" if observable else None))
         elif any(identity not in ready for identity in fact.evidence_ids):
             steps.append(_step("fact", fact.id, relied.get(fact.id, set()),
-                               f"Ground '{fact.key}' again: its pinned evidence changed or is missing.",
-                               "eu-compliance-guard ground"))
+                               f"Ground '{fact.key}' again: its pinned evidence changed or is missing." if observable
+                               else f"Confirm '{fact.key}' again: its pinned evidence changed or is missing; " + ask,
+                               "eu-compliance-guard ground" if observable else None))
 
     for obligation, mapped in sorted(by_obligation.items()):
         decision = decisions.get(obligation)

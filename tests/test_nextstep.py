@@ -79,6 +79,19 @@ class NextStepTests(unittest.TestCase):
         self.assertEqual(len(again), 1)
         self.assertIn("again", again[0]["action"])
 
+    def test_changed_evidence_routes_technical_facts_to_ground_and_organisational_ones_to_the_owner(self):
+        technical = dict(self.payload["scope"]["roles"][0], id="fact-cookie", key="Fictional cookie lifetime")
+        self.payload["scope"]["roles"].append(technical)
+        for item in self.payload["scope"]["roles"]:
+            if item["id"] in ("fact-declared", "fact-cookie"):
+                item["evidence_ids"] = ["evidence-example"]
+        (self.root / "revalidation-synthetic/evidence.txt").write_bytes(b"changed after the declaration")
+        steps = {step["subject"]: step for step in n.next_steps(v.verify_run(self.run_bundle()), top=100)}
+        self.assertEqual(steps["fact-cookie"]["command"], "eu-compliance-guard ground")
+        # A role is an owner decision: `ground --apply` refuses it, so the step must not send the user there.
+        self.assertIsNone(steps["fact-declared"]["command"])
+        self.assertIn("Fictional owner", steps["fact-declared"]["action"])
+
     def test_targets_the_fetch_refuses_are_never_offered_for_retrieval(self):
         target = dict(self.payload["source_targets"][0], id="target-national", intended_type="national_act",
                       intended_url="https://www.legifrance.gouv.fr/example", intended_identifier="FICTIONAL-FR")
