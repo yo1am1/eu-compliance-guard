@@ -23,7 +23,7 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          git diff --no-color "origin/$BASE_REF...HEAD" > "$RUNNER_TEMP/pr.diff"
+          git -c core.quotePath=false diff --no-color "origin/$BASE_REF...HEAD" > "$RUNNER_TEMP/pr.diff"
           set +e
           # 1.1.0, pinned to its commit so the install cannot change under you.
           uvx --from "git+https://github.com/yo1am1/eu-compliance-guard@a31c4df795a2b066b8b25612f8fe09ce6e4c4a76" \
