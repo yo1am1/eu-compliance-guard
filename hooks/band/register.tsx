@@ -2,7 +2,10 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Band, NextSteps } from '../../types'
-import { daysOld, describeStep, parseSteps, progressBar, summarize, words } from './summary'
+import {
+  daysOld, describeMeter, describeStep, meterRow, parseScores, parseSteps, progressBar, progressLine, SCORE_NOTICE, statusWord,
+  summarize, words,
+} from './summary'
 
 const LEVELS = ['lite', 'full', 'strict', 'off']
 const PROJECT_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/
@@ -11,7 +14,7 @@ const EMPTY: Band = { isActive: false, level: 'full', stateDir: '', run: null, p
 const band = atom({ plugin: 'eu-compliance-guard', key: 'band' } as const, EMPTY, { shape: 'band-3' })
 const isFolded = atom({ plugin: 'eu-compliance-guard', key: 'isFolded' } as const, false)
 const lastView = atom({ plugin: 'eu-compliance-guard', key: 'lastView' } as const, null)
-const nextSteps = atom({ plugin: 'eu-compliance-guard', key: 'next' } as const, null as NextSteps | null, { shape: 'next-3' })
+const nextSteps = atom({ plugin: 'eu-compliance-guard', key: 'next' } as const, null as NextSteps | null, { shape: 'next-4' })
 // Run directories being ranked now, so turns that end while the CLI runs start no second process.
 const ranking = new Set<string>()
 const PANE = 'eucg-panel'
@@ -59,6 +62,7 @@ async function refresh($: EngineInterface, rerank = false): Promise<void> {
   let run = null
   let problem = null
   let previousGaps: number | null = null
+  let previousDir: string | null = null
   if (identity !== null) {
     const runs = (await $.fs.list(stateDir).catch(() => []))
       .filter(entry => entry.kind === 'dir' && !entry.isLink && entry.name.startsWith('run-'))
@@ -71,7 +75,10 @@ async function refresh($: EngineInterface, rerank = false): Promise<void> {
       if (run !== null) {
         // The run before the newest, for progress since then.
         const previous = summarize(`${stateDir}/${name}`, await $.fs.read(`${stateDir}/${name}/bundle.json`).catch(() => ''))
-        if (previous?.projectId === identity) previousGaps = previous.gaps
+        if (previous?.projectId === identity) {
+          previousGaps = previous.gaps
+          previousDir = `${stateDir}/${name}`
+        }
         break
       }
       run = summarize(`${stateDir}/${name}`, await $.fs.read(`${stateDir}/${name}/bundle.json`).catch(() => ''))
@@ -83,10 +90,12 @@ async function refresh($: EngineInterface, rerank = false): Promise<void> {
       if (run === null) break
     }
   }
-  await update($, band, () => ({ isActive, level, stateDir, run, problem, previousGaps }))
-  // Ranked once per run, in the background, so a slow interpreter start never holds the session.
+  await update($, band, () => ({ isActive, level, stateDir, run, problem, previousGaps, previousDir }))
+  // Scored once per run, in the background, so a slow interpreter start never holds the session.
   const ranked = run === null ? null : await read($, nextSteps)
-  if (run !== null && (ranked?.dir !== run.dir || (rerank && ranked.steps === null))) void rankNext($, run.dir)
+  if (run !== null && (ranked?.dir !== run.dir || (rerank && (ranked.steps === null || ranked.scores === null)))) {
+    void rankScore($, run.dir, previousDir)
+  }
 }
 
 // Runs the plugin's own CLI: uv with the locked environment when available, else python3 on PYTHONPATH.
@@ -106,13 +115,16 @@ async function resolve($: EngineInterface, linked: string) {
   return resolved?.exitCode === 0 && resolved.stdout.trim() !== '' ? resolved.stdout.trim() : linked
 }
 
-// Ranks a run once: a failure is stored for that run too, so it is not retried on every turn.
-async function rankNext($: EngineInterface, dir: string) {
+// Ranks and scores a run once (`score --json` carries both): a failure is stored for that run too,
+// so it is not retried on every turn. Against the previous run only for its display-only deltas.
+async function rankScore($: EngineInterface, dir: string, previousDir: string | null) {
   if (ranking.has(dir)) return
   ranking.add(dir)
   try {
-    const result = await cli($, ['next', '--run', await resolve($, dir), '--json', '--top', '3'], 60_000)
-    const ranked = (result?.exitCode === 0 ? parseSteps(dir, result.stdout) : null) ?? { dir, steps: null }
+    const against = previousDir === null ? [] : ['--against', await resolve($, previousDir)]
+    const result = await cli($, ['score', '--run', await resolve($, dir), '--json', '--top', '3', ...against], 60_000)
+    const ok = result?.exitCode === 0
+    const ranked = { dir, steps: (ok ? parseSteps(dir, result.stdout)?.steps : null) ?? null, scores: ok ? parseScores(result.stdout) : null }
     // A slow ranking of an older run never replaces the newest run's.
     if ((await read($, band))?.run?.dir === dir) await update($, nextSteps, () => ranked)
   } finally {
@@ -188,6 +200,7 @@ export const register: Register = on => {
     const ranked = await read($, nextSteps)
     const isRanked = ranked?.dir === run.dir
     const steps = isRanked ? ranked.steps : null
+    const scores = isRanked ? ranked.scores ?? null : null
     const age = daysOld(run.assessmentDate, await $.clock.now())
     const questions = run.questions ?? []
     const questionsTotal = run.questionsTotal ?? questions.length
@@ -199,6 +212,14 @@ export const register: Register = on => {
           <Text dimColor>run {run.id} · state {run.state} · assessed {run.assessmentDate}{age === null ? '' : ` (${age}d ago)`}</Text>
           {run.synthetic ? <Text color="yellow">fictional data</Text> : null}
         </Box>
+        {scores ? (
+          <Box flexDirection="column">
+            <Text bold>{`Review progress · ● ${statusWord(scores)}${scores.synthetic ? ' · fictional data' : ''}`}</Text>
+            {scores.meters.map(meter => <Text>{describeMeter(meter)}</Text>)}
+            <Text>{`Screening  ${scores.screened} of 11 families screened (not scored)`}</Text>
+            <Text dimColor>{SCORE_NOTICE}</Text>
+          </Box>
+        ) : null}
         <Box flexDirection="column">
           <Text bold>Next best steps</Text>
           {!isRanked ? <Text dimColor>ranking…</Text> : steps === null ? <Text dimColor>Ranking unavailable; see the report.</Text>
@@ -244,18 +265,30 @@ export const register: Register = on => {
     const fold = (
       <Button key="fold" label={folded ? '+' : '–'} plain onPress={() => update($, isFolded, value => !value)} />
     )
-    const status = run ? summaryLine(run, b.previousGaps ?? null) : b.problem ?? 'no completed run yet'
+    const ranked = await read($, nextSteps)
+    const stepForRun = run && ranked?.dir === run.dir ? ranked.steps?.[0] ?? null : null
+    const scores = run && ranked?.dir === run.dir ? ranked.scores ?? null : null
+    const status = !run ? b.problem ?? 'no completed run yet' : scores ? progressLine(scores) : summaryLine(run, b.previousGaps ?? null)
     if (folded) {
+      const alignment = scores?.meters[0]
+      const brief = scores && alignment
+        ? `${statusWord(scores)} · Alignment ${alignment.points === null ? 'not scored' : `${alignment.points}/10`}`
+          + (stepForRun ? ` · Next: ${describeStep(stepForRun)}` : '') + (scores.synthetic ? ' · fictional data' : '')
+        : status
       return (
         <Box flexDirection="row" gap={1}>
-          <Text dimColor>EU Compliance Guard · {status}</Text>
+          <Text dimColor>EU Compliance Guard · {brief}</Text>
           {fold}
         </Box>
       )
     }
     const view = await read($, lastView)
-    const ranked = await read($, nextSteps)
-    const stepForRun = run && ranked?.dir === run.dir ? ranked.steps?.[0] ?? null : null
+    const context = run ? (
+      <Text dimColor>
+        {`${scores ? '' : ' · '}assessed ${run.assessmentDate}${age === null ? '' : ` (${age}d ago)`}`}
+        {run.attempts.total > 0 ? ` · sources ${run.attempts.retrieved}/${run.attempts.total} retrieved` : ''}
+      </Text>
+    ) : null
     // A view written for an older run must not stand for the newest run the band summarizes.
     const runName = run ? run.dir.replace(/\/+$/, '').split('/').pop() : null
     const viewForRun = view && runName && view.endsWith(`/views/${runName}.html`) ? view : null
@@ -270,9 +303,11 @@ export const register: Register = on => {
         <Text>
           {status}
           {run ? <Text dimColor>{` · state ${run.state}`}</Text> : null}
-          {run ? <Text dimColor>{` · assessed ${run.assessmentDate}${age === null ? '' : ` (${age}d ago)`}`}</Text> : null}
-          {run && run.attempts.total > 0 ? <Text dimColor>{` · sources ${run.attempts.retrieved}/${run.attempts.total} retrieved`}</Text> : null}
+          {run && !scores ? context : null}
         </Text>
+        {scores ? <Text dimColor>{meterRow(scores)}</Text> : null}
+        {/* With meters the context gets its own row, so each row fits the band's width. */}
+        {scores ? <Text dimColor>{context}{` · ${scores.screened} of 11 families screened`}</Text> : null}
         {stepForRun ? <Text color="cyan">Next: {describeStep(stepForRun)}</Text> : null}
         <Box flexDirection="row" gap={1}>
           {stepForRun ? <Button key="next" label="Next step" variant="primary" hotkey="n" onPress={() => runSkill($, 'eucg-next')} /> : null}
@@ -284,7 +319,7 @@ export const register: Register = on => {
           <Button key="help" label="Help" hotkey="h" onPress={() => runSkill($, 'eucg-help')} />
         </Box>
         {viewForRun ? <Link href={`file://${viewForRun}`} label={`Report view: ${viewForRun}`} /> : null}
-        <Text dimColor>Processing state is not a compliance verdict.</Text>
+        <Text dimColor>{scores ? SCORE_NOTICE : 'Processing state is not a compliance verdict.'}</Text>
       </Box>
     )
   })
