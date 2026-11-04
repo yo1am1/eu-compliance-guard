@@ -13,6 +13,7 @@ export type RunSummary = {
   areas: { area: string; count: number }[]
   // Assumed, unknown or conflicting facts by id; their free-text questions stay in the report.
   questions: { id: string; basis: string }[]
+  questionsTotal: number
 }
 
 export type NextStep = {
@@ -21,8 +22,8 @@ export type NextStep = {
   unblocks: number
 }
 
-// The ranked steps of one run directory.
-export type NextSteps = { dir: string; steps: NextStep[] }
+// The ranked steps of one run directory; null steps when ranking failed for that run.
+export type NextSteps = { dir: string; steps: NextStep[] | null }
 
 export type Band = {
   isActive: boolean

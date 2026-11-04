@@ -11,7 +11,9 @@ const EMPTY: Band = { isActive: false, level: 'full', stateDir: '', run: null, p
 const band = atom({ plugin: 'eu-compliance-guard', key: 'band' } as const, EMPTY, { shape: 'band-2' })
 const isFolded = atom({ plugin: 'eu-compliance-guard', key: 'isFolded' } as const, false)
 const lastView = atom({ plugin: 'eu-compliance-guard', key: 'lastView' } as const, null)
-const nextSteps = atom({ plugin: 'eu-compliance-guard', key: 'next' } as const, null as NextSteps | null, { shape: 'next-2' })
+const nextSteps = atom({ plugin: 'eu-compliance-guard', key: 'next' } as const, null as NextSteps | null, { shape: 'next-3' })
+// Run directories being ranked now, so turns that end while the CLI runs start no second process.
+const ranking = new Set<string>()
 const PANE = 'eucg-panel'
 const PANE_TITLE = 'EU Compliance Guard'
 
@@ -92,10 +94,18 @@ async function resolve($: EngineInterface, linked: string) {
   return resolved?.exitCode === 0 && resolved.stdout.trim() !== '' ? resolved.stdout.trim() : linked
 }
 
+// Ranks a run once: a failure is stored for that run too, so it is not retried on every turn.
 async function rankNext($: EngineInterface, dir: string) {
-  const result = await cli($, ['next', '--run', await resolve($, dir), '--json', '--top', '3'], 60_000)
-  const steps = result?.exitCode === 0 ? parseSteps(dir, result.stdout) : null
-  await update($, nextSteps, () => steps)
+  if (ranking.has(dir)) return
+  ranking.add(dir)
+  try {
+    const result = await cli($, ['next', '--run', await resolve($, dir), '--json', '--top', '3'], 60_000)
+    const ranked = (result?.exitCode === 0 ? parseSteps(dir, result.stdout) : null) ?? { dir, steps: null }
+    // A slow ranking of an older run never replaces the newest run's.
+    if ((await read($, band))?.run?.dir === dir) await update($, nextSteps, () => ranked)
+  } finally {
+    ranking.delete(dir)
+  }
 }
 
 // Plugin skills may be listed bare or under the plugin's namespace.
@@ -156,9 +166,11 @@ export const register: Register = on => {
       )
     }
     const ranked = await read($, nextSteps)
-    const steps = ranked?.dir === run.dir ? ranked.steps : null
+    const isRanked = ranked?.dir === run.dir
+    const steps = isRanked ? ranked.steps : null
     const age = daysOld(run.assessmentDate, await $.clock.now())
     const questions = run.questions ?? []
+    const questionsTotal = run.questionsTotal ?? questions.length
     const areas = run.areas ?? []
     return (
       <Box flexDirection="column" gap={1}>
@@ -169,15 +181,16 @@ export const register: Register = on => {
         </Box>
         <Box flexDirection="column">
           <Text bold>Next best steps</Text>
-          {steps === null ? <Text dimColor>ranking…</Text> : steps.length === 0 ? <Text dimColor>No recorded step is open.</Text> : null}
+          {!isRanked ? <Text dimColor>ranking…</Text> : steps === null ? <Text dimColor>Ranking unavailable; see the report.</Text>
+            : steps.length === 0 ? <Text dimColor>No recorded step is open.</Text> : null}
           {(steps ?? []).map((step, index) => <Text>{`${index + 1}. ${describeStep(step)}`}</Text>)}
           {steps && steps.length > 0 ? <Button key="next" label="Work on step 1" variant="primary" onPress={() => runSkill($, 'eucg-next')} /> : null}
         </Box>
         <Box flexDirection="column">
-          <Text bold>Questions for the owner ({questions.length})</Text>
+          <Text bold>Questions for the owner ({questionsTotal})</Text>
           {questions.length === 0 ? <Text dimColor>Every declared fact is declared or observed.</Text> : null}
           {questions.slice(0, 12).map(item => <Text>{`${item.id} · ${item.basis}`}</Text>)}
-          {questions.length > 12 ? <Text dimColor>{`and ${questions.length - 12} more in the report`}</Text> : null}
+          {questionsTotal > 12 ? <Text dimColor>{`and ${questionsTotal - 12} more in the report`}</Text> : null}
         </Box>
         <Box flexDirection="column">
           <Text bold>Open gaps by area</Text>
@@ -224,7 +237,7 @@ export const register: Register = on => {
     }
     const view = await read($, lastView)
     const ranked = await read($, nextSteps)
-    const stepForRun = run && ranked?.dir === run.dir ? ranked.steps[0] ?? null : null
+    const stepForRun = run && ranked?.dir === run.dir ? ranked.steps?.[0] ?? null : null
     // A view written for an older run must not stand for the newest run the band summarizes.
     const runName = run ? run.dir.replace(/\/+$/, '').split('/').pop() : null
     const viewForRun = view && runName && view.endsWith(`/views/${runName}.html`) ? view : null

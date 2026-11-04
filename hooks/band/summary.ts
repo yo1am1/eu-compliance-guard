@@ -29,6 +29,7 @@ function areas(gaps: unknown): { area: string; count: number }[] {
 
 // The same explicit fact occurrences as models.scope_facts, by id and basis only.
 function questions(scope: any): { id: string; basis: string }[] {
+  // Every open fact; the summary keeps the first 50 and the total.
   const list = (value: unknown) => (Array.isArray(value) ? value : [])
   const facts = [...list(scope?.roles), ...list(scope?.size_and_sector)]
   for (const activity of list(scope?.activities)) {
@@ -45,7 +46,7 @@ function questions(scope: any): { id: string; basis: string }[] {
     seen.add(id)
     found.push({ id, basis: fact.basis === 'assumed' || fact.basis === 'unknown' ? fact.basis : 'conflicting' })
   }
-  return found.slice(0, 50)
+  return found
 }
 
 // Parses a run's bundle.json text into the band's summary; null when it is not a bundle.
@@ -76,7 +77,10 @@ export function summarize(dir: string, text: string): RunSummary | null {
     },
     attempts: { retrieved: count(attempts, 'state', 'retrieved'), total: attempts.length },
     areas: areas(bundle.gaps),
-    questions: questions(bundle.declarations?.scope),
+    ...(() => {
+      const open = questions(bundle.declarations?.scope)
+      return { questions: open.slice(0, 50), questionsTotal: open.length }
+    })(),
   }
 }
 
