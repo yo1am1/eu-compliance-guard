@@ -3,10 +3,12 @@
 from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
+import os
 from pathlib import Path
 import stat
 import tempfile
 import unittest
+from unittest import mock
 
 from eu_compliance_guard import authoring as a, grounding as g, models as m, revalidation as r
 from eu_compliance_guard.__main__ import main
@@ -213,6 +215,20 @@ class GroundingTests(unittest.TestCase):
         self.assertEqual(declared["fact-cookie-lifetime"].basis, "observed")
         # The other fact was confirmed against the old bytes: it is a question again.
         self.assertEqual((declared["fact-cookie-name"].basis, declared["fact-cookie-name"].evidence_ids), ("assumed", []))
+
+    def test_an_unreadable_folder_counts_as_skipped(self):
+        # Simulated, so the test also holds as root, whom chmod 000 does not stop.
+        blocked, scandir = os.path.join(os.path.realpath(self.project), "app"), os.scandir
+
+        def refuse(path="."):
+            if os.fspath(path) == blocked:
+                raise PermissionError(13, "Permission denied")
+            return scandir(path)
+
+        with mock.patch("os.scandir", refuse):
+            report = g.ground(self.declarations)
+        self.assertEqual((report["files"], report["skipped"]), (0, 1))
+        self.assertIn("(1 skipped)", g.format_ground(report))
 
     def test_oversized_files_are_skipped_without_reading_them_whole(self):
         (self.project / "dump.sql").write_bytes(b"cookie " * (g.MAX_FILE_BYTES // 7 + 10))
