@@ -41,6 +41,23 @@ deleted file mode 100644
 """
 
 
+def _coloured(diff: str) -> str:
+    """The diff as `git -c color.ui=always diff` prints it: SGR codes around headers, hunk headers and changes."""
+    out = []
+    for line in diff.split("\n"):
+        if line.startswith(("diff --git ", "new file mode", "deleted file mode", "--- ", "+++ ")):
+            out.append(f"\x1b[1m{line}\x1b[m")
+        elif line.startswith("@@"):
+            fence = line.index(" @@", 2) + 3
+            out.append(f"\x1b[36m{line[:fence]}\x1b[m{line[fence:]}")
+        elif line[:1] in ("+", "-"):
+            colour = "1;32" if line[0] == "+" else "38;5;1"
+            out.append(f"\x1b[{colour}m{line[0]}\x1b[m\x1b[{colour}m{line[1:]}\x1b[m")
+        else:
+            out.append(f"{line}\x1b[m" if line else line)
+    return "\n".join(out)
+
+
 class PRCheckTests(unittest.TestCase):
     def test_diff_parsing_tracks_new_line_numbers_and_every_touched_path(self):
         added, touched = p.parse_diff(DIFF)
@@ -139,6 +156,30 @@ class PRCheckTests(unittest.TestCase):
                 'diff --git "a/gr\\303\\266\\303\\237e.py" "b/gr\\303\\266\\303\\237e.py"\nold mode 100644\nnew mode 100755\n')
         _, touched = p.parse_diff(diff)
         self.assertEqual(touched, {"src/old name.py", "ev.txt", "ev2.txt", "logo.png", "größe.py"})
+
+    def test_coloured_diffs_parse_like_plain_ones(self):
+        coloured = _coloured(DIFF)
+        self.assertTrue(coloured.startswith("\x1b[1mdiff --git "))
+        self.assertEqual(p.parse_diff(coloured), p.parse_diff(DIFF))
+        self.assertEqual(p.pr_check(coloured), p.pr_check(DIFF))
+
+    def test_input_without_any_diff_is_refused_not_reported_empty(self):
+        for text in ("hello this is not a diff\nhealth consent cookie\n",
+                     "@@ -1 +1 @@\n+store_health_consent_cookie()\n",
+                     " src/app.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)\n"):
+            with self.assertRaises(p.PRCheckError) as caught:
+                p.pr_check(text)
+            self.assertEqual(caught.exception.code, "invalid-input")
+        self.assertEqual(p.pr_check(" \n\n")["files"], 0)  # blank input is an empty diff
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "notes.txt"
+            path.write_text("health consent cookie\n")
+            out, err = io.StringIO(), io.StringIO()
+            with redirect_stdout(out), redirect_stderr(err):
+                code = main(["pr-check", "--diff", str(path), "--input", str(Path(folder) / "none.json"), "--strict"])
+            self.assertEqual(code, 2)
+            self.assertEqual(out.getvalue(), "")
+            self.assertEqual(err.getvalue(), "eu-compliance-guard: invalid-input: pr check failed\n")
 
     def test_empty_diff_is_not_a_clean_bill(self):
         report = p.pr_check("")

@@ -84,9 +84,26 @@ def _header_paths(rest: str) -> set[str]:
     return {name[2:] if name[:2] in ("a/", "b/") else name for name in names if name and name != "/dev/null"}
 
 
+def _plain(text: str) -> str:
+    """The text without the ANSI colour codes (ESC [ digits and semicolons m) of `git diff --color`."""
+    parts, index = [], 0
+    while (start := text.find("\x1b[", index)) >= 0:
+        end = start + 2
+        while end < len(text) and text[end] in "0123456789;":
+            end += 1
+        if text[end:end + 1] == "m":
+            parts.append(text[index:start])
+            index = end + 1
+        else:  # not a colour code: keep it as data
+            parts.append(text[index:end])
+            index = end
+    parts.append(text[index:])
+    return "".join(parts)
+
+
 def _lines(text: str) -> list[str]:
     """Split on newlines only, like git and editors; form feeds and other separators stay in the line."""
-    return [line[:-1] if line.endswith("\r") else line for line in text.split("\n")]
+    return [line[:-1] if line.endswith("\r") else line for line in _plain(text).split("\n")]
 
 
 def _text_file(path: str) -> bool:
@@ -97,17 +114,21 @@ def _text_file(path: str) -> bool:
 
 
 def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str]]:
-    """Added lines per new path, and every path the diff touches (old or new side)."""
+    """Added lines per new path, and every path the diff touches (old or new side).
+
+    Text that is not blank but names no file (prose, a stat summary, a bare hunk) is refused:
+    reporting it as an empty diff would pass a strict gate on input that was never screened.
+    """
     added: dict[str, list[tuple[int, str]]] = {}
     touched: set[str] = set()
-    current, number = None, 0
+    current, number, files = None, 0, False
     old_left = new_left = 0  # lines still owed to the current hunk: inside it, "--- x" is a removed line
     for line in _lines(text):
         if line.startswith("diff --git "):
             old_left = new_left = 0  # a new file always ends the hunk, even one whose counts were short
             # Renames, copies, binary and mode-only changes have no ---/+++ lines; the header names them.
             touched.update(_header_paths(line[len("diff --git "):]))
-            current = None
+            current, files = None, True
             continue
         if old_left > 0 or new_left > 0:
             if line.startswith("+"):
@@ -130,13 +151,15 @@ def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str]]:
             if old:
                 touched.add(old)
         elif line.startswith("+++ "):
-            current = _path(line)
+            current, files = _path(line), True
             if current:
                 touched.add(current)
         elif (match := HUNK.match(line)):
             number = int(match.group(2))
             old_left = int(match.group(1)) if match.group(1) is not None else 1
             new_left = int(match.group(3)) if match.group(3) is not None else 1
+    if not files and text.strip():
+        raise PRCheckError("invalid-input")
     return added, touched
 
 
