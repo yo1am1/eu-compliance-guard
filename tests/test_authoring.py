@@ -470,6 +470,11 @@ class AuthoringTests(unittest.TestCase):
         (self.root / "linked.json").symlink_to(self.input)
         self.input.write_text(json.dumps(self.payload))
         self.assertIn("unsafe-path", self.cli("state-dir", "--input", str(self.root / "linked.json"))[2])
+        # A link to nothing is still a link, not missing declarations.
+        (self.root / "dangling.json").symlink_to(self.root / "nowhere.json")
+        for command in ("state-dir", "next", "ground"):
+            with self.subTest(command=command, path="dangling.json"):
+                self.assertIn("unsafe-path", self.cli(command, "--input", str(self.root / "dangling.json"))[2])
 
     def test_a_relative_xdg_state_home_is_ignored_so_the_state_dir_never_depends_on_the_cwd(self):
         import os
