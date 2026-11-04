@@ -1,0 +1,28 @@
+name: Release tag
+
+# Publishes the GitHub release (and its tag) for a reviewed commit. Idempotent: an existing
+# release is left alone. Change TAG and TARGET for the next release.
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/release-tag.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  TAG: v1.1.0
+  TARGET: a31c4df795a2b066b8b25612f8fe09ce6e4c4a76
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the release if it does not exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then echo "$TAG already exists"; exit 0; fi
+          gh release create "$TAG" --target "$TARGET" --title "$TAG" --generate-notes
