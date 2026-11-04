@@ -294,6 +294,18 @@ class WorkflowTests(unittest.TestCase):
                 self.assertEqual(f"Requirement requirement-example: {mapped_gap}" in bundle.gaps, not passed)
                 self.assertEqual(len(assessment.gaps), 1)
 
+    def test_bad_requirement_origin_is_one_gap_and_one_action(self):
+        (self.root / "other.txt").write_bytes(b"fictional other bytes")
+        for origin in ({"path": "other.txt", "digest": m.content_digest(b"different")},
+                       {"path": "missing-origin.txt", "digest": m.content_digest(b"missing")}):
+            self.payload["requirements"][0].update(origin=origin, locator="line 1")
+            self.save()
+            bundle = self.assemble()
+            with self.subTest(path=origin["path"]):
+                self.assertEqual([gap for gap in bundle.gaps if "origin" in gap],
+                                 ["Requirement requirement-example: Declared requirement origin unavailable or corrupt."])
+                self.assertEqual(len([action for action in bundle.next_actions if "origin" in action]), 1)
+
     def test_independent_verification_does_not_follow_unretained_attestation(self):
         self.payload["evidence"][0]["evidence"]["provenance"] = "independently_verified"
         self.save()

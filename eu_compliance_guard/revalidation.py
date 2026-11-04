@@ -561,11 +561,6 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
             record_gap(f"Source target {target.id}: no selected source candidate.")
         if target.family not in m.LEGAL_FAMILIES:
             record_gap(f"Source target {target.id}: unsupported topic requires specialist/national research.")
-    for requirement in declared.requirements:
-        if requirement.origin:
-            observation = observations.get(requirement.origin.path)
-            if not observation or observation.availability != "available" or observation.digest != requirement.origin.digest:
-                record_gap(f"Requirement {requirement.id}: origin unavailable or corrupt.")
 
     def fact_problems(pins):
         problems = []
