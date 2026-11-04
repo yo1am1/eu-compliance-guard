@@ -230,19 +230,43 @@ def _fact_query(fact: m.Fact) -> list[str]:
     return tokens(f"{fact.key} {value}")
 
 
+def _current_evidence(path: Path, declared: m.RevalidationInput) -> frozenset[str]:
+    """Ids of declared evidence whose file still has its pinned digest, read as a run reads it:
+    from the files root, never through a symlink."""
+    current = set()
+    try:
+        with r._parent(Path(os.path.abspath(path))) as (parent_fd, _), r.files_root(declared, parent_fd) as root_fd:
+            for selected in declared.evidence:
+                if selected.path is None or selected.evidence.availability != "available":
+                    continue
+                try:
+                    observed = r._read_file(root_fd, selected.path, limit=r.MAX_FILE_BYTES, retain=False)
+                except r.RevalidationError:
+                    continue  # too large to verify, so not current
+                if observed.availability == "available" and observed.digest == selected.evidence.digest:
+                    current.add(selected.evidence.id)
+    except OSError:
+        raise r.RevalidationError("unsafe-path") from None
+    return frozenset(current)
+
+
 def ground(path: str | os.PathLike, top: int = 3) -> dict:
-    """Candidate code evidence for each assumed/unknown fact, and touchpoints no fact covers."""
+    """Candidate code evidence for each assumed/unknown fact and each fact whose pinned evidence
+    changed or is missing (stale), and touchpoints no fact covers."""
     path = Path(path)
     declared, root = _declarations(path)
     index = build_index(root, _own_files(path, root))
     facts = {fact.id: fact for fact in m.scope_facts(declared.scope)}
-    # Only the cited lines are accounted for; the rest of a cited file may hold other touchpoints.
-    cited = {ref for item in declared.evidence for ref in item.evidence.source_refs}
+    current = _current_evidence(path, declared)
+    # Only the cited lines of unchanged files are accounted for: the rest of a cited file, and the
+    # old line numbers of a changed one, may hold other touchpoints.
+    cited = {ref for item in declared.evidence if item.evidence.id in current for ref in item.evidence.source_refs}
     unobservable = not_observable(declared.scope)
     results, covered = [], set()
     terms_at = {f"{line.path}:{line.number}": line.terms for line in index.lines}
     for fact in facts.values():
-        if fact.basis not in ("assumed", "unknown") and not fact.conflicts:
+        stale = any(identity not in current for identity in fact.evidence_ids)
+        if fact.basis not in ("assumed", "unknown") and not fact.conflicts and not stale:
             continue
         observable = fact.id not in unobservable
         query = _fact_query(fact)
@@ -251,10 +275,11 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
         # the fact, so it stays listed as a touchpoint no fact covers.
         covered.update(item["location"] for item in candidates if set(query) & set(terms_at[item["location"]]))
         results.append({"fact": fact.id, "key": fact.key, "basis": fact.basis, "observable": observable,
-                        "candidates": candidates,
-                        "next": ("confirm a candidate with --apply, or ask the owner" if candidates
-                                 else "ask the owner; code cannot show this" if not observable
-                                 else "no code evidence found; ask the owner")})
+                        "stale": stale, "candidates": candidates,
+                        "next": ("pinned evidence changed or is missing; " if stale else "")
+                        + ("confirm a candidate with --apply, or ask the owner" if candidates
+                           else "ask the owner; code cannot show this" if not observable
+                           else "no code evidence found; ask the owner")})
     undeclared, accounted = [], covered | cited
     for key, (label, vocabulary) in CONCEPTS.items():
         hits = [line for line in index.lines if vocabulary & set(line.terms) and len(vocabulary & set(line.terms)) >= 2
@@ -269,7 +294,8 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
 def format_ground(report: dict) -> str:
     lines = [f"indexed {report['files']} files under the files root ({report['skipped']} skipped)"]
     for fact in report["facts"]:
-        lines.append(f"\nfact {fact['fact']} ({fact['basis']}): {fact['key']}")
+        stale = ", pinned evidence changed or missing" if fact["stale"] else ""
+        lines.append(f"\nfact {fact['fact']} ({fact['basis']}{stale}): {fact['key']}")
         if not fact["observable"]:
             lines.append("  organisational: code cannot show this; ask the owner")
         for item in fact["candidates"]:

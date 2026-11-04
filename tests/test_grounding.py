@@ -72,6 +72,33 @@ class GroundingTests(unittest.TestCase):
         self.assertTrue(any(example.startswith("app/web.py:4 ") for example in examples), examples)
         self.assertFalse(any(example.startswith("app/web.py:2 ") for example in examples))
 
+    def test_ground_lists_a_fact_whose_pinned_evidence_changed_or_is_missing(self):
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+        report = g.ground(self.declarations)
+        self.assertNotIn("fact-cookie-lifetime", [item["fact"] for item in report["facts"]])
+        web = self.project / "app/web.py"
+        web.write_text(CODE["app/web.py"].replace("395", "30"))
+        facts = {item["fact"]: item for item in g.ground(self.declarations)["facts"]}
+        stale = facts["fact-cookie-lifetime"]
+        self.assertEqual((stale["basis"], stale["stale"], stale["candidates"][0]["location"]),
+                         ("observed", True, "app/web.py:2"))
+        self.assertFalse(facts["fact-llm-weight"]["stale"])
+        code, stdout, _ = self.cli("ground", "--input", str(self.declarations))
+        self.assertEqual(code, 0)
+        self.assertIn("fact fact-cookie-lifetime (observed, pinned evidence changed or missing)", stdout)
+        # The pinned line no longer hides what the changed file now holds there.
+        web.write_text("def notify(user):\n    send(user.email, user.phone, user.address)\n")
+        report = g.ground(self.declarations)
+        examples = [example for item in report["undeclared"] for example in item["examples"]]
+        self.assertTrue(any(example.startswith("app/web.py:2 ") for example in examples), examples)
+        web.unlink()
+        facts = {item["fact"]: item for item in g.ground(self.declarations)["facts"]}
+        self.assertTrue(facts["fact-cookie-lifetime"]["stale"])
+        # Pinning it again closes it.
+        web.write_text(CODE["app/web.py"])
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+        self.assertNotIn("fact-cookie-lifetime", [item["fact"] for item in g.ground(self.declarations)["facts"]])
+
     def test_concept_vocabulary_finds_lines_the_fact_key_does_not_name(self):
         (self.project / "web").mkdir()
         (self.project / "web/head.html").write_text(

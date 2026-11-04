@@ -130,7 +130,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `init --project-id <id> [--path <file>] [--assessment-date <date>] [--jurisdiction <j>]… [--synthetic]` | Write a valid starter declarations file; never overwrites |
 | `check [--input <file>] [--previous <run dir>] [--json]` | Validate declarations: each problem with its JSON location, the observed digest of every selected file, whether each source target can be fetched, whether an offline run fits the output limits, and (with `--previous`) every record that needs a higher revision |
 | `revalidate --input <file> --output <new run dir> [--offline \| --fetch-official] [--previous <run dir>]` | Assemble and publish a private run |
-| `ground [--input <file>] [--top N] [--json] [--apply <fact>=<path>:<line>]…` | Rank code evidence for each assumed or unknown fact with a local index. `--apply` marks a confirmed technical fact `observed`, pinned to that file's digest |
+| `ground [--input <file>] [--top N] [--json] [--apply <fact>=<path>:<line>]…` | Rank code evidence for each assumed or unknown fact, and each fact whose pinned evidence changed, with a local index. `--apply` marks a confirmed technical fact `observed`, pinned to that file's digest |
 | `state-dir [--input <file>]` | Print and create (0700) the private run storage for the declared `project_id` |
 | `next [--run <run dir>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
 | `pr-check [--diff <file>\|-] [--input <file>] [--markdown\|--json] [--strict]` | Screen a diff's added lines for legal touchpoints, undeclared concepts and pinned evidence in changed files; `--strict` exits 1 when something needs attention |
@@ -270,12 +270,13 @@ screenings withdraw support conservatively.
 embeddings, a bounded number of files, and no symlinks or dependency folders. It uses
 Okapi BM25 over identifier-split tokens, and a lexicon of legal concepts expands each
 query (tracking, special-category data, children, AI, subscriptions, retention and
-more). For every assumed or unknown fact it lists ranked `file:line` candidates, and it
-also lists touchpoints that no fact covers. Organisational facts are flagged, because
-code can never show them. `--apply` accepts a line only if it shares terms with the
-fact. It then records the fact as `observed` with the file as evidence, which closes
-that fact's gap until the file changes. Repeated `--apply` values are all checked
-first: if one is refused, none is written.
+more). For every assumed or unknown fact, and every fact whose pinned evidence changed
+or is missing, it lists ranked `file:line` candidates, and it also lists touchpoints
+that no fact covers. Organisational facts are flagged, because code can never show
+them. `--apply` accepts a line only if it shares terms with the fact. It then records
+the fact as `observed` with the file as evidence, which closes that fact's gap until
+the file changes; `ground` then lists it again to be pinned anew. Repeated `--apply`
+values are all checked first: if one is refused, none is written.
 
 ### Pull-request check
 

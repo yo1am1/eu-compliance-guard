@@ -51,9 +51,10 @@ Use the CLI command from the SessionStart context, written `<cli>` below, or
 ## Ground the assumptions in the code
 
 With the default path, `init` sets `"files_root": "project"`, so selected paths resolve from the project folder.
-Run `<cli> ground`. For each assumed or unknown fact it lists ranked `file:line`
-candidates from a local index (no network, no model), flags organisational facts that
-code can never show, and lists possible touchpoints that no fact covers.
+Run `<cli> ground`. For each assumed or unknown fact, and each fact marked `pinned
+evidence changed or missing`, it lists ranked `file:line` candidates from a local index
+(no network, no model), flags organisational facts that code can never show, and lists
+possible touchpoints that no fact covers.
 
 - Show each fact's candidate lines to the owner. Pin only a line the owner confirms
   shows the technical fact (for example `set_cookie(..., max_age=…)` for a cookie
