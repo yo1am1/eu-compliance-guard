@@ -93,7 +93,7 @@ def _is_text(path: Path) -> bool:
     return path.name in TEXT_NAMES or "".join(path.suffixes[-2:]) in TEXT_SUFFIXES or path.suffix in TEXT_SUFFIXES
 
 
-def build_index(root: Path) -> Index:
+def build_index(root: Path, exclude: frozenset[str] = frozenset()) -> Index:
     """Read text files below root without following symlinks; bounded by file count and bytes."""
     index = Index(root=root)
     total = 0
@@ -101,7 +101,7 @@ def build_index(root: Path) -> Index:
         folders[:] = sorted(name for name in folders if name not in SKIP_DIRS and not name.startswith("."))
         for name in sorted(files):
             path = Path(directory) / name
-            if path.is_symlink() or not path.is_file() or not _is_text(path):
+            if path.is_symlink() or not path.is_file() or not _is_text(path) or path.relative_to(root).as_posix() in exclude:
                 continue
             if len(index.digests) >= MAX_FILES or total >= MAX_TOTAL_BYTES:
                 index.skipped += 1
@@ -118,7 +118,7 @@ def build_index(root: Path) -> Index:
             total += len(raw)
             relative = path.relative_to(root).as_posix()
             index.digests[relative] = m.content_digest(raw)
-            for number, content in enumerate(text.splitlines(), 1):
+            for number, content in enumerate(_lines(text), 1):
                 terms = Counter(tokens(content))
                 if terms:
                     index.lines.append(Line(relative, number, content.strip()[:200], terms))
@@ -177,8 +177,23 @@ def _declarations(path: Path) -> tuple[m.RevalidationInput, Path]:
     return declared, Path(os.path.realpath(root))
 
 
+def _own_files(path, root: Path) -> frozenset[str]:
+    """The declarations file, relative to the files root, when it lies inside it."""
+    try:
+        return frozenset({Path(os.path.realpath(path)).relative_to(root).as_posix()})
+    except ValueError:
+        return frozenset()
+
+
+def _lines(text: str) -> list[str]:
+    """Split on newlines only, so numbers match editors and git; form feeds stay inside a line."""
+    lines = [line[:-1] if line.endswith("\r") else line for line in text.split("\n")]
+    return lines[:-1] if lines and lines[-1] == "" else lines
+
+
 def _fact_query(fact: m.Fact) -> list[str]:
-    value = fact.value if isinstance(fact.value, str) else json.dumps(fact.value)
+    # An unknown value (None) adds no "null" term to the query.
+    value = "" if fact.value is None else fact.value if isinstance(fact.value, str) else json.dumps(fact.value)
     return tokens(f"{fact.key} {value}")
 
 
@@ -186,7 +201,7 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
     """Candidate code evidence for each assumed/unknown fact, and touchpoints no fact covers."""
     path = Path(path)
     declared, root = _declarations(path)
-    index = build_index(root)
+    index = build_index(root, _own_files(path, root))
     facts = {fact.id: fact for fact in m.scope_facts(declared.scope)}
     cited = {ref.split(":")[0] for item in declared.evidence for ref in item.evidence.source_refs}
     results, covered = [], set()
@@ -264,13 +279,15 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
         m.SourceFile(path=relative, digest="sha256:" + "0" * 64)
     except ValueError:
         raise GroundingError("bad-location") from None
+    if relative in _own_files(path, root):
+        raise GroundingError("bad-location")  # the declarations can never be evidence for themselves
     target = root / relative
     if target.is_symlink() or not target.is_file() or os.path.realpath(target) != str(target):
         raise GroundingError("bad-location")
     raw = _read_capped(target)
     if raw is None:
         raise GroundingError("bad-location")
-    text_lines = raw.decode("utf-8", errors="replace").splitlines()
+    text_lines = _lines(raw.decode("utf-8", errors="replace"))
     if not 1 <= int(number) <= len(text_lines):
         raise GroundingError("bad-location")
     line_terms = set(tokens(text_lines[int(number) - 1]))

@@ -119,6 +119,23 @@ class GroundingTests(unittest.TestCase):
         self.assertEqual(Path(report["root"]), self.project.resolve())
         self.assertEqual(report["files"], len(CODE))
 
+    def test_the_declarations_file_is_never_indexed_or_pinned(self):
+        data = json.loads(self.declarations.read_text())
+        data["files_root"] = "declarations_dir"
+        self.declarations.write_text(json.dumps(data, indent=2))
+        report = g.ground(self.declarations)
+        self.assertFalse(any("declarations.json" in item["location"] for fact in report["facts"] for item in fact["candidates"]))
+        with self.assertRaises(g.GroundingError) as raised:
+            g.apply(self.declarations, "fact-cookie-lifetime", "declarations.json:2")
+        self.assertEqual(raised.exception.code, "bad-location")
+
+    def test_line_numbers_match_editors_despite_form_feeds_and_no_null_term(self):
+        (self.project / "app/web.py").write_text("import os\n\x0c\n# section\nx = 1\n" + CODE["app/web.py"])
+        index = g.build_index(self.project)
+        line = next(item for item in index.lines if "set_cookie" in item.text)
+        self.assertEqual((line.path, line.number), ("app/web.py", 6))
+        self.assertNotIn("null", g._fact_query(m.Fact.model_validate(fact("f", "Cookie lifetime"))))
+
     def test_oversized_files_are_skipped_without_reading_them_whole(self):
         (self.project / "dump.sql").write_bytes(b"cookie " * (g.MAX_FILE_BYTES // 7 + 10))
         index = g.build_index(self.project)
