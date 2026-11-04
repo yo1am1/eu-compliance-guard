@@ -1,7 +1,7 @@
 ---
 intent: 002-trustworthy-guidance-v1-5
 phase: inception
-status: draft-awaiting-owner-approval
+status: approved-2026-11-04
 created: 2026-11-04T18:00:00Z
 ---
 

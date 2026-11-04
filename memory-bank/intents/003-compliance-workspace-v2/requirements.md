@@ -157,7 +157,7 @@ dashboard and review queue are deferred; exports to existing GRC tools come firs
 
 Priorities, in order: **security, then determinism, then features.**
 
-1. **No liability for outcomes.** The MIT licence already disclaims warranty. In
+1. **No liability for outcomes.** The licence (AGPL-3.0-only from 1.2.0, with an attribution notice) disclaims warranty. In
    addition, every output, export, pack and signed record states that it is workflow
    evidence, not legal advice or a compliance verdict. The decision always belongs to
    the named person who signed it. Failures are reported as explicit gaps, never as
