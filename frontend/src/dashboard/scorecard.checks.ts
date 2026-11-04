@@ -1,4 +1,4 @@
-// Node's built-in runner with type stripping: `npm test`. Synthetic fixture only; no network.
+// Node's built-in runner with type stripping: `npm test` (not named *.test.ts, which `claude plugin test` collects).
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
