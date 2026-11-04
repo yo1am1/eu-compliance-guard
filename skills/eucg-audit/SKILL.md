@@ -29,7 +29,9 @@ Use the CLI command from the SessionStart context, written `<cli>` below, or
   `basis: "unknown"` or `"assumed"` unless the user confirms them. Add requirements
   with stable IDs and source targets on registry hosts only (`eur-lex.europa.eu`,
   `curia.europa.eu`, `commission.europa.eu`, `digital-strategy.ec.europa.eu`,
-  `www.edpb.europa.eu`). Set `"synthetic": false` only for a real project.
+  `www.edpb.europa.eu`, `publications.europa.eu`). For an act's text, prefer the
+  Publications Office: `https://publications.europa.eu/resource/celex/<CELEX>` with the
+  target's `language` (for example `en`); EUR-Lex itself blocks scripted requests. Set `"synthetic": false` only for a real project.
 - Never fill reviewer, `reviewed_at`, applicability, source reviews or evidence
   reviews yourself. They stay empty or unresolved until a named human supplies them.
   Evidence paths point to files the user selected; their bodies are not read into

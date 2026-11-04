@@ -43,7 +43,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 - `check [--input <file>] [--previous <run dir>] [--json]` validates declarations with located problems, observed file digests, target fetchability and (with `--previous`) records that need a higher revision.
 - `revalidate --input <declarations.json> --output <new run dir> [--offline | --fetch-official] [--previous <run dir>]`
 
-- Offline by default. `--fetch-official` GETs only the declared targets on five fixed
+- Offline by default. `--fetch-official` GETs only the declared targets on six fixed
   official hosts, and only with your consent for that run.
 - Runs are private (0700/0600) and immutable. Use a new directory per run.
 - Exit 0: report written, possibly partial. Exit 2: invalid input or output.

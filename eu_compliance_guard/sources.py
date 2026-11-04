@@ -26,7 +26,7 @@ from . import __version__
 # Code-reviewed exact-host registry. It is a retrieval policy, not a list of all official law.
 OFFICIAL_HOSTS = frozenset({
     "eur-lex.europa.eu", "curia.europa.eu", "commission.europa.eu",
-    "digital-strategy.ec.europa.eu", "www.edpb.europa.eu",
+    "digital-strategy.ec.europa.eu", "www.edpb.europa.eu", "publications.europa.eu",
 })
 MAX_URL_CHARS = 4096
 MAX_ADDRESSES = 16
@@ -43,6 +43,10 @@ TARGET_SECONDS = 20.0
 NETWORK_SECONDS = 300.0
 STOP_SECONDS = 2.0
 REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
+# The Publications Office (Cellar) redirects its own https requests to http URLs on the same host.
+# Only for these hosts, a same-host http redirect is upgraded to https; any other downgrade is refused.
+HTTPS_UPGRADE_HOSTS = frozenset({"publications.europa.eu"})
+LANGUAGE = re.compile(r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})?$")
 MEDIA_TYPES = frozenset({"text/html", "application/xhtml+xml", "text/plain", "application/pdf"})
 # http.client adds only Host and "Accept-Encoding: identity" to these fixed headers.
 REQUEST_HEADERS = {
@@ -95,6 +99,7 @@ class TargetRequest:
     url: str
     redirect_hosts: tuple[str, ...] = ()
     synthetic: bool = False
+    language: str = "en"
 
 
 @dataclass(frozen=True)
@@ -215,10 +220,10 @@ class SystemTransport:
         infos = socket.getaddrinfo(host, self.port, type=socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)
         return [info[4][0] for info in infos if info[0] in (socket.AF_INET, socket.AF_INET6)]
 
-    def get(self, host: str, address: str, target: str, timeout: float) -> _Response:
+    def get(self, host: str, address: str, target: str, timeout: float, language: str = "en") -> _Response:
         connection = _PinnedHTTPSConnection(host, address, self.port, timeout, self.context)
         try:
-            connection.request("GET", target, headers=REQUEST_HEADERS)
+            connection.request("GET", target, headers={**REQUEST_HEADERS, "Accept-Language": language})
             return _Response(connection, connection.getresponse())
         except BaseException:
             connection.close()
@@ -264,6 +269,8 @@ def fetch(request: TargetRequest, transport, *, limit: int, deadline: float,
         if limit <= 0:
             raise RetrievalFailure("download-budget-exhausted")
         hosts = allowed_hosts(request)
+        # Cellar refuses requests without a language; only a plain language tag is ever sent.
+        language = request.language if LANGUAGE.match(request.language) else "en"
         url = request.url
         seen = {url}
         for hop in range(MAX_REDIRECTS + 1):
@@ -272,7 +279,7 @@ def fetch(request: TargetRequest, transport, *, limit: int, deadline: float,
             response = None
             for address in addresses:
                 try:
-                    response = transport.get(host, address, target, remaining())
+                    response = transport.get(host, address, target, remaining(), language)
                     break
                 except (ssl.SSLError, TimeoutError):
                     raise
@@ -295,6 +302,9 @@ def fetch(request: TargetRequest, transport, *, limit: int, deadline: float,
                     if len(locations[0]) > MAX_URL_CHARS:
                         raise RetrievalFailure("unsafe-redirect")
                     location = urljoin(url, locations[0])
+                    upgraded = urlsplit(location)
+                    if upgraded.scheme == "http" and upgraded.hostname == host and host in HTTPS_UPGRADE_HOSTS:
+                        location = "https" + location[len("http"):]
                     try:
                         check_url(location, hosts)
                     except RetrievalFailure:

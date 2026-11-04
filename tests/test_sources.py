@@ -44,8 +44,9 @@ class FakeTransport:
         self.calls.append(("resolve", host))
         return self.dns.get(host, [PUBLIC])
 
-    def get(self, host, address, target, timeout):
+    def get(self, host, address, target, timeout, language="en"):
         self.calls.append(("get", host, address, target, timeout))
+        self.languages = [*getattr(self, "languages", []), language]
         if address in self.errors:
             raise self.errors[address]
         response = self.responses[(host, target)]
@@ -165,6 +166,25 @@ class FetchTests(unittest.TestCase):
                     self.assertEqual(sum(call[0] == "get" for call in transport.calls), 1)
         twice = FakeTransport(responses={(HOST, target_of(URL)): FakeResponse(302, [("Location", "/a"), ("Location", "/b")])})
         self.assertEqual(fetch(twice).failure, "invalid-response")
+
+    def test_only_cellar_same_host_http_redirect_is_upgraded(self):
+        cellar = "https://publications.europa.eu/resource/celex/32016R0679"
+        document = "http://publications.europa.eu/resource/cellar/abc.0006.03/DOC_1"
+        transport = FakeTransport(responses={("publications.europa.eu", "/resource/celex/32016R0679"): FakeResponse(303, [("Location", document)]),
+                                             ("publications.europa.eu", "/resource/cellar/abc.0006.03/DOC_1"): FakeResponse(
+                                                 headers=[("Content-Type", "application/xhtml+xml;charset=UTF-8")], body=PAGE)})
+        result = s.fetch(s.TargetRequest("t", cellar, language="de"), transport, limit=s.MAX_RESPONSE_BYTES,
+                         deadline=time.monotonic() + 30)
+        self.assertIsNone(result.failure)
+        self.assertEqual(result.final_url, "https://publications.europa.eu/resource/cellar/abc.0006.03/DOC_1")
+        self.assertEqual(transport.languages, ["de", "de"])
+        for location in ("http://eur-lex.europa.eu/x", "http://publications.europa.eu.evil.example/x"):
+            downgrade = FakeTransport(responses={(HOST, target_of(URL)): FakeResponse(302, [("Location", location)])})
+            with self.subTest(location=location):
+                self.assertEqual(fetch(downgrade).failure, "unsafe-redirect")
+        odd = FakeTransport(responses={(HOST, target_of(URL)): FakeResponse(body=PAGE)})
+        s.fetch(s.TargetRequest("t", URL, language="en\r\nX: y"), odd, limit=1000, deadline=time.monotonic() + 30)
+        self.assertEqual(odd.languages, ["en"])
 
     def test_public_to_private_redirect_is_refused_after_fresh_resolution(self):
         other = "https://curia.europa.eu/case"
@@ -300,7 +320,8 @@ class SystemTransportWireTests(unittest.TestCase):
         lines = listener.request.decode().split("\r\n")
         self.assertEqual(lines[0], "GET /doc?x=1 HTTP/1.1")
         headers = {line.split(":", 1)[0].lower(): line.split(":", 1)[1].strip() for line in lines[1:] if line}
-        self.assertEqual(set(headers), {"host", "accept-encoding", "user-agent", "accept", "connection"})
+        self.assertEqual(set(headers), {"host", "accept-encoding", "user-agent", "accept", "connection", "accept-language"})
+        self.assertEqual(headers["accept-language"], "en")
         self.assertEqual(headers["host"], f"{HOST}:{listener.port}")
         self.assertEqual((headers["accept-encoding"], headers["connection"]), ("identity", "close"))
         self.assertNotIn("cookie", headers)

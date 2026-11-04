@@ -882,7 +882,8 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
             from . import sources
             _preflight_output(output_path)
             requests = [sources.TargetRequest(item.id, item.intended_url, tuple(item.redirect_hosts),
-                                              item.intended_type == "synthetic_fixture") for item in declared.source_targets]
+                                              item.intended_type == "synthetic_fixture", item.language)
+                        for item in declared.source_targets]
             try:
                 retrievals = sources.retrieve(requests, **({"transport_factory": transport_factory} if transport_factory else {}))
             except sources.RetrievalHelperError:

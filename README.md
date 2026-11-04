@@ -133,8 +133,11 @@ applicability or legal support stays a review gap, never an established violatio
 ### Official sources
 
 The network is off by default. `--fetch-official` sends bounded GETs to the declared
-source targets, and only to five exact hosts: `eur-lex.europa.eu`, `curia.europa.eu`,
-`commission.europa.eu`, `digital-strategy.ec.europa.eu` and `www.edpb.europa.eu`.
+source targets, and only to six exact hosts: `eur-lex.europa.eu`, `curia.europa.eu`,
+`commission.europa.eu`, `digital-strategy.ec.europa.eu`, `www.edpb.europa.eu` and
+`publications.europa.eu` (the Publications Office's machine endpoint, Cellar). For
+Cellar alone, its own same-host `http://` redirect is upgraded to https; every other
+downgrade is refused. Requests carry the target's language as `Accept-Language`.
 
 - Requests use HTTPS on port 443 only, with no credentials and no proxy.
 - DNS answers must all be public, and the connection is pinned to a validated
