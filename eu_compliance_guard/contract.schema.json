@@ -5827,6 +5827,781 @@
       "title": "ScopeRegisterCommand",
       "type": "object"
     },
+    "ScoreAttentionCount": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "key": {
+          "enum": [
+            "reviewer_recorded_insufficient",
+            "re_review_after_change",
+            "evidence_changed",
+            "origin_changed"
+          ],
+          "title": "Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "count"
+      ],
+      "title": "ScoreAttentionCount",
+      "type": "object"
+    },
+    "ScoreCeiling": {
+      "additionalProperties": false,
+      "description": "The most this run can reach for structural reasons, not for anything the project lacks.",
+      "properties": {
+        "points": {
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Points",
+          "type": "integer"
+        },
+        "technical": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Technical",
+          "type": "integer"
+        },
+        "unconfirmed_sources": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Unconfirmed Sources",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "points",
+        "technical",
+        "unconfirmed_sources"
+      ],
+      "title": "ScoreCeiling",
+      "type": "object"
+    },
+    "ScoreCount": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "key": {
+          "enum": [
+            "supported",
+            "conflicting",
+            "unresolved",
+            "no_mapping",
+            "fact_open",
+            "fact_evidence_changed",
+            "requirement_evidence",
+            "origin_changed",
+            "methods_open",
+            "no_methods",
+            "mapped_not_applicable",
+            "renew_after_change",
+            "other",
+            "no_pin",
+            "target_only",
+            "source_review_open",
+            "locator_not_listed",
+            "non_binding_for_duty",
+            "overlay_open",
+            "sources_confirmable_by_fetch",
+            "observed",
+            "declared",
+            "assumed",
+            "unknown",
+            "fact_conflict",
+            "evidence_changed",
+            "ask_owner",
+            "ground_in_code",
+            "applicable",
+            "not_applicable",
+            "missing",
+            "declared_unresolved",
+            "declared_not_accepted",
+            "unclaimed_obligations",
+            "review_complete",
+            "reviewer_recorded_insufficient",
+            "not_started",
+            "incomplete",
+            "technical_not_run",
+            "evidence_ready",
+            "evidence_declared"
+          ],
+          "title": "Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "count"
+      ],
+      "title": "ScoreCount",
+      "type": "object"
+    },
+    "ScoreDelta": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "enum": [
+            "alignment",
+            "law_text",
+            "facts",
+            "decisions",
+            "mapping",
+            "reviews"
+          ],
+          "title": "Key",
+          "type": "string"
+        },
+        "points_after": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Points After"
+        },
+        "points_before": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Points Before"
+        },
+        "total_after": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Total After",
+          "type": "integer"
+        },
+        "total_before": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Total Before",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "key",
+        "points_before",
+        "points_after",
+        "total_before",
+        "total_after"
+      ],
+      "title": "ScoreDelta",
+      "type": "object"
+    },
+    "ScoreDimension": {
+      "additionalProperties": false,
+      "properties": {
+        "ceiling": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScoreCeiling"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "counts": {
+          "items": {
+            "$ref": "#/$defs/ScoreCount"
+          },
+          "maxItems": 41,
+          "title": "Counts",
+          "type": "array"
+        },
+        "done": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Done",
+          "type": "integer"
+        },
+        "key": {
+          "enum": [
+            "alignment",
+            "law_text",
+            "facts",
+            "decisions",
+            "mapping",
+            "reviews"
+          ],
+          "title": "Key",
+          "type": "string"
+        },
+        "open_items": {
+          "items": {
+            "$ref": "#/$defs/ScoreOpenItem"
+          },
+          "maxItems": 50,
+          "title": "Open Items",
+          "type": "array"
+        },
+        "open_total": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Open Total",
+          "type": "integer"
+        },
+        "points": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Points"
+        },
+        "raise_by": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Raise By"
+        },
+        "raise_points": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Raise Points"
+        },
+        "reasons": {
+          "items": {
+            "$ref": "#/$defs/ScoreCount"
+          },
+          "maxItems": 41,
+          "title": "Reasons",
+          "type": "array"
+        },
+        "total": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "key",
+        "points",
+        "done",
+        "total",
+        "raise_points",
+        "raise_by",
+        "counts",
+        "reasons",
+        "open_items",
+        "open_total"
+      ],
+      "title": "ScoreDimension",
+      "type": "object"
+    },
+    "ScoreHygiene": {
+      "additionalProperties": false,
+      "description": "Unscored record hygiene: never points, never part of a status.",
+      "properties": {
+        "done": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Done",
+          "type": "integer"
+        },
+        "key": {
+          "enum": [
+            "requirements_located",
+            "evidence_referenced",
+            "origins_unchanged"
+          ],
+          "title": "Key",
+          "type": "string"
+        },
+        "total": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "key",
+        "done",
+        "total"
+      ],
+      "title": "ScoreHygiene",
+      "type": "object"
+    },
+    "ScoreNextStep": {
+      "additionalProperties": false,
+      "properties": {
+        "focus": {
+          "anyOf": [
+            {
+              "enum": [
+                "alignment",
+                "law_text",
+                "facts",
+                "decisions",
+                "mapping",
+                "reviews"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Focus"
+        },
+        "kind": {
+          "enum": [
+            "retrieve",
+            "fact",
+            "source",
+            "applicability",
+            "mapping",
+            "review",
+            "family"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Subject"
+        },
+        "unblocks": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Unblocks",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "subject",
+        "unblocks",
+        "focus"
+      ],
+      "title": "ScoreNextStep",
+      "type": "object"
+    },
+    "ScoreOpenItem": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "reasons": {
+          "items": {
+            "enum": [
+              "supported",
+              "conflicting",
+              "unresolved",
+              "no_mapping",
+              "fact_open",
+              "fact_evidence_changed",
+              "requirement_evidence",
+              "origin_changed",
+              "methods_open",
+              "no_methods",
+              "mapped_not_applicable",
+              "renew_after_change",
+              "other",
+              "no_pin",
+              "target_only",
+              "source_review_open",
+              "locator_not_listed",
+              "non_binding_for_duty",
+              "overlay_open",
+              "sources_confirmable_by_fetch",
+              "observed",
+              "declared",
+              "assumed",
+              "unknown",
+              "fact_conflict",
+              "evidence_changed",
+              "ask_owner",
+              "ground_in_code",
+              "applicable",
+              "not_applicable",
+              "missing",
+              "declared_unresolved",
+              "declared_not_accepted",
+              "unclaimed_obligations",
+              "review_complete",
+              "reviewer_recorded_insufficient",
+              "not_started",
+              "incomplete",
+              "technical_not_run",
+              "evidence_ready",
+              "evidence_declared"
+            ],
+            "type": "string"
+          },
+          "maxItems": 41,
+          "minItems": 1,
+          "title": "Reasons",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "reasons"
+      ],
+      "title": "ScoreOpenItem",
+      "type": "object"
+    },
+    "ScoreScreening": {
+      "additionalProperties": false,
+      "description": "Coverage of the eleven candidate legal families; not a meter.",
+      "properties": {
+        "applicable": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Applicable",
+          "type": "integer"
+        },
+        "not_applicable": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Not Applicable",
+          "type": "integer"
+        },
+        "screened": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Screened",
+          "type": "integer"
+        },
+        "total": {
+          "const": 11,
+          "title": "Total",
+          "type": "integer"
+        },
+        "withdrawn": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Withdrawn",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "screened",
+        "total",
+        "applicable",
+        "not_applicable",
+        "withdrawn"
+      ],
+      "title": "ScoreScreening",
+      "type": "object"
+    },
+    "ScoreTrend": {
+      "additionalProperties": false,
+      "description": "Display only: deltas against the recorded parent run; never feeds the status.",
+      "properties": {
+        "comparable": {
+          "title": "Comparable",
+          "type": "boolean"
+        },
+        "deltas": {
+          "items": {
+            "$ref": "#/$defs/ScoreDelta"
+          },
+          "maxItems": 6,
+          "title": "Deltas",
+          "type": "array"
+        },
+        "previous_run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Previous Run Id",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "not_parent",
+                "different_project",
+                "different_tool_version"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "previous_run_id",
+        "comparable",
+        "reason",
+        "deltas"
+      ],
+      "title": "ScoreTrend",
+      "type": "object"
+    },
+    "Scorecard": {
+      "additionalProperties": false,
+      "description": "Review progress of one verified run. No field combines meters; none is a verdict.",
+      "properties": {
+        "assessed_days_before_run": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Assessed Days Before Run"
+        },
+        "assessment_date": {
+          "format": "date",
+          "title": "Assessment Date",
+          "type": "string"
+        },
+        "attention": {
+          "items": {
+            "$ref": "#/$defs/ScoreAttentionCount"
+          },
+          "maxItems": 4,
+          "title": "Attention",
+          "type": "array"
+        },
+        "dimensions": {
+          "items": {
+            "$ref": "#/$defs/ScoreDimension"
+          },
+          "maxItems": 6,
+          "minItems": 6,
+          "title": "Dimensions",
+          "type": "array"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ended At"
+        },
+        "hygiene": {
+          "items": {
+            "$ref": "#/$defs/ScoreHygiene"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Hygiene",
+          "type": "array"
+        },
+        "next_step": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScoreNextStep"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes_outside": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Notes Outside",
+          "type": "integer"
+        },
+        "notice": {
+          "const": "Points count recorded review steps in this run. They are not a compliance score or verdict.",
+          "title": "Notice",
+          "type": "string"
+        },
+        "offline": {
+          "title": "Offline",
+          "type": "boolean"
+        },
+        "parent_run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Run Id"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "run_state": {
+          "enum": [
+            "planned",
+            "running",
+            "cancelling",
+            "completed",
+            "partial",
+            "cancelled",
+            "interrupted"
+          ],
+          "title": "Run State",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scorer_version": {
+          "const": 1,
+          "title": "Scorer Version",
+          "type": "integer"
+        },
+        "screening": {
+          "$ref": "#/$defs/ScoreScreening"
+        },
+        "status": {
+          "enum": [
+            "declarations_incomplete",
+            "needs_attention",
+            "in_review",
+            "steps_closed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "synthetic": {
+          "title": "Synthetic",
+          "type": "boolean"
+        },
+        "trend": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScoreTrend"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "schema_version",
+        "scorer_version",
+        "project_id",
+        "run_id",
+        "parent_run_id",
+        "synthetic",
+        "run_state",
+        "ended_at",
+        "assessment_date",
+        "assessed_days_before_run",
+        "offline",
+        "status",
+        "attention",
+        "dimensions",
+        "screening",
+        "hygiene",
+        "next_step",
+        "notes_outside",
+        "notice"
+      ],
+      "title": "Scorecard",
+      "type": "object"
+    },
     "SelectedEvidence": {
       "additionalProperties": false,
       "properties": {

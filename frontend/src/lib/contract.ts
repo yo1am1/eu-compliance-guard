@@ -1868,6 +1868,238 @@ export type ProjectId38 = string;
 export type RequestId18 = string;
 export type RunId25 = string | null;
 export type SchemaVersion22 = 1;
+export type Count = number;
+export type Key1 = "reviewer_recorded_insufficient" | "re_review_after_change" | "evidence_changed" | "origin_changed";
+export type Points = number;
+export type Technical = number;
+export type UnconfirmedSources = number;
+export type Count1 = number;
+export type Key2 =
+  | "supported"
+  | "conflicting"
+  | "unresolved"
+  | "no_mapping"
+  | "fact_open"
+  | "fact_evidence_changed"
+  | "requirement_evidence"
+  | "origin_changed"
+  | "methods_open"
+  | "no_methods"
+  | "mapped_not_applicable"
+  | "renew_after_change"
+  | "other"
+  | "no_pin"
+  | "target_only"
+  | "source_review_open"
+  | "locator_not_listed"
+  | "non_binding_for_duty"
+  | "overlay_open"
+  | "sources_confirmable_by_fetch"
+  | "observed"
+  | "declared"
+  | "assumed"
+  | "unknown"
+  | "fact_conflict"
+  | "evidence_changed"
+  | "ask_owner"
+  | "ground_in_code"
+  | "applicable"
+  | "not_applicable"
+  | "missing"
+  | "declared_unresolved"
+  | "declared_not_accepted"
+  | "unclaimed_obligations"
+  | "review_complete"
+  | "reviewer_recorded_insufficient"
+  | "not_started"
+  | "incomplete"
+  | "technical_not_run"
+  | "evidence_ready"
+  | "evidence_declared";
+export type Key3 = "alignment" | "law_text" | "facts" | "decisions" | "mapping" | "reviews";
+export type PointsAfter = number | null;
+export type PointsBefore = number | null;
+export type TotalAfter = number;
+export type TotalBefore = number;
+/**
+ * @maxItems 41
+ */
+export type Counts = ScoreCount[];
+export type Done = number;
+export type Key4 = "alignment" | "law_text" | "facts" | "decisions" | "mapping" | "reviews";
+export type Id25 = string;
+export type Method2 = string | null;
+/**
+ * @minItems 1
+ * @maxItems 41
+ */
+export type Reasons1 = [
+  (
+    | "supported"
+    | "conflicting"
+    | "unresolved"
+    | "no_mapping"
+    | "fact_open"
+    | "fact_evidence_changed"
+    | "requirement_evidence"
+    | "origin_changed"
+    | "methods_open"
+    | "no_methods"
+    | "mapped_not_applicable"
+    | "renew_after_change"
+    | "other"
+    | "no_pin"
+    | "target_only"
+    | "source_review_open"
+    | "locator_not_listed"
+    | "non_binding_for_duty"
+    | "overlay_open"
+    | "sources_confirmable_by_fetch"
+    | "observed"
+    | "declared"
+    | "assumed"
+    | "unknown"
+    | "fact_conflict"
+    | "evidence_changed"
+    | "ask_owner"
+    | "ground_in_code"
+    | "applicable"
+    | "not_applicable"
+    | "missing"
+    | "declared_unresolved"
+    | "declared_not_accepted"
+    | "unclaimed_obligations"
+    | "review_complete"
+    | "reviewer_recorded_insufficient"
+    | "not_started"
+    | "incomplete"
+    | "technical_not_run"
+    | "evidence_ready"
+    | "evidence_declared"
+  ),
+  ...(
+    | "supported"
+    | "conflicting"
+    | "unresolved"
+    | "no_mapping"
+    | "fact_open"
+    | "fact_evidence_changed"
+    | "requirement_evidence"
+    | "origin_changed"
+    | "methods_open"
+    | "no_methods"
+    | "mapped_not_applicable"
+    | "renew_after_change"
+    | "other"
+    | "no_pin"
+    | "target_only"
+    | "source_review_open"
+    | "locator_not_listed"
+    | "non_binding_for_duty"
+    | "overlay_open"
+    | "sources_confirmable_by_fetch"
+    | "observed"
+    | "declared"
+    | "assumed"
+    | "unknown"
+    | "fact_conflict"
+    | "evidence_changed"
+    | "ask_owner"
+    | "ground_in_code"
+    | "applicable"
+    | "not_applicable"
+    | "missing"
+    | "declared_unresolved"
+    | "declared_not_accepted"
+    | "unclaimed_obligations"
+    | "review_complete"
+    | "reviewer_recorded_insufficient"
+    | "not_started"
+    | "incomplete"
+    | "technical_not_run"
+    | "evidence_ready"
+    | "evidence_declared"
+  )[]
+];
+/**
+ * @maxItems 50
+ */
+export type OpenItems = ScoreOpenItem[];
+export type OpenTotal = number;
+export type Points1 = number | null;
+export type RaiseBy = number | null;
+export type RaisePoints = number | null;
+/**
+ * @maxItems 41
+ */
+export type Reasons2 = ScoreCount[];
+export type Total = number;
+export type Done1 = number;
+export type Key5 = "requirements_located" | "evidence_referenced" | "origins_unchanged";
+export type Total1 = number;
+export type Focus = ("alignment" | "law_text" | "facts" | "decisions" | "mapping" | "reviews") | null;
+export type Kind4 = "retrieve" | "fact" | "source" | "applicability" | "mapping" | "review" | "family";
+export type Subject = string | null;
+export type Unblocks = number;
+export type Applicable = number;
+export type NotApplicable = number;
+export type Screened = number;
+export type Total2 = 11;
+export type Withdrawn = number;
+export type Comparable = boolean;
+/**
+ * @maxItems 6
+ */
+export type Deltas =
+  | []
+  | [ScoreDelta]
+  | [ScoreDelta, ScoreDelta]
+  | [ScoreDelta, ScoreDelta, ScoreDelta]
+  | [ScoreDelta, ScoreDelta, ScoreDelta, ScoreDelta]
+  | [ScoreDelta, ScoreDelta, ScoreDelta, ScoreDelta, ScoreDelta]
+  | [ScoreDelta, ScoreDelta, ScoreDelta, ScoreDelta, ScoreDelta, ScoreDelta];
+export type PreviousRunId1 = string;
+export type Reason2 = ("not_parent" | "different_project" | "different_tool_version") | null;
+export type AssessedDaysBeforeRun = number | null;
+export type AssessmentDate4 = string;
+/**
+ * @maxItems 4
+ */
+export type Attention =
+  | []
+  | [ScoreAttentionCount]
+  | [ScoreAttentionCount, ScoreAttentionCount]
+  | [ScoreAttentionCount, ScoreAttentionCount, ScoreAttentionCount]
+  | [ScoreAttentionCount, ScoreAttentionCount, ScoreAttentionCount, ScoreAttentionCount];
+/**
+ * @minItems 6
+ * @maxItems 6
+ */
+export type Dimensions = [
+  ScoreDimension,
+  ScoreDimension,
+  ScoreDimension,
+  ScoreDimension,
+  ScoreDimension,
+  ScoreDimension
+];
+export type EndedAt2 = string | null;
+/**
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Hygiene = [ScoreHygiene, ScoreHygiene, ScoreHygiene];
+export type NotesOutside = number;
+export type Notice = "Points count recorded review steps in this run. They are not a compliance score or verdict.";
+export type Offline = boolean;
+export type ParentRunId2 = string | null;
+export type ProjectId39 = string;
+export type RunId26 = string;
+export type RunState = "planned" | "running" | "cancelling" | "completed" | "partial" | "cancelled" | "interrupted";
+export type SchemaVersion23 = 1;
+export type ScorerVersion = 1;
+export type Status1 = "declarations_incomplete" | "needs_attention" | "in_review" | "steps_closed";
+export type Synthetic8 = boolean;
 export type Actions = PatchProposal[];
 export type Attempts = CheckAttempt[];
 export type CurrentAssessments1 = CurrentAssessment[];
@@ -1875,9 +2107,9 @@ export type Cursor1 = string;
 export type FindingAssessments = FindingAssessment[];
 export type Findings = Finding[];
 export type ObligationDispositions1 = ObligationDisposition[];
-export type ProjectId39 = string;
+export type ProjectId40 = string;
 export type RelationsRevision = number;
-export type SchemaVersion23 = 1;
+export type SchemaVersion24 = 1;
 export type Terminal = boolean;
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -3053,6 +3285,144 @@ export interface ScopeRegisterCommand {
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScoreAttentionCount".
+ */
+export interface ScoreAttentionCount {
+  count: Count;
+  key: Key1;
+}
+/**
+ * The most this run can reach for structural reasons, not for anything the project lacks.
+ *
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScoreCeiling".
+ */
+export interface ScoreCeiling {
+  points: Points;
+  technical: Technical;
+  unconfirmed_sources: UnconfirmedSources;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScoreCount".
+ */
+export interface ScoreCount {
+  count: Count1;
+  key: Key2;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScoreDelta".
+ */
+export interface ScoreDelta {
+  key: Key3;
+  points_after: PointsAfter;
+  points_before: PointsBefore;
+  total_after: TotalAfter;
+  total_before: TotalBefore;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScoreDimension".
+ */
+export interface ScoreDimension {
+  ceiling?: ScoreCeiling | null;
+  counts: Counts;
+  done: Done;
+  key: Key4;
+  open_items: OpenItems;
+  open_total: OpenTotal;
+  points: Points1;
+  raise_by: RaiseBy;
+  raise_points: RaisePoints;
+  reasons: Reasons2;
+  total: Total;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScoreOpenItem".
+ */
+export interface ScoreOpenItem {
+  id: Id25;
+  method?: Method2;
+  reasons: Reasons1;
+}
+/**
+ * Unscored record hygiene: never points, never part of a status.
+ *
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScoreHygiene".
+ */
+export interface ScoreHygiene {
+  done: Done1;
+  key: Key5;
+  total: Total1;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScoreNextStep".
+ */
+export interface ScoreNextStep {
+  focus: Focus;
+  kind: Kind4;
+  subject: Subject;
+  unblocks: Unblocks;
+}
+/**
+ * Coverage of the eleven candidate legal families; not a meter.
+ *
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScoreScreening".
+ */
+export interface ScoreScreening {
+  applicable: Applicable;
+  not_applicable: NotApplicable;
+  screened: Screened;
+  total: Total2;
+  withdrawn: Withdrawn;
+}
+/**
+ * Display only: deltas against the recorded parent run; never feeds the status.
+ *
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ScoreTrend".
+ */
+export interface ScoreTrend {
+  comparable: Comparable;
+  deltas: Deltas;
+  previous_run_id: PreviousRunId1;
+  reason: Reason2;
+}
+/**
+ * Review progress of one verified run. No field combines meters; none is a verdict.
+ *
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "Scorecard".
+ */
+export interface Scorecard {
+  assessed_days_before_run: AssessedDaysBeforeRun;
+  assessment_date: AssessmentDate4;
+  attention: Attention;
+  dimensions: Dimensions;
+  ended_at: EndedAt2;
+  hygiene: Hygiene;
+  next_step: ScoreNextStep | null;
+  notes_outside: NotesOutside;
+  notice: Notice;
+  offline: Offline;
+  parent_run_id: ParentRunId2;
+  project_id: ProjectId39;
+  run_id: RunId26;
+  run_state: RunState;
+  schema_version: SchemaVersion23;
+  scorer_version: ScorerVersion;
+  screening: ScoreScreening;
+  status: Status1;
+  synthetic: Synthetic8;
+  trend?: ScoreTrend | null;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
  * via the `definition` "Snapshot".
  */
 export interface Snapshot {
@@ -3063,9 +3433,9 @@ export interface Snapshot {
   finding_assessments: FindingAssessments;
   findings: Findings;
   obligation_dispositions: ObligationDispositions1;
-  project_id: ProjectId39;
+  project_id: ProjectId40;
   relations_revision: RelationsRevision;
   run: AuditRun;
-  schema_version: SchemaVersion23;
+  schema_version: SchemaVersion24;
   terminal: Terminal;
 }
