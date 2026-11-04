@@ -280,6 +280,9 @@ class _HTMLSignals(HTMLParser):
             self.title.append(data)
 
 
+SHORT_PAGE_CHARS = 20_000
+
+
 def admit_source_content(content: bytes, media_type: str, charset: str | None = None) -> ContentAdmission:
     """Conservative format/page screening, never proof of document identity or authority."""
     media_type = media_type.lower()
@@ -306,13 +309,19 @@ def admit_source_content(content: bytes, media_type: str, charset: str | None = 
             return ContentAdmission("needs_review", "uncertain-html")
     title = " ".join(signals.title).lower()
     lowered = text.lower()
-    markers = ("verify you are human", "checking your browser", "captcha", "access denied", "cloudflare ray id",
-               "service unavailable", "internal server error", "page not found", "404 not found",
-               "just a moment", "cf-chl-", "browser verification", "sign in to continue", "please log in", "please sign in",
-               "sign in to access", "log in to access", "login required",
-               "authentication required", "enable javascript and cookies to continue")
-    if (signals.password or any(marker in lowered for marker in markers)
-            or any(marker in title for marker in ("login", "log in", "sign in", "challenge", "error", "403", "404", "503"))
+    # Challenge-service fingerprints count on any page. Ordinary phrases ("access denied", "page not
+    # found") also occur in legal text, so they count only on short pages, where error pages live.
+    always = ("verify you are human", "checking your browser", "cloudflare ray id", "cf-chl-",
+              "enable javascript and cookies to continue")
+    short_only = ("captcha", "access denied", "service unavailable", "internal server error", "page not found",
+                  "404 not found", "just a moment", "browser verification", "sign in to continue", "please log in",
+                  "please sign in", "sign in to access", "log in to access", "login required", "authentication required")
+    is_short = len(lowered) < SHORT_PAGE_CHARS
+    # Whole words only: "terrorist" is no "error", and "2021/2403" is no HTTP 403.
+    title_marker = re.search(r"\b(?:login|log in|sign in|challenge|error|403|404|503)\b", title)
+    if (signals.password or any(marker in lowered for marker in always)
+            or (is_short and any(marker in lowered for marker in short_only))
+            or title_marker
             or ("form" in signals.tags and any(marker in lowered for marker in ("login", "log in", "sign in")))):
         return ContentAdmission("rejected", "login-challenge-error-page")
     if media_type == "text/plain" and markup:
