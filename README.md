@@ -80,6 +80,22 @@ Runs are stored outside the repository in
 declared `project_id`. `eu-compliance-guard state-dir` prints and creates it with
 mode 0700. Keep runs out of Git.
 
+### Fewer permission prompts
+
+Each CLI step asks for permission by default. To allow the plugin's own read-only CLI
+in a project, add this to `.claude/settings.json` (or run `/permissions` and add it):
+
+```json
+{
+  "permissions": {
+    "allow": ["Bash(uv run --project * --locked --no-dev python -P -m eu_compliance_guard *)"]
+  }
+}
+```
+
+`revalidate --fetch-official` still asks for your consent in the conversation before
+any network use.
+
 ## Command-line tool
 
 Install with `uv tool install <path-to-checkout>` or `pip install <path-to-checkout>`. This
