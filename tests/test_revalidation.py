@@ -294,6 +294,34 @@ class WorkflowTests(unittest.TestCase):
                 self.assertEqual(f"Requirement requirement-example: {mapped_gap}" in bundle.gaps, not passed)
                 self.assertEqual(len(assessment.gaps), 1)
 
+    def test_not_applicable_obligation_is_not_reported_as_missing_evidence(self):
+        self.payload["applicability_decisions"][0]["applicability"] = "not_applicable"
+        baseline = deepcopy(self.payload)
+        for reviewed in (True, False):
+            self.payload = deepcopy(baseline)
+            if not reviewed:
+                self.payload["evidence_reviews"] = []
+            self.save()
+            bundle = self.assemble()
+            disposition = bundle.obligation_dispositions[0]
+            method = disposition.required_method_dispositions[0]
+            assessment = bundle.requirement_assessments[0]
+            with self.subTest(reviewed=reviewed):
+                self.assertEqual(disposition.applicability, "not_applicable")
+                self.assertEqual(method.outcome, "unresolved_review")
+                self.assertEqual(method.missing_evidence, ["Obligation reviewed as not applicable; this method was not assessed."])
+                self.assertEqual([gap for gap in bundle.gaps if gap.startswith("Obligation obligation-example")],
+                                 ["Obligation obligation-example, method document: not assessed because the obligation "
+                                  "was reviewed as not applicable."])
+                self.assertEqual(assessment.state, "unresolved")
+                self.assertEqual(assessment.gaps, ["A mapped obligation was reviewed as not applicable; it cannot support this requirement."])
+        self.payload = deepcopy(baseline)
+        self.payload["evidence_reviews"][0].update(state="insufficient", rationale="Fictional reviewed insufficiency.")
+        self.save()
+        bundle = self.assemble()
+        self.assertEqual(bundle.obligation_dispositions[0].required_method_dispositions[0].outcome, "observed_failure")
+        self.assertEqual(bundle.requirement_assessments[0].state, "conflicting")
+
     def test_bad_requirement_origin_is_one_gap_and_one_action(self):
         (self.root / "other.txt").write_bytes(b"fictional other bytes")
         for origin in ({"path": "other.txt", "digest": m.content_digest(b"different")},

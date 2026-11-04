@@ -191,6 +191,9 @@ The report starts with what needs attention. Each reviewed deficiency or open
 question sits beside its project requirement and location, declared legal
 identifier and article, evidence reasoning and next review action. Missing
 applicability or legal support stays a review gap, never an established violation.
+An obligation reviewed as not applicable is not a violation either: its methods are
+recorded as not assessed, which keeps the run partial, and a requirement mapped to it
+stays unresolved.
 
 ### Official sources
 
