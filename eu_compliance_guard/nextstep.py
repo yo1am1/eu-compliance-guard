@@ -73,6 +73,18 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         if target.id in retrieved:
             steps.append(_step("source", target.id, citing(target.id),
                                f"Read the retrieved text of {target.id}, then select it as a source with an accountable review."))
+    # A selected source with open gaps blocks every open requirement that cites it. The run records
+    # them as "Source <id>: <problem>"; a reviewer's own gap text is noted, never repeated.
+    for item in declared.sources:
+        prefix = f"Source {item.source.id}: "
+        problems = [gap.removeprefix(prefix) for gap in bundle.gaps if gap.startswith(prefix)]
+        named = [problem for problem in problems if not problem.startswith("source review gap: ")]
+        if len(named) < len(problems):
+            named.append("the source review's own recorded gaps")
+        blocked = citing(item.target_id)
+        if named and blocked:
+            steps.append(_step("source", item.target_id, blocked,
+                               f"Resolve the open gaps of source {item.source.id} ({item.target_id}): {'; '.join(named)}."))
 
     relied: dict[str, set[str]] = {}
     for requirement in requirements:
@@ -99,13 +111,26 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
                                else f"Confirm '{fact.key}' again: its pinned evidence changed or is missing; " + ask,
                                "eu-compliance-guard ground" if observable else None))
 
+    recorded = {item.obligation.id: item for item in declared.applicability_decisions}
     for obligation, mapped in sorted(by_obligation.items()):
         decision = decisions.get(obligation)
-        if decision is not None and decision.applicability == "unresolved":
+        if decision is None or decision.applicability != "unresolved":
+            continue
+        own = recorded.get(obligation)
+        if own is None or own.applicability == "unresolved":
             pins = obligations[obligation].source_provisions if obligation in obligations else []
             where = ", ".join(pin.locator for pin in pins[:2])
             steps.append(_step("applicability", obligation, mapped,
                                f"Record whether {obligation} applies" + (f" after reading {where}." if where else ".")))
+            continue
+        # A reviewer already decided: asking again changes nothing, so name what keeps the decision
+        # from taking effect. The run's own problems are named; the reviewer's gap text is not repeated.
+        blockers = [gap for gap in decision.gaps if gap not in own.gaps]
+        if own.gaps:
+            blockers.append("the decision's own recorded gaps")
+        steps.append(_step("applicability", obligation, mapped,
+                           f"Resolve what keeps the recorded '{own.applicability}' decision on {obligation} from taking "
+                           f"effect: {'; '.join(blockers)}."))
 
     for requirement in requirements:
         if not requirement.obligation_refs:
