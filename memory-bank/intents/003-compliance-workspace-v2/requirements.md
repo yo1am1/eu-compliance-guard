@@ -1,7 +1,7 @@
 ---
 intent: 003-compliance-workspace-v2
 phase: inception
-status: brainstorm-awaiting-owner-decisions
+status: brainstorm-decisions-recorded
 created: 2026-11-04T18:00:00Z
 ---
 
@@ -85,17 +85,44 @@ per environment.
 - Credentials, private evidence and runs stay out of Git.
 - Contracts are generated from `models.py`.
 
-## Decisions for the Owner
+## Owner decisions (2026-11-04)
 
-1. **Audience.** Solo developers (keep it a plugin) or small teams (the dashboard and
-   review queue become core)?
-2. **Obligation packs.** Who reviews them: the Owner, partner lawyers, or a community
-   with named reviewers? Free or paid?
-3. **Identity.** Git commit signing (simple, developer-native) or Sigstore/OIDC
-   (stronger, more setup)?
-4. **Hosting.** Local-only, as in 1.x, or an optional self-hosted service for the
-   dashboard and schedules?
-5. **Scanners.** In 2.0, or deferred to 2.x?
+1. **Audience: open core.** Everything one developer needs is free, open source and
+   local. Team features (law-change alerts, maintained packs, signed review workflow,
+   a review queue, a multi-project dashboard) are designed as a later paid tier. They
+   use the same files and formats, so no user has to migrate.
+2. **Obligation packs.** The Owner or AI drafts them; a named, qualified lawyer reviews
+   and signs each pack version. Basic GDPR and cookie packs are free. Specialised packs
+   (AI Act, consumer law, national rules) and updates when the law changes are
+   candidates for the paid tier. A pack never replaces a reviewer's applicability
+   decision.
+3. **Signing.** 2.0 uses Git SSH signing for reviews: it works offline, stays private,
+   and uses keys developers already have. Sigstore, or the service's own signing, is a
+   later paid-tier option, because Sigstore publishes the signer's email in a public
+   log.
+4. **Hosting.** 2.0 stays local and open source; no service is built yet. Everything
+   is prepared for a fast move to a service later (see the principles below).
+5. **Scanners.** 2.0 includes one narrow scanner: cookies and trackers on a URL the user
+   owns, with consent for each scan, recorded as evidence beside the ePrivacy rule.
+   Cloud and data-flow scanners come later.
 
-Once these are answered, inception continues: units, stories and bolts follow the
-specsmd flow, as for [1.5](../002-trustworthy-guidance-v1-5/requirements.md).
+## Service-ready principles (binding for 2.0 work)
+
+- **Files are the API.** Runs, reviews, packs and evidence remain versioned files with
+  contracts generated from `models.py`. A future service syncs and indexes these files;
+  it never replaces their formats.
+- **Stable identities.** Every record keeps a stable id and revision, so a service can
+  merge records from many machines without conflicts.
+- **No hidden local state.** Settings and caches that a service would need are declared
+  in files, never assumed from one laptop.
+- **Pure cores, thin edges.** Ranking, search, comparison and pack logic stay pure
+  functions over records, callable from the CLI today and from a service tomorrow.
+  Input/output and network sit at the edges.
+- **Open by default.** Nothing in 2.0 requires an account, a server or a licence key.
+  Paid-tier features are additive modules.
+- **Signing and scanning are pluggable.** One interface for signing (SSH now; Sigstore
+  or the service later) and one for evidence collection, so new backends do not change
+  the records.
+
+Inception continues once the landscape research is folded in: units, stories and bolts
+follow the specsmd flow, as for [1.5](../002-trustworthy-guidance-v1-5/requirements.md).
