@@ -134,7 +134,8 @@ def parse(content: bytes, media_type: str) -> dict[str, dict]:
     if media_type == "text/plain":
         articles, current = {}, None
         for line in text.splitlines():
-            match = ARTICLE.match(line)
+            # Only a line that is just "Article N" opens an article; "Article 6(1) applies" is a reference.
+            match = ARTICLE_ONLY.match(line.strip())
             if match and len(articles) < MAX_ARTICLES:
                 current = articles.setdefault(f"Article {match.group(1)}", {"title": "", "text": ""})
             elif current is not None:
@@ -175,30 +176,52 @@ def _query(statement: str) -> dict[str, float]:
     return weights
 
 
-def _bm25(weights, documents, k1=1.2, b=0.75):
-    frequency = Counter(term for terms in documents for term in set(terms))
-    average = max(1.0, sum(sum(terms.values()) for terms in documents) / len(documents))
-    scores = []
-    for terms in documents:
-        length, score = sum(terms.values()), 0.0
-        for term, weight in weights.items():
-            count = terms.get(term)
-            if count:
-                idf = math.log(1 + (len(documents) - frequency[term] + 0.5) / (frequency[term] + 0.5))
-                score += weight * idf * count * (k1 + 1) / (count + k1 * (1 - b + b * length / average))
-        scores.append(score)
-    return scores
+class _Field:
+    """One field of every article, tokenised once: term counts, lengths and document frequencies."""
+
+    def __init__(self, texts: list[str], b: float):
+        self.documents = [Counter(_terms(text)) for text in texts]
+        self.lengths = [sum(terms.values()) for terms in self.documents]
+        self.frequency = Counter(term for terms in self.documents for term in terms)
+        self.average = max(1.0, sum(self.lengths) / max(1, len(self.documents)))
+        self.b = b
+
+    def scores(self, weights: dict[str, float], k1: float = 1.2) -> list[float]:
+        total = len(self.documents)
+        idf = {term: math.log(1 + (total - self.frequency[term] + 0.5) / (self.frequency[term] + 0.5))
+               for term in weights if self.frequency[term]}
+        result = []
+        for terms, length in zip(self.documents, self.lengths):
+            score = 0.0
+            for term, value in idf.items():
+                count = terms.get(term)
+                if count:
+                    score += weights[term] * value * count * (k1 + 1) / (count + k1 * (1 - self.b + self.b * length / self.average))
+            result.append(score)
+        return result
+
+
+class ArticleIndex:
+    """Every article of every retained act, indexed once and searched per statement."""
+
+    def __init__(self, catalogue: dict[str, dict[str, dict]]):
+        self.catalogue = catalogue
+        self.keys = [(source, key) for source, articles in catalogue.items() for key in articles]
+        self.text = _Field([catalogue[s][k]["text"] for s, k in self.keys], b=0.75)
+        self.title = _Field([catalogue[s][k]["title"] for s, k in self.keys], b=0.3)
+
+    def suggest(self, statement: str, top: int = 3) -> list[dict]:
+        """BM25 over the text plus a boosted BM25 over the title."""
+        if not self.keys:
+            return []
+        weights = _query(statement)
+        scored = sorted(((t + TITLE_WEIGHT * h, s, k) for t, h, (s, k)
+                         in zip(self.text.scores(weights), self.title.scores(weights), self.keys) if t + h > 0),
+                        key=lambda item: (-item[0], item[1], item[2]))
+        return [{"source": source, "article": key, "title": self.catalogue[source][key]["title"], "score": round(score, 2)}
+                for score, source, key in scored[:top]]
 
 
 def suggest(statement: str, catalogue: dict[str, dict[str, dict]], top: int = 3) -> list[dict]:
-    """Rank articles of every retained act: BM25 over the text plus a boosted BM25 over the title."""
-    keys = [(source, key) for source, articles in catalogue.items() for key in articles]
-    if not keys:
-        return []
-    weights = _query(statement)
-    text = _bm25(weights, [Counter(_terms(catalogue[s][k]["text"])) for s, k in keys])
-    title = _bm25(weights, [Counter(_terms(catalogue[s][k]["title"])) for s, k in keys], b=0.3)
-    scored = sorted(((t + TITLE_WEIGHT * h, s, k) for t, h, (s, k) in zip(text, title, keys) if t + h > 0),
-                    key=lambda item: (-item[0], item[1], item[2]))
-    return [{"source": source, "article": key, "title": catalogue[source][key]["title"], "score": round(score, 2)}
-            for score, source, key in scored[:top]]
+    """One-off search; build an ArticleIndex to search many statements."""
+    return ArticleIndex(catalogue).suggest(statement, top)

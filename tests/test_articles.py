@@ -31,6 +31,24 @@ class ArticleTests(unittest.TestCase):
                                                "text": "1. Fictional storing of information in terminal equipment."})
         self.assertEqual(parsed["Article 6"]["title"], "")
 
+    def test_plain_text_references_do_not_open_articles(self):
+        parsed = a.parse(b"Article 5\nFictional principles\nArticle 6(1) applies here too.\nMore text.\n"
+                         b"Article 6\nFictional lawfulness\nBody.\n", "text/plain")
+        self.assertEqual(parsed["Article 5"]["text"], "Article 6(1) applies here too. More text.")
+        self.assertEqual(parsed["Article 6"], {"title": "Fictional lawfulness", "text": "Body."})
+
+    def test_an_index_searches_many_statements_quickly(self):
+        import time
+        words = " ".join(f"word{n}" for n in range(1500))
+        catalogue = {f"act{n}": {f"Article {k}": {"title": f"Title {k}", "text": words} for k in range(100)} for n in range(5)}
+        catalogue["act0"]["Article 7"]["text"] += " erasure"
+        index = a.ArticleIndex(catalogue)
+        started = time.monotonic()
+        for _ in range(200):
+            found = index.suggest("Users can delete their account", top=1)
+        self.assertLess(time.monotonic() - started, 5)
+        self.assertEqual(found[0]["article"], "Article 7")
+
     def test_plain_text_and_unsupported_formats(self):
         parsed = a.parse(b"Preamble\nArticle 2a\nFictional title\nBody one.\nBody two.\n", "text/plain")
         self.assertEqual(parsed, {"Article 2a": {"title": "Fictional title", "text": "Body one. Body two."}})

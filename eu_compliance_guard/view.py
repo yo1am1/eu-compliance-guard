@@ -160,8 +160,8 @@ def _article(target: str, locator: str, acts: dict[str, dict[str, dict]]) -> str
             "check the official consolidated version before relying on it.</p></details>")
 
 
-def _suggestions(statement: str, acts: dict[str, dict[str, dict]]) -> str:
-    found = articles.suggest(statement, acts, top=3)
+def _suggestions(statement: str, index: articles.ArticleIndex) -> str:
+    found = index.suggest(statement, top=3)
     if not found:
         return ""
     names = " · ".join(f'{escape(item["article"])} <span class="muted">{escape(item["title"][:60])} ({escape(item["source"])})</span>'
@@ -172,6 +172,7 @@ def _suggestions(statement: str, acts: dict[str, dict[str, dict]]) -> str:
 def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None = None) -> str:
     """Every dynamic value passes through html.escape; nothing executes or loads."""
     acts = catalogue(bundle, contents or {})
+    index = articles.ArticleIndex(acts)
     declared = bundle.declarations
     obligations = {item.id: item for item in declared.obligations}
     decisions = {item.obligation.id: item for item in bundle.effective_applicability_decisions}
@@ -187,7 +188,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
     for assessment in bundle.requirement_assessments:
         requirement = next(item for item in declared.requirements if item.id == assessment.requirement.id)
         location = f"{requirement.origin.path} — {requirement.locator}" if requirement.origin else "declared in JSON"
-        requirement_rows.append([f"<code>{escape(requirement.id)}</code>", escape(requirement.statement) + _suggestions(requirement.statement, acts),
+        requirement_rows.append([f"<code>{escape(requirement.id)}</code>", escape(requirement.statement) + _suggestions(requirement.statement, index),
                                  escape(location),
                                  _tag(assessment.state), _list(assessment.gaps)])
     obligation_rows = []
