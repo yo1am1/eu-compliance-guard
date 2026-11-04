@@ -12,11 +12,18 @@ from html.parser import HTMLParser
 import math
 import re
 
-from .grounding import expand, tokens
+from .grounding import tokens
 
 MAX_ARTICLES = 2000
 MAX_ARTICLE_CHARS = 20000
+MAX_PARAGRAPHS = 50000
+MAX_PAGE_CHARS = 8 * 1024 * 1024
+BREAKS = frozenset({"p", "div", "td", "li", "tr", "br", "h1", "h2", "h3", "h4", "table"})
 ARTICLE = re.compile(r"^\s*Article\s+(\d+[a-z]?)\b", re.I)
+ARTICLE_ONLY = re.compile(r"^Article\s+(\d+[a-z]?)$", re.I)
+# Words that describe the project or the task rather than the legal subject matter.
+NOISE = frozenset({"code", "app", "py", "ts", "js", "determine", "decide", "whether", "currently", "define", "declare",
+                   "document", "put", "place", "give", "provide", "users", "user", "customer", "customers"})
 
 # Plain engineering words -> the vocabulary legal acts use for the same idea.
 LEGAL_TERMS = {
@@ -35,44 +42,73 @@ LEGAL_TERMS = {
     "abroad": "transfers third country", "transfer": "transfers third country",
     "retention": "storage limitation", "keep": "storage limitation", "log": "records processing",
 }
+TITLE_WEIGHT = 1.0
 SUFFIXES = ("ations", "ation", "ings", "ing", "ies", "ed", "es", "s")
 
 
-class _Articles(HTMLParser):
+class _Paragraphs(HTMLParser):
+    """Flatten a page into (classes, text) paragraphs; text outside <p> joins the next break."""
+
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.articles: dict[str, dict] = {}
-        self.current: dict | None = None
-        self.mode = None
+        self.paragraphs: list[tuple[tuple[str, ...], str]] = []
+        self.classes: tuple[str, ...] = ()
+        self.buffer: list[str] = []
+        self.size = 0
+
+    def _flush(self):
+        text = _tidy("".join(self.buffer))
+        if text and len(self.paragraphs) < MAX_PARAGRAPHS:
+            self.paragraphs.append((self.classes, text))
+        self.classes, self.buffer = (), []
 
     def handle_starttag(self, tag, attrs):
-        classes = (dict(attrs).get("class") or "").split()
-        if tag == "p" and any(name.endswith("ti-art") and not name.endswith("sti-art") for name in classes):
-            self.mode = "number"
-            self.current = {"number": "", "title": "", "text": ""}
-        elif tag == "p" and any(name.endswith("sti-art") for name in classes) and self.current is not None:
-            self.mode = "title"
-        elif tag in ("p", "td", "li", "div") and self.current is not None and self.mode is None:
-            self.current["text"] += " "
+        if tag in BREAKS:
+            self._flush()
+            if tag == "p":
+                self.classes = tuple((dict(attrs).get("class") or "").split())
 
     def handle_endtag(self, tag):
-        if tag == "p" and self.mode == "number" and self.current is not None:
-            match = ARTICLE.match(self.current["number"])
-            if match and len(self.articles) < MAX_ARTICLES:
-                self.articles.setdefault(f"Article {match.group(1)}", self.current)
-            self.mode = None
-        elif tag == "p" and self.mode == "title":
-            self.mode = None
+        if tag in BREAKS:
+            self._flush()
 
     def handle_data(self, data):
-        if self.current is None:
-            return
-        if self.mode == "number":
-            self.current["number"] += data
-        elif self.mode == "title":
-            self.current["title"] += data
-        elif len(self.current["text"]) < MAX_ARTICLE_CHARS:
-            self.current["text"] += data
+        if self.size < MAX_PAGE_CHARS:
+            self.buffer.append(data)
+            self.size += len(data)
+
+
+def _is_number(classes) -> bool:
+    return any(name.endswith("ti-art") and not name.endswith("sti-art") for name in classes)
+
+
+def _is_title(classes) -> bool:
+    return any(name.endswith("sti-art") for name in classes)
+
+
+def _segment(paragraphs) -> dict[str, dict]:
+    """Class-marked articles when the page has them, else paragraphs that read exactly "Article N"."""
+    marked = any(_is_number(classes) for classes, _ in paragraphs)
+    found: dict[str, dict] = {}
+    current = None
+    expect_title = False
+    for classes, text in paragraphs:
+        match = ARTICLE_ONLY.match(text)
+        if (_is_number(classes) if marked else match is not None):
+            match = match or ARTICLE.match(text)
+            current = None
+            if match and len(found) < MAX_ARTICLES and f"Article {match.group(1)}" not in found:
+                current = found[f"Article {match.group(1)}"] = {"title": "", "text": ""}
+            expect_title = True
+            continue
+        if current is None:
+            continue
+        if expect_title and (_is_title(classes) if marked else len(text) <= 200 and not text[0].isdigit()):
+            current["title"] = text
+        elif len(current["text"]) < MAX_ARTICLE_CHARS:
+            current["text"] += " " + text
+        expect_title = False
+    return found
 
 
 def _tidy(text: str) -> str:
@@ -86,13 +122,15 @@ def parse(content: bytes, media_type: str) -> dict[str, dict]:
     except UnicodeDecodeError:
         return {}
     if media_type in ("text/html", "application/xhtml+xml"):
-        parser = _Articles()
+        parser = _Paragraphs()
         try:
             parser.feed(text)
+            parser.close()
         except (AssertionError, ValueError):
             return {}
-        return {key: {"title": _tidy(item["title"]), "text": _tidy(item["text"])[:MAX_ARTICLE_CHARS]}
-                for key, item in parser.articles.items()}
+        parser._flush()
+        return {key: {"title": item["title"], "text": _tidy(item["text"])[:MAX_ARTICLE_CHARS]}
+                for key, item in _segment(parser.paragraphs).items()}
     if media_type == "text/plain":
         articles, current = {}, None
         for line in text.splitlines():
@@ -126,34 +164,41 @@ def _terms(text: str) -> list[str]:
 
 
 def _query(statement: str) -> dict[str, float]:
+    """Statement terms at 1.0 plus their legal-vocabulary counterparts at 0.8, all stemmed."""
+    query = [term for term in tokens(re.sub(r"\(code:[^)]*\)", " ", statement)) if term not in NOISE]
     weights: dict[str, float] = {}
-    for term, weight in expand(tokens(statement)).items():
-        weights[_stem(term)] = max(weights.get(_stem(term), 0.0), weight)
-    for term in tokens(statement):
+    for term in query:
+        weights[_stem(term)] = 1.0
+    for term in query:
         for legal in LEGAL_TERMS.get(term, "").split():
             weights[_stem(legal)] = max(weights.get(_stem(legal), 0.0), 0.8)
     return weights
 
 
-def suggest(statement: str, catalogue: dict[str, dict[str, dict]], top: int = 3) -> list[dict]:
-    """Rank articles of every retained act for a statement with BM25 over title and text."""
-    documents = [(source, key, Counter(_terms(f"{item['title']} {item['title']} {item['text']}")))
-                 for source, articles in catalogue.items() for key, item in articles.items()]
-    if not documents:
-        return []
-    frequency = Counter(term for *_, terms in documents for term in set(terms))
-    average = sum(sum(terms.values()) for *_, terms in documents) / len(documents)
-    weights = _query(statement)
-    scored = []
-    for source, key, terms in documents:
+def _bm25(weights, documents, k1=1.2, b=0.75):
+    frequency = Counter(term for terms in documents for term in set(terms))
+    average = max(1.0, sum(sum(terms.values()) for terms in documents) / len(documents))
+    scores = []
+    for terms in documents:
         length, score = sum(terms.values()), 0.0
         for term, weight in weights.items():
             count = terms.get(term)
             if count:
                 idf = math.log(1 + (len(documents) - frequency[term] + 0.5) / (frequency[term] + 0.5))
-                score += weight * idf * count * 2.2 / (count + 1.2 * (0.25 + 0.75 * length / average))
-        if score > 0:
-            scored.append((score, source, key))
-    scored.sort(key=lambda item: (-item[0], item[1], item[2]))
+                score += weight * idf * count * (k1 + 1) / (count + k1 * (1 - b + b * length / average))
+        scores.append(score)
+    return scores
+
+
+def suggest(statement: str, catalogue: dict[str, dict[str, dict]], top: int = 3) -> list[dict]:
+    """Rank articles of every retained act: BM25 over the text plus a boosted BM25 over the title."""
+    keys = [(source, key) for source, articles in catalogue.items() for key in articles]
+    if not keys:
+        return []
+    weights = _query(statement)
+    text = _bm25(weights, [Counter(_terms(catalogue[s][k]["text"])) for s, k in keys])
+    title = _bm25(weights, [Counter(_terms(catalogue[s][k]["title"])) for s, k in keys], b=0.3)
+    scored = sorted(((t + TITLE_WEIGHT * h, s, k) for t, h, (s, k) in zip(text, title, keys) if t + h > 0),
+                    key=lambda item: (-item[0], item[1], item[2]))
     return [{"source": source, "article": key, "title": catalogue[source][key]["title"], "score": round(score, 2)}
             for score, source, key in scored[:top]]

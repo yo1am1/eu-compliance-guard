@@ -21,6 +21,16 @@ class ArticleTests(unittest.TestCase):
         self.assertEqual(parsed["Article 9"]["text"], "1. Fictional health data & biometrics shall not be processed.")
         self.assertEqual(parsed["Article 17"]["title"], "Fictional erasure")
 
+    def test_unmarked_html_uses_paragraphs_that_read_article_n(self):
+        page = (b"<html><body><p>See Article 4 of another act.</p><p>Article 5</p><p>Fictional confidentiality</p>"
+                b"<p>1. Fictional storing of information in terminal equipment.</p><p></p><p>Article 6</p>"
+                b"<p>1. Fictional traffic data.</p></body></html>")
+        parsed = a.parse(page, "text/html")
+        self.assertEqual(list(parsed), ["Article 5", "Article 6"])
+        self.assertEqual(parsed["Article 5"], {"title": "Fictional confidentiality",
+                                               "text": "1. Fictional storing of information in terminal equipment."})
+        self.assertEqual(parsed["Article 6"]["title"], "")
+
     def test_plain_text_and_unsupported_formats(self):
         parsed = a.parse(b"Preamble\nArticle 2a\nFictional title\nBody one.\nBody two.\n", "text/plain")
         self.assertEqual(parsed, {"Article 2a": {"title": "Fictional title", "text": "Body one. Body two."}})
