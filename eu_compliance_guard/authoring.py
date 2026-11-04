@@ -70,10 +70,12 @@ def project_id(path: str | os.PathLike) -> str:
     try:
         with r._parent(path) as (fd, name):
             observed = r._read_file(fd, name, limit=m.MAX_REQUEST_BYTES, retain=True)
+    except FileNotFoundError:
+        raise r.RevalidationError("io-failed") from None  # no declarations here; unsafe-path means a link or refusal
     except OSError:
         raise r.RevalidationError("unsafe-path") from None
     if observed.availability != "available":
-        raise r.RevalidationError("unsafe-path")
+        raise r.RevalidationError("io-failed" if observed.availability == "missing" else "unsafe-path")
     try:
         value = json.loads(observed.content).get("project_id")
     except (ValueError, AttributeError):

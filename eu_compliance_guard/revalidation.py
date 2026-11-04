@@ -221,7 +221,8 @@ def _derived_id(prefix: str, identity: str) -> str:
 def _load(parent_fd: int, name: str, deadline: float | None = None):
     observation = _read_file(parent_fd, name, limit=m.MAX_REQUEST_BYTES, retain=True, deadline=deadline)
     if observation.availability != "available":
-        raise RevalidationError("unsafe-path")
+        # A missing file is not a safety refusal; unsafe-path means a link, a non-file or a refused open.
+        raise RevalidationError("io-failed" if observation.availability == "missing" else "unsafe-path")
     raw = observation.content
     _check_json_depth(raw)
     try:
@@ -254,6 +255,8 @@ def load_input(path: str | os.PathLike) -> m.RevalidationInput:
     try:
         with _parent(path) as (fd, name):
             return _load(fd, name)[0]
+    except FileNotFoundError:
+        raise RevalidationError("io-failed") from None
     except OSError:
         raise RevalidationError("unsafe-path") from None
 

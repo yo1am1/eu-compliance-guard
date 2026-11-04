@@ -372,6 +372,18 @@ class AuthoringTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("invalid-input", stderr)
 
+    def test_a_missing_declarations_file_is_not_reported_as_an_unsafe_path(self):
+        (self.root / "empty/.eu-compliance-guard").mkdir(parents=True)
+        for path in (self.root / "empty/.eu-compliance-guard/declarations.json", self.root / "absent/declarations.json"):
+            for command in ("state-dir", "next", "ground"):
+                with self.subTest(command=command, path=path):
+                    code, stdout, stderr = self.cli(command, "--input", str(path))
+                    self.assertEqual((code, stdout), (2, ""))
+                    self.assertIn("eu-compliance-guard: io-failed:", stderr)
+        (self.root / "linked.json").symlink_to(self.input)
+        self.input.write_text(json.dumps(self.payload))
+        self.assertIn("unsafe-path", self.cli("state-dir", "--input", str(self.root / "linked.json"))[2])
+
     def test_no_declared_string_value_ever_reaches_check_output(self):
         marker = "LEAK-MARKER-\x1b[2J"
 
