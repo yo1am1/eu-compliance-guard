@@ -145,10 +145,11 @@ def _segment(paragraphs) -> dict[str, dict]:
     Only a paragraph that is just "Article N" opens an article. A marked heading that is not, such as
     an amendment's quoted "‘Article 6a", stays text of the amending article. The first annex heading
     or closing formula after article text ends the enacting terms: an "Article N" in a later
-    correlation table opens nothing.
+    correlation table opens nothing. A number seen twice (a contents list, then the body) keeps the
+    occurrence with the most text, the first one on a tie.
     """
     marked = any(_is_number(classes) for classes, _ in paragraphs)
-    found: dict[str, dict] = {}
+    found: dict[str, list[dict]] = {}
     current = None
     expect_title = wrote = ended = False
     for classes, text in paragraphs:
@@ -162,8 +163,9 @@ def _segment(paragraphs) -> dict[str, dict]:
         if number is not None:
             key = f"Article {number}"
             current = None
-            if not ended and len(found) < MAX_ARTICLES and key not in found:
-                current = found[key] = {"title": "", "text": ""}
+            if not ended and (key in found or len(found) < MAX_ARTICLES):
+                current = {"title": "", "text": ""}
+                found.setdefault(key, []).append(current)
             expect_title = True
             continue
         if current is None:
@@ -174,7 +176,7 @@ def _segment(paragraphs) -> dict[str, dict]:
             current["text"] += " " + text
             wrote = True
         expect_title = False
-    return found
+    return {key: max(occurrences, key=lambda item: len(item["text"])) for key, occurrences in found.items()}
 
 
 def _tidy(text: str) -> str:

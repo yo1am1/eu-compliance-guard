@@ -159,6 +159,16 @@ class ArticleTests(unittest.TestCase):
                   b'<p class="oj-doc-ti">ANNEX</p><p>Fictional annexed agreement</p><p class="oj-ti-art">Article 12</p><p>X.</p>')
         self.assertEqual(a.parse(marked, "application/xhtml+xml"), only)
 
+    def test_a_contents_list_does_not_empty_the_articles(self):
+        text = (b"Contents\nArticle 1\nFictional subject-matter\nArticle 2\nFictional erasure\nANNEX I\n\nArticle 1\n"
+                b"Fictional subject-matter\nThis fictional Regulation lays down rules.\nArticle 2\nFictional erasure\n"
+                b"The fictional subject may obtain erasure of data.\n")
+        parsed = a.parse(text, "text/plain")
+        self.assertEqual(parsed, {
+            "Article 1": {"title": "Fictional subject-matter", "text": "This fictional Regulation lays down rules."},
+            "Article 2": {"title": "Fictional erasure", "text": "The fictional subject may obtain erasure of data."}})
+        self.assertEqual(a.suggest("Users can delete their account", {"act": parsed})[0]["article"], "Article 2")
+
     def test_locators_normalise_to_article_keys(self):
         self.assertEqual(a.article_key("Article 9(2)(a)"), "Article 9")
         self.assertEqual(a.article_key("Art. 17"), "Article 17")
