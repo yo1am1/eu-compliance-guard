@@ -265,6 +265,7 @@ def compare(previous, current, previous_digest):
     for key in before.keys() & after.keys():
         if key[0] == "source_bytes" and key[1] not in fresh_targets:
             after[key] = before[key]  # A failed/offline refresh cannot compare fallback bytes as a fresh observation.
+    declared_files = r._selected_files(previous.declarations)
     changes = []
     changed = set()
     for key in sorted(before.keys() | after.keys()):
@@ -274,7 +275,10 @@ def compare(previous, current, previous_digest):
             before=m.content_digest(r._json_bytes(before[key])) if key in before else None,
             after=m.content_digest(r._json_bytes(after[key])) if key in after else None))
         # Lost observations establish uncertainty; declared removals are compared independently.
-        if key[0] != "evidence_availability" and not (key[0] == "file" and key not in after):
+        # Regaining exactly the bytes the predecessor declared, after it could not read them, is no change.
+        lost = key[0] == "file" and key not in after
+        regained = key[0] == "file" and key not in before and declared_files.get(key[1]) == after[key]
+        if key[0] != "evidence_availability" and not lost and not regained:
             changed.add(key)
     renewals, stale_attestations = _classify_attestations(previous, current)
     changed -= renewals
@@ -294,6 +298,10 @@ def compare(previous, current, previous_digest):
     attempts = {item.source_target_id: item for item in current.source_attempts}
     overlays, invalidated, gaps = [], set(), []
     carried = {item.obligation.id for item in previous.effective_applicability_decisions if INVALIDATED_GAP in item.gaps}
+    # What the predecessor's reviewers declared, not what it could observe: a file it could not read
+    # leaves its effective decision unresolved, but the attestation still rests on the old dependencies.
+    declared_support = {item.obligation.id for item in previous.declarations.applicability_decisions
+                        if item.applicability != "unresolved"}
 
     def own_attestations(identity):
         own = {("decision", item.id) for item in current.declarations.applicability_decisions if item.obligation.id == identity}
@@ -322,9 +330,9 @@ def compare(previous, current, previous_digest):
             reasons.append("The predecessor already withdrew this support; it stays withdrawn until the applicability "
                            "decision and every evidence review are reviewed after the predecessor run.")
             invalidated.add(identity)
-        # Only support the predecessor gave (or withdrew) can be withdrawn. An obligation it never
+        # Only support the predecessor declared (or withdrew) can be withdrawn. An obligation it never
         # decided is decided for the first time here, like a new obligation: only stale attestations count.
-        supported = disposition.applicability != "unresolved" or identity in carried
+        supported = identity in declared_support or identity in carried
         if relevant:
             reasons.append("Recorded dependencies changed; renew dependent reviews.")
             if supported:

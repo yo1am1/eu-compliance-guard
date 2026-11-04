@@ -249,7 +249,9 @@ Each run compares against the one predecessor you name. Naming an older run, or 
 compares against that state, so always use the newest completed run (`/eucg-audit`
 offers it) unless you deliberately want another baseline. Offline and `--fetch-official` runs of the same tool version count as
 the same configuration.
-Missing evidence or an offline or failed refresh makes freshness unknown. Matching
+Missing evidence or an offline or failed refresh makes freshness unknown. Withdrawal
+follows the reviews the predecessor declared, so a file it could not read does not
+shield them from a later change; reading exactly the declared bytes again is no change. Matching
 bytes establish only matching recorded inputs, never current law or renewed
 approval. Incomplete dependency attribution and any known change to family
 screenings withdraw support conservatively.

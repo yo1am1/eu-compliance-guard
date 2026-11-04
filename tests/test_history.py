@@ -308,6 +308,43 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(self.overlay(changed).freshness, "stale")
         self.assertIn("unavailable", " ".join(self.overlay(changed).reasons))
 
+    def test_unobserved_file_in_predecessor_cannot_launder_a_later_change(self):
+        """Declared support is withdrawn by a change even after a run that could not read a file."""
+        evidence = self.root / "revalidation-synthetic/evidence.txt"
+        source = self.root / "revalidation-synthetic/source.txt"
+        kept = {path: path.read_bytes() for path in (evidence, source)}
+        evidence.unlink()
+        self.assertEqual(self.successor("ev-missing").requirement_assessments[0].state, "unresolved")
+        evidence.write_text("FICTIONAL changed evidence")
+        self.payload["evidence"][0]["evidence"]["digest"] = m.content_digest(evidence.read_bytes())
+        self.save()
+        changed = r.run(self.input, self.root / "ev-changed", previous=self.root / "ev-missing")
+        self.assertEqual(changed.requirement_assessments[0].state, "unresolved")
+        self.assertIn(h.INVALIDATED_GAP, changed.effective_applicability_decisions[0].gaps)
+        self.assertEqual(r.run(self.input, self.root / "ev-rerun", previous=self.root / "ev-changed")
+                         .requirement_assessments[0].state, "unresolved")
+        self.payload = json.loads(FIXTURE.read_bytes())
+        evidence.write_bytes(kept[evidence])
+        source.unlink()
+        self.assertEqual(self.successor("src-missing").requirement_assessments[0].state, "unresolved")
+        source.write_bytes(kept[source])
+        self.payload["source_reviews"][0]["review_notes"]["case_law"] = "Changed fictional review note"
+        self.save()
+        reviewed = r.run(self.input, self.root / "src-changed", previous=self.root / "src-missing")
+        self.assertEqual(reviewed.requirement_assessments[0].state, "unresolved")
+        self.assertIn("source_review:source-example", self.overlay(reviewed).changed_dependencies)
+
+    def test_regaining_the_declared_bytes_after_an_unobserved_run_is_no_change(self):
+        evidence = self.root / "revalidation-synthetic/evidence.txt"
+        kept = evidence.read_bytes()
+        evidence.unlink()
+        self.successor("ev-missing")
+        evidence.write_bytes(kept)
+        restored = r.run(self.input, self.root / "ev-restored", previous=self.root / "ev-missing")
+        self.assertTrue(any(change.kind == "file" and change.before is None for change in restored.comparison.changes))
+        self.assertEqual(self.overlay(restored).changed_dependencies, [])
+        self.assertEqual(restored.requirement_assessments[0].state, "supported")
+
     def test_source_retrieval_timestamp_is_observational_and_source_digest_edit_is_not(self):
         self.payload["sources"][0]["source"]["retrieved_at"] = "2026-10-19T10:00:00Z"
         successor = self.successor()
