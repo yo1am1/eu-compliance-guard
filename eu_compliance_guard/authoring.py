@@ -311,9 +311,11 @@ def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors:
                  for index, item in enumerate(declared.requirements) if item.origin]
     selected += [(f"evidence[{index}].path", item.path, item.evidence.digest, None)
                  for index, item in enumerate(declared.evidence) if item.path]
-    # Code evidence written by `ground --apply`: when the code changes, its facts return to review.
+    # Code evidence written by `ground --apply` (its id is derived from its path): when the code
+    # changes, its facts return to review. Any other evidence keeps its digest error.
+    from .grounding import code_evidence_id
     grounded = {f"evidence[{index}].path" for index, item in enumerate(declared.evidence)
-                if item.path and item.evidence.id.startswith("evidence-code-")}
+                if item.path and item.evidence.id == code_evidence_id(item.path)}
     total, observations = 0, {}
     with r.files_root(declared, fd) as root_fd:
         for at, relative, digest, source in selected:

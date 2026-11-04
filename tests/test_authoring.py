@@ -300,9 +300,15 @@ class AuthoringTests(unittest.TestCase):
                 problem = next(item["problem"] for item in report["warnings"] if item["at"] == "evidence[0].path")
                 self.assertIn("ground --apply", problem)
                 self.assertNotIn(observed.removeprefix("sha256:"), problem)
-        # Hand-declared evidence keeps its digest error.
+        # Hand-declared evidence keeps its digest error, even when its id looks like a grounded one.
         (self.root / "revalidation-synthetic/evidence.txt").write_bytes(b"changed")
-        self.assertIn("observed sha256:", next(item for item in self.check()["errors"] if item["at"] == "evidence[0].path")["problem"])
+        lookalike = json.loads(json.dumps(self.payload).replace('"evidence-example"', '"evidence-code-0123456789abcdef"'))
+        for payload in (self.payload, lookalike):
+            with self.subTest(evidence_id=payload["evidence"][0]["evidence"]["id"]):
+                report = self.check(payload)
+                self.assertIn("observed sha256:", next(item for item in report["errors"]
+                                                       if item["at"] == "evidence[0].path")["problem"])
+                self.assertFalse(any(item["at"] == "evidence[0].path" for item in report["warnings"]))
 
     def test_check_previous_names_records_needing_new_revisions(self):
         from eu_compliance_guard import revalidation as r

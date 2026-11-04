@@ -321,6 +321,11 @@ def _bump_pins(data, kinds: dict[str, tuple[int, int]]) -> None:
         changes.update(moved)
 
 
+def code_evidence_id(relative: str) -> str:
+    """The evidence id `ground --apply` gives the code file at `relative` (one record per path)."""
+    return "evidence-code-" + hashlib.sha256(relative.encode()).hexdigest()[:16]
+
+
 def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None = None, *,
           write: bool = True) -> m.RevalidationInput:
     """Mark one technical fact observed, pinned to a code line whose terms match the fact.
@@ -365,7 +370,7 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
     if observed.availability != "available":
         raise r.RevalidationError("unsafe-path")
     data = json.loads(observed.content)
-    evidence_id = "evidence-code-" + hashlib.sha256(relative.encode()).hexdigest()[:16]
+    evidence_id = code_evidence_id(relative)
     selected = next((item for item in data.setdefault("evidence", []) if item["evidence"]["id"] == evidence_id), None)
     if selected is None:
         selected = {"path": relative, "evidence": {
