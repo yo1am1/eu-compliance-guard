@@ -81,6 +81,25 @@ class HistoryTests(unittest.TestCase):
         self.assertIn('tabindex="0" role="region"', html)
         self.assertNotIn("<script", html)
 
+    def test_withdrawn_support_never_keeps_a_supporting_rationale(self):
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        successor = self.successor()
+        assessment = successor.requirement_assessments[0]
+        self.assertEqual(assessment.state, "unresolved")
+        self.assertEqual(assessment.rationale, h.WITHDRAWN_MAPPING_RATIONALE)
+        decision = successor.effective_applicability_decisions[0]
+        self.assertEqual((decision.applicability, decision.rationale), ("unresolved", h.WITHDRAWN_DECISION_RATIONALE))
+        self.assertEqual(successor.declarations.applicability_decisions[0].rationale,
+                         self.payload["applicability_decisions"][0]["rationale"])
+        disposition = next(item for item in successor.obligation_dispositions if item.obligation_id == "obligation-example")
+        self.assertEqual(disposition.rationale, decision.rationale)
+        report = (self.root / "next/report.md").read_text()
+        self.assertNotIn("Recorded mapping supports this declared requirement only", report)
+        self.assertNotIn("- Applicability reasoning: Fictional declared role", report)
+        self.assertIn("- Applicability reasoning: Support withdrawn after the predecessor comparison", report)
+        self.assertIn("- Rationale: Fictional declared role meets fictional condition", report)  # Supplied claim kept.
+        self.assertNotIn("Recorded mapping supports", view.render_html(successor))
+
     def test_withdrawn_support_persists_until_reviews_are_renewed_after_the_predecessor(self):
         from datetime import datetime, timedelta, timezone
         self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")

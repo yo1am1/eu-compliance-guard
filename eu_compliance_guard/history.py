@@ -224,6 +224,8 @@ def _dependencies(previous, current, identity):
 MAX_LISTED_CHANGES = 20
 FAMILY_WITHDRAWN_GAP = "Predecessor withdrew this family screening; renew it with complete dependency attribution."
 INVALIDATED_GAP = "Predecessor dependencies changed or incomplete; accountable review must be renewed."
+WITHDRAWN_DECISION_RATIONALE = "Support withdrawn after the predecessor comparison; effective applicability awaits renewed accountable review."
+WITHDRAWN_MAPPING_RATIONALE = "Mapped obligation support withdrawn after the predecessor comparison; renew the mapped reviews."
 
 
 def _reviewed_between(value, previous, current) -> bool:
@@ -371,12 +373,17 @@ def compare(previous, current, previous_digest):
     data["current_assessments"] = [item.model_dump(mode="json") for item in overlays]
     data["evidence"].append(proof.model_dump(mode="json"))
     data["run"]["parent_run_id"] = previous.run.id
+    # A withdrawn claim never keeps the reasoning that supported it; the declarations still record it.
+    withdrawn_rationale = {}
     for decision in data["effective_applicability_decisions"]:
         if decision["obligation"]["id"] in invalidated:
+            if decision["applicability"] != "unresolved":
+                decision["rationale"] = withdrawn_rationale[decision["obligation"]["id"]] = WITHDRAWN_DECISION_RATIONALE
             decision.update(id=r._derived_id("unresolved", decision["obligation"]["id"]), applicability="unresolved")
             decision["gaps"].append(INVALIDATED_GAP)
     for disposition in data["obligation_dispositions"]:
         if disposition["obligation_id"] in invalidated:
+            disposition["rationale"] = withdrawn_rationale.get(disposition["obligation_id"], disposition["rationale"])
             disposition.update(applicability="unresolved", manual_review="unresolved",
                 applicability_decision_id=r._derived_id("unresolved", disposition["obligation_id"]))
             for method in disposition["required_method_dispositions"]:
@@ -386,6 +393,8 @@ def compare(previous, current, previous_digest):
     for assessment in data["requirement_assessments"]:
         requirement = next(item for item in current.declarations.requirements if item.id == assessment["requirement"]["id"])
         if any(pin.id in invalidated for pin in requirement.obligation_refs):
+            if assessment["state"] == "supported":
+                assessment["rationale"] = WITHDRAWN_MAPPING_RATIONALE
             assessment["state"] = "unresolved"
             assessment["gaps"].append("Mapped historical dependencies changed or incomplete; renew review.")
             assessment["next_actions"].append("Obtain accountable review of the changed dependency comparison.")
