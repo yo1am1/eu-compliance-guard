@@ -103,6 +103,13 @@ class ArticleTests(unittest.TestCase):
                                   "Article 2": {"title": "Last", "text": "Last body."}})
         self.assertEqual(a.suggest("Cookie tracking banner", {"page": parsed}), [])
 
+    def test_an_inserted_annex_heading_closes_the_article(self):
+        text = b"Article 1\nFictional title\nBody one.\nANNEX IIIa\nFictional list.\n"
+        self.assertEqual(a.parse(text, "text/plain")["Article 1"]["text"], "Body one.")
+        page = b"<p>Article 1</p><p>Fictional title</p><p>Body one. Annex IIIa applies.</p><p>ANNEX IIIa</p><p>List.</p>"
+        self.assertEqual(a.parse(page, "text/html")["Article 1"]["text"], "Body one. Annex IIIa applies.")
+        self.assertEqual(a.parse(b"Article 1\nT\nBody.\nANNEX 2b\nList.\n", "text/plain")["Article 1"]["text"], "Body.")
+
     def test_locators_normalise_to_article_keys(self):
         self.assertEqual(a.article_key("Article 9(2)(a)"), "Article 9")
         self.assertEqual(a.article_key("Art. 17"), "Article 17")

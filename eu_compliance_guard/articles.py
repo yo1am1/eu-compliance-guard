@@ -94,13 +94,22 @@ def _is_title(classes) -> bool:
     return any(name.endswith("sti-art") for name in classes)
 
 
-# Upper-case "ANNEX" headings only: body text such as "Annex III shall apply" stays in its article.
-END = re.compile(r"^(?:ANNEX(?:\s+[IVXLC\d]+)?$|Done at\b)")
+def _numeral(word: str) -> bool:
+    """'12', 'XIV', or an inserted '10a' / 'IIIa'."""
+    if len(word) > 1 and "a" <= word[-1] <= "z":
+        word = word[:-1]
+    return word.isascii() and (word.isdigit() or not word.strip("IVXLC"))
 
 
 def _is_end(classes, text: str) -> bool:
-    """An annex heading or "Done at …" closes the last article."""
-    return any(name.endswith("doc-ti") for name in classes) or bool(END.match(text))
+    """An annex heading or "Done at …" closes the last article.
+
+    Upper-case "ANNEX" headings only: body text such as "Annex III shall apply" stays in its article.
+    """
+    if any(name.endswith("doc-ti") for name in classes) or text[:7] == "Done at" and not text[7:8].isalnum():
+        return True
+    words = text.split()
+    return words[:1] == ["ANNEX"] and (len(words) == 1 or len(words) == 2 and _numeral(words[1]))
 
 
 def _segment(paragraphs) -> dict[str, dict]:
