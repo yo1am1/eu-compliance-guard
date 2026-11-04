@@ -175,7 +175,9 @@ def search(index: Index, query: list[str], top: int = 3, k1: float = 1.2, b: flo
             if frequency:
                 idf = math.log(1 + (count - index.document_frequency[term] + 0.5) / (index.document_frequency[term] + 0.5))
                 score += weight * idf * frequency * (k1 + 1) / (frequency + k1 * (1 - b + b * length / average))
-        if score > 0 and set(query) & set(line.terms):
+        # A line sharing only concept vocabulary (gtag for "tracking") qualifies at its lower weight:
+        # the same relatedness test apply uses, so every candidate can be pinned.
+        if score > 0:
             scored.append((score, line))
     scored.sort(key=lambda item: (-item[0], item[1].path, item[1].number))
     return [{"location": f"{line.path}:{line.number}", "score": round(score, 2), "concepts": concepts_of(line.terms),
