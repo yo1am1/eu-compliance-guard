@@ -112,6 +112,22 @@ def _is_end(classes, text: str) -> bool:
     return words[:1] == ["ANNEX"] and (len(words) == 1 or len(words) == 2 and _numeral(words[1]))
 
 
+# Headings of the divisions above articles: "CHAPTER III", "Section 2", "TITLE IIa", "PART 1".
+DIVISIONS = frozenset({"CHAPTER", "Chapter", "TITLE", "Title", "PART", "Part", "SECTION", "Section"})
+
+
+def _is_division(classes, text: str, marked: bool) -> bool:
+    """A chapter, title, part or section heading closes the article before it.
+
+    Marked pages say so by class (`oj-ti-section-1`, consolidated `title-division-1`); elsewhere the
+    paragraph must read just like "CHAPTER III". The division's own name then falls outside any article.
+    """
+    if any("ti-section-" in name or name.startswith("title-division") for name in classes):
+        return True
+    words = text.split()
+    return not marked and len(words) == 2 and words[0] in DIVISIONS and _numeral(words[1])
+
+
 def _segment(paragraphs) -> dict[str, dict]:
     """Class-marked articles when the page has them, else paragraphs that read exactly "Article N".
 
@@ -122,8 +138,8 @@ def _segment(paragraphs) -> dict[str, dict]:
     current = None
     expect_title = False
     for classes, text in paragraphs:
-        if _is_end(classes, text):
-            current, expect_title = None, False  # annexes and the closing formula belong to no article
+        if _is_end(classes, text) or _is_division(classes, text, marked):
+            current, expect_title = None, False  # headings, annexes and the closing formula belong to no article
             continue
         match = ARTICLE_ONLY.match(text)
         if (_is_number(classes) if marked else match is not None):

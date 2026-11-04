@@ -110,6 +110,28 @@ class ArticleTests(unittest.TestCase):
         self.assertEqual(a.parse(page, "text/html")["Article 1"]["text"], "Body one. Annex IIIa applies.")
         self.assertEqual(a.parse(b"Article 1\nT\nBody.\nANNEX 2b\nList.\n", "text/plain")["Article 1"]["text"], "Body.")
 
+    def test_chapter_and_section_headings_belong_to_no_article(self):
+        page = (b'<p class="oj-ti-art">Article 2</p><p class="oj-sti-art">Fictional material scope</p>'
+                b'<p class="oj-normal">This fictional Regulation applies to synthetic data.</p>'
+                b'<p class="oj-ti-section-1">CHAPTER III</p><p class="oj-ti-section-2">Rights of the fictional data subject</p>'
+                b'<p class="oj-ti-section-1">Section 3</p><p class="oj-ti-section-2">Rectification and erasure</p>'
+                b'<p class="oj-ti-art">Article 10a</p><p class="oj-sti-art">Fictional erasure</p>'
+                b'<p class="oj-normal">Erase on request.</p><table><tr><td>Part 2</td><td>Fictional row.</td></tr></table>'
+                b'<p class="oj-ti-section-1">CHAPTER XI</p><p class="oj-ti-section-2">Final provisions</p>')
+        parsed = a.parse(page, "application/xhtml+xml")
+        self.assertEqual(parsed["Article 2"]["text"], "This fictional Regulation applies to synthetic data.")
+        self.assertEqual(parsed["Article 10a"]["text"], "Erase on request. Part 2 Fictional row.")
+        self.assertEqual([item["article"] for item in a.suggest("Rectification and erasure workflow", {"act": parsed})],
+                         ["Article 10a"])
+        consolidated = (b'<p>Article 1</p><p>Fictional subject</p><p>Body one. Chapter III applies.</p>'
+                        b'<p class="title-division-1">CHAPTER II</p><p class="title-division-2">Fictional rights</p>'
+                        b'<p>Article 2</p><p>Fictional erasure</p><p>Body two.</p>')
+        self.assertEqual([item["text"] for item in a.parse(consolidated, "text/html").values()],
+                         ["Body one. Chapter III applies.", "Body two."])
+        text = (b"Article 1\nFictional scope\nBody one.\nCHAPTER II\nRIGHTS\nSection 1\nTransparency\nArticle 2\n"
+                b"Fictional erasure\nBody two.\nTITLE IIIa\nFictional title\nPART 2\nFictional part\nArticle 3\nT\nBody three.\n")
+        self.assertEqual([item["text"] for item in a.parse(text, "text/plain").values()], ["Body one.", "Body two.", "Body three."])
+
     def test_locators_normalise_to_article_keys(self):
         self.assertEqual(a.article_key("Article 9(2)(a)"), "Article 9")
         self.assertEqual(a.article_key("Art. 17"), "Article 17")
