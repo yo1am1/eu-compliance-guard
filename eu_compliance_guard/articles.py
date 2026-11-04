@@ -143,21 +143,26 @@ def _segment(paragraphs) -> dict[str, dict]:
     """Class-marked articles when the page has them, else paragraphs that read exactly "Article N".
 
     Only a paragraph that is just "Article N" opens an article. A marked heading that is not, such as
-    an amendment's quoted "‘Article 6a", stays text of the amending article.
+    an amendment's quoted "‘Article 6a", stays text of the amending article. The first annex heading
+    or closing formula after article text ends the enacting terms: an "Article N" in a later
+    correlation table opens nothing.
     """
     marked = any(_is_number(classes) for classes, _ in paragraphs)
     found: dict[str, dict] = {}
     current = None
-    expect_title = False
+    expect_title = wrote = ended = False
     for classes, text in paragraphs:
-        if _is_end(classes, text) or _is_division(classes, text, marked):
-            current, expect_title = None, False  # headings, annexes and the closing formula belong to no article
+        if _is_end(classes, text):
+            current, expect_title, ended = None, False, ended or wrote  # annexes belong to no article
+            continue
+        if _is_division(classes, text, marked):
+            current, expect_title = None, False  # nor do chapter and section headings
             continue
         number = _article_number(text) if _is_number(classes) or not marked else None
         if number is not None:
             key = f"Article {number}"
             current = None
-            if len(found) < MAX_ARTICLES and key not in found:
+            if not ended and len(found) < MAX_ARTICLES and key not in found:
                 current = found[key] = {"title": "", "text": ""}
             expect_title = True
             continue
@@ -167,6 +172,7 @@ def _segment(paragraphs) -> dict[str, dict]:
             current["title"] = text
         elif len(current["text"]) < MAX_ARTICLE_CHARS:
             current["text"] += " " + text
+            wrote = True
         expect_title = False
     return found
 

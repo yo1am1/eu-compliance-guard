@@ -147,6 +147,18 @@ class ArticleTests(unittest.TestCase):
                     "Fictional inserted requirements Inserted text.’; (2) fictional third amendment on erasure."})
         self.assertEqual(parsed["Article 5"], {"title": "Fictional transposition", "text": "Transpose."})
 
+    def test_correlation_tables_after_the_enacting_terms_open_no_articles(self):
+        only = {"Article 1": {"title": "Fictional subject", "text": "Body."}}
+        page = (b"<p>Article 1</p><p>Fictional subject</p><p>Body.</p><p>Done at Fictionville.</p><p>ANNEX II</p>"
+                b"<p>CORRELATION TABLE</p><table><tr><td>Directive 2097/1</td><td>This Directive</td></tr>"
+                b"<tr><td>Article 1</td><td>Article 1</td></tr><tr><td>Article 12</td><td>-</td></tr></table>")
+        self.assertEqual(a.parse(page, "text/html"), only)
+        self.assertEqual(a.parse(b"Article 1\nFictional subject\nBody.\nANNEX II\nCorrelation table\nArticle 12\n-\n",
+                                 "text/plain"), only)
+        marked = (b'<p class="oj-ti-art">Article 1</p><p class="oj-sti-art">Fictional subject</p><p>Body.</p>'
+                  b'<p class="oj-doc-ti">ANNEX</p><p>Fictional annexed agreement</p><p class="oj-ti-art">Article 12</p><p>X.</p>')
+        self.assertEqual(a.parse(marked, "application/xhtml+xml"), only)
+
     def test_locators_normalise_to_article_keys(self):
         self.assertEqual(a.article_key("Article 9(2)(a)"), "Article 9")
         self.assertEqual(a.article_key("Art. 17"), "Article 17")
