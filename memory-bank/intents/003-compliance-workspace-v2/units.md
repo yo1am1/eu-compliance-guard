@@ -1,11 +1,11 @@
 ---
 intent: 003-compliance-workspace-v2
 phase: inception
-status: draft-awaiting-owner-approval
+status: approved-2026-11-05
 updated: 2026-11-05T00:00:00Z
 ---
 
-# Unit decomposition (draft)
+# Unit decomposition
 
 The unit is the existing CLI plus plugin, extended. The service stays out of scope;
 every bolt keeps files as the API and pure cores with thin edges.
