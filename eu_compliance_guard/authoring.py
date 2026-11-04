@@ -123,8 +123,9 @@ def _location(loc, kind: str = "") -> str:
 def check(path: str | os.PathLike, previous: str | os.PathLike | None = None) -> dict:
     """Validate a declaration and observe its selected files, reporting problems by location.
 
-    With `previous`, also verify that run and name every record that needs a higher revision.
-    At most MAX_PROBLEMS errors are listed; `total_errors` counts all of them.
+    Every located problem is collected in one pass. With `previous`, also verify that run and
+    name every record that needs a higher revision, including records whose pins must follow
+    a raised revision. At most MAX_PROBLEMS errors are listed; `total_errors` counts all of them.
     """
     report = _check(path, previous)
     report["total_errors"] = len(report["errors"])
@@ -168,55 +169,18 @@ def _check(path, previous) -> dict:
                 errors.append({"at": "(document)", "problem": "JSON nesting deeper than 32 levels" if error.code == "capacity-exceeded"
                                else "duplicate JSON key or non-finite number"})
                 return report
+            problems = []
             try:
-                declared = m.parse_record(m.RevalidationInput, raw)
+                declared = m.parse_record(m.RevalidationInput, raw, collect=problems)
             except ValidationError as error:
                 for detail in error.errors(include_input=False, include_url=False):
-                    reason = detail.get("ctx", {}).get("error")
-                    if not detail["loc"] and isinstance(reason, m.LocatedProblem):
-                        # Cross-reference and bound checks carry their own JSON location.
-                        at, problem = reason.at, reason.problem
-                    else:
-                        at, problem = _location(detail["loc"], detail["type"]), detail["msg"].removeprefix("Value error, ")
+                    at, problem = _location(detail["loc"], detail["type"]), detail["msg"].removeprefix("Value error, ")
                     errors.append({"at": at, "problem": problem})
                 return report
-            try:
-                r._load(fd, name)
-            except r.RevalidationError:
-                errors.append({"at": "obligations", "problem": "duplicate required methods, an unknown method name, "
-                               "or an identifier that collides with a derived disposition/unresolved identifier"})
-            sources = {item.file.path for item in declared.sources if item.file}
-            selected = [(f"sources[{index}].file", item.file.path, item.file.digest)
-                        for index, item in enumerate(declared.sources) if item.file]
-            selected += [(f"requirements[{index}].origin", item.origin.path, item.origin.digest)
-                         for index, item in enumerate(declared.requirements) if item.origin]
-            selected += [(f"evidence[{index}].path", item.path, item.evidence.digest)
-                         for index, item in enumerate(declared.evidence) if item.path]
-            total = 0
-            with r.files_root(declared, fd) as root_fd:
-                for at, relative, digest in selected:
-                    try:
-                        seen = r._read_file(root_fd, relative, limit=min(r.MAX_FILE_BYTES, r.MAX_TOTAL_BYTES - total),
-                                            retain=relative in sources)
-                    except r.RevalidationError as error:
-                        errors.append({"at": at, "problem": "selected file exceeds the 8 MiB per-file or 64 MiB total limit"
-                                       if error.code == "capacity-exceeded" else "selected file could not be read safely"})
-                        continue
-                    total += seen.size
-                    entry = {"at": at, "availability": seen.availability, "observed_digest": seen.digest,
-                             "matches_declared": seen.digest == digest}
-                    files.append(entry)
-                    if seen.availability != "available":
-                        base = "project folder" if declared.files_root == "project" else "declarations file's folder"
-                        errors.append({"at": at, "problem": f"selected file is {seen.availability} (paths resolve "
-                                       f"relative to the {base})"})
-                    elif seen.digest != digest:
-                        errors.append({"at": at, "problem": "declared digest differs from the file; observed " + seen.digest})
-                    elif seen.content is not None:
-                        media = next(item for item in declared.sources if item.file and item.file.path == relative)
-                        admission = r.admit_source_content(seen.content, media.media_type, media.charset)
-                        if admission.state != "accepted":
-                            warnings.append({"at": at, "problem": f"source content needs review ({admission.reason})"})
+            # Every cross-reference and bound problem at once, each with its own JSON location.
+            errors.extend({"at": at, "problem": problem} for at, problem in problems)
+            if not problems:
+                _observe_selected(declared, fd, name, errors, warnings, files)
     except FileNotFoundError:
         errors.append({"at": "(file)", "problem": "declarations file or its folder was not found"})
         return report
@@ -245,24 +209,159 @@ def _check(path, previous) -> dict:
     if uncertain:
         warnings.append({"at": "scope", "problem": f"{uncertain} fact occurrence(s) are assumed or unknown and stay review gaps"})
     if previous is not None:
-        from . import history
-        try:
-            prior = history.load_run(previous)[0]
-        except r.RevalidationError as error:
-            errors.append({"at": "--previous", "problem": f"predecessor run is unusable ({error.code})"})
-        else:
-            # As in revalidate, another project's run is never a revision baseline.
-            if (prior.project_id, prior.synthetic) != (declared.project_id, declared.synthetic):
-                errors.append({"at": "--previous", "problem": "predecessor belongs to another project or synthetic class"})
-            else:
-                for problem in history.revision_problems(prior, declared):
-                    at, detail = problem.split(": ", 1)
-                    errors.append({"at": at, "problem": detail})
+        errors.extend(_previous_problems(declared, previous))
     report["valid"] = not errors
     report["counts"] = {"requirements": len(declared.requirements), "obligations": len(declared.obligations),
                         "source_targets": len(declared.source_targets), "sources": len(declared.sources),
                         "evidence": len(declared.evidence), "family_screenings": len(declared.family_screenings)}
     return report
+
+
+def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors: list, warnings: list, files: list) -> None:
+    """Observe each selected file of a declaration whose records are consistent."""
+    try:
+        r._load(fd, name)
+    except r.RevalidationError:
+        errors.append({"at": "obligations", "problem": "duplicate required methods, an unknown method name, "
+                       "or an identifier that collides with a derived disposition/unresolved identifier"})
+    sources = {item.file.path for item in declared.sources if item.file}
+    selected = [(f"sources[{index}].file", item.file.path, item.file.digest)
+                for index, item in enumerate(declared.sources) if item.file]
+    selected += [(f"requirements[{index}].origin", item.origin.path, item.origin.digest)
+                 for index, item in enumerate(declared.requirements) if item.origin]
+    selected += [(f"evidence[{index}].path", item.path, item.evidence.digest)
+                 for index, item in enumerate(declared.evidence) if item.path]
+    total = 0
+    with r.files_root(declared, fd) as root_fd:
+        for at, relative, digest in selected:
+            try:
+                seen = r._read_file(root_fd, relative, limit=min(r.MAX_FILE_BYTES, r.MAX_TOTAL_BYTES - total),
+                                    retain=relative in sources)
+            except r.RevalidationError as error:
+                errors.append({"at": at, "problem": "selected file exceeds the 8 MiB per-file or 64 MiB total limit"
+                               if error.code == "capacity-exceeded" else "selected file could not be read safely"})
+                continue
+            total += seen.size
+            entry = {"at": at, "availability": seen.availability, "observed_digest": seen.digest,
+                     "matches_declared": seen.digest == digest}
+            files.append(entry)
+            if seen.availability != "available":
+                base = "project folder" if declared.files_root == "project" else "declarations file's folder"
+                errors.append({"at": at, "problem": f"selected file is {seen.availability} (paths resolve "
+                               f"relative to the {base})"})
+            elif seen.digest != digest:
+                errors.append({"at": at, "problem": "declared digest differs from the file; observed " + seen.digest})
+            elif seen.content is not None:
+                media = next(item for item in declared.sources if item.file and item.file.path == relative)
+                admission = r.admit_source_content(seen.content, media.media_type, media.charset)
+                if admission.state != "accepted":
+                    warnings.append({"at": at, "problem": f"source content needs review ({admission.reason})"})
+
+
+def _previous_problems(declared: m.RevalidationInput, previous) -> list[dict]:
+    """Verify the predecessor and name every record that needs a higher revision or a pin update."""
+    from . import history
+    try:
+        prior = history.load_run(previous)[0]
+    except r.RevalidationError as error:
+        return [{"at": "--previous", "problem": f"predecessor run is unusable ({error.code})"}]
+    # As in revalidate, another project's run is never a revision baseline.
+    if (prior.project_id, prior.synthetic) != (declared.project_id, declared.synthetic):
+        return [{"at": "--previous", "problem": "predecessor belongs to another project or synthetic class"}]
+    problems = []
+    for problem in history.revision_problems(prior, declared):
+        at, detail = problem.split(": ", 1)
+        problems.append({"at": at, "problem": detail})
+    return problems + _revision_cascade(prior.declarations, declared, {item["at"] for item in problems})
+
+
+def _versioned(declared: m.RevalidationInput) -> dict:
+    """Versioned records by (kind, identifier), the kinds history.revision_problems names."""
+    records = {}
+    for item in (declared.scope, *m.scope_facts(declared.scope), *declared.requirements, *declared.source_targets,
+                 *(selected.source for selected in declared.sources), *declared.obligations, *declared.controls,
+                 *declared.applicability_decisions, *declared.evidence_reviews):
+        records.setdefault((type(item).__name__, item.id), item)
+    return records
+
+
+def _pin_holders(declared: m.RevalidationInput):
+    """Each record that pins versioned records: (name, versioned key or None, [(kind, id, pinned revision)])."""
+    def sources(provisions):
+        return [("LegalSource", pin.source_id, pin.revision) for pin in provisions if pin.source_id is not None]
+
+    def facts(pins):
+        return [("Fact", pin.id, pin.revision) for pin in pins]
+
+    scope = declared.scope
+    # A scope embeds its facts, so a fact's new revision changes the scope too.
+    embedded = {fact.id: fact for fact in m.scope_facts(scope)}.values()
+    yield f"Scope {scope.id}", ("Scope", scope.id), [("Fact", fact.id, fact.revision) for fact in embedded]
+    for item in declared.requirements:
+        yield (f"DeclaredRequirement {item.id}", ("DeclaredRequirement", item.id),
+               [*facts(item.fact_refs), *(("Obligation", pin.id, pin.revision) for pin in item.obligation_refs)])
+    for index, item in enumerate(declared.source_reviews):
+        yield f"source_reviews[{index}]", None, [("LegalSource", item.source_id, item.source_revision)]
+    for item in declared.obligations:
+        yield f"Obligation {item.id}", ("Obligation", item.id), sources(item.source_provisions)
+    for index, item in enumerate(declared.family_screenings):
+        yield (f"family_screenings[{index}]", None, [("Scope", item.scope.id, item.scope.revision), *facts(item.fact_refs),
+               *(("LegalSource", pin.id, pin.revision) for pin in item.source_refs)])
+    for item in declared.applicability_decisions:
+        yield (f"ApplicabilityDecision {item.id}", ("ApplicabilityDecision", item.id),
+               [("Obligation", item.obligation.id, item.obligation.revision), ("Scope", item.scope.id, item.scope.revision),
+                *facts(item.fact_refs), *sources(item.provisions)])
+    for item in declared.evidence_reviews:
+        yield (f"EvidenceReview {item.id}", ("EvidenceReview", item.id),
+               [("Obligation", item.obligation.id, item.obligation.revision)])
+
+
+def _revision_cascade(old: m.RevalidationInput, declared: m.RevalidationInput, reported: set[str]) -> list[dict]:
+    """Name each record whose pins must follow a revision that rises, before that edit is made.
+
+    A record pinning a raised revision changes too, so a versioned one also needs a higher
+    revision. Records already named by their own revision problem are not repeated.
+    """
+    before, current = _versioned(old), _versioned(declared)
+    # Any revision above the predecessor's is accepted; a record named above needs the next one.
+    target = {key: before[key].revision + 1 if key in before and f"{key[0]} {key[1]}" in reported else item.revision
+              for key, item in current.items()}
+    holders = list(_pin_holders(declared))
+
+    def moving(pins):
+        return list(dict.fromkeys((kind, identity) for kind, identity, revision in pins
+                                  if (kind, identity) in target and target[kind, identity] != revision))
+
+    changed = True
+    while changed:  # Each record rises at most once, so this ends.
+        changed = False
+        for _, key, pins in holders:
+            if key in before and target[key] <= before[key].revision and moving(pins):
+                target[key] = before[key].revision + 1
+                changed = True
+    problems, named = [], set(reported)
+    for label, key, pins in holders:
+        dependencies = moving(pins)
+        raise_to = target[key] if key in before and target[key] > current[key].revision else None
+        if raise_to is None:
+            # A pin already behind its record's declared revision is reported where it stands.
+            stale = {(kind, identity) for kind, identity, revision in pins
+                     if (kind, identity) in current and current[kind, identity].revision != revision}
+            dependencies = [item for item in dependencies if item not in stale]
+        if not dependencies or label in named:
+            continue
+        named.add(label)
+        kind, identity = dependencies[0]
+        text = f"{kind} {identity} rises to revision {target[kind, identity]}"
+        if len(dependencies) > 1:
+            more = len(dependencies) - 1
+            text += f" (and {more} more pinned record{'s' if more > 1 else ''}); update the pins to them"
+        else:
+            text += "; update the pin to it"
+        if raise_to is not None:
+            text += f" and raise this record's revision to {raise_to}"
+        problems.append({"at": label, "problem": text})
+    return problems
 
 
 def format_check(report: dict) -> str:

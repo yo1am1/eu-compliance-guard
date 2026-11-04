@@ -10,13 +10,15 @@ from urllib.parse import urlsplit
 
 from pydantic import (
     AfterValidator, BeforeValidator, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter,
-    model_validator,
+    ValidationInfo, model_validator,
 )
 
 MAX_REQUEST_BYTES = 4 * 1024 * 1024
 # A bundle repeats the declarations and adds one output per requirement and obligation.
 MAX_BUNDLE_BYTES = 16 * 1024 * 1024
 MAX_SEQUENCE = 2**53 - 1
+# Validation context key under which declarations collect located membership problems.
+COLLECT_PROBLEMS = "membership_problems"
 
 
 # Fixed messages: the standard library's errors quote the rejected value.
@@ -989,11 +991,17 @@ COMMAND_ADAPTER = TypeAdapter(Command)
 TRecord = TypeVar("TRecord", bound=Record)
 
 
-def parse_record(model: type[TRecord], payload: bytes | str, limit: int = MAX_REQUEST_BYTES) -> TRecord:
+def parse_record(model: type[TRecord], payload: bytes | str, limit: int = MAX_REQUEST_BYTES, *,
+                 collect: list | None = None) -> TRecord:
+    """Parse and validate one record.
+
+    With `collect`, declarations append every located membership problem there instead of
+    raising the first; the returned record then serves diagnostics only, never a run.
+    """
     raw = payload.encode("utf-8") if isinstance(payload, str) else payload
     if len(raw) > limit:
         raise ValueError("record exceeds byte limit")
-    return model.model_validate_json(raw)
+    return model.model_validate_json(raw, context=None if collect is None else {COLLECT_PROBLEMS: collect})
 
 
 def parse_command(payload: bytes | str) -> Command:
@@ -1421,7 +1429,11 @@ class RevalidationInput(Record):
                 yield at, "more than 32 distinct selected files"
 
     @model_validator(mode="after")
-    def membership(self) -> RevalidationInput:
+    def membership(self, info: ValidationInfo) -> RevalidationInput:
+        collect = info.context.get(COLLECT_PROBLEMS) if isinstance(info.context, dict) else None
+        if collect is not None:
+            collect.extend(self.membership_problems())
+            return self
         for at, problem in self.membership_problems():
             raise LocatedProblem(at, problem)
         return self

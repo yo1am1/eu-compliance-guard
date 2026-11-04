@@ -246,6 +246,58 @@ class AuthoringTests(unittest.TestCase):
         self.assertEqual(a.check(self.input, runs / "run-001")["errors"],
                          [{"at": "--previous", "problem": "predecessor belongs to another project or synthetic class"}])
 
+    def test_one_check_lists_every_stale_pin_and_the_revision_cascade(self):
+        from eu_compliance_guard import revalidation as r
+        runs = self.root / "runs"
+        runs.mkdir(mode=0o700)
+        self.input.write_text(json.dumps(self.payload))
+        r.run(self.input, runs / "run-001")
+        payload = deepcopy(self.payload)
+        payload["scope"]["roles"][0]["value"] = "changed fictional role"
+        self.input.write_text(json.dumps(payload))
+        # Before any revision is raised, the records whose pins must follow are named as well.
+        cascade = {
+            "DeclaredRequirement requirement-example":
+                "Fact fact-declared rises to revision 1; update the pin to it and raise this record's revision to 1",
+            "DeclaredRequirement requirement-unmapped":
+                "Fact fact-declared rises to revision 1; update the pin to it and raise this record's revision to 1",
+            "ApplicabilityDecision decision-example": "Scope scope-example rises to revision 1 (and 1 more pinned "
+                                                      "record); update the pins to them and raise this record's revision to 1",
+        }
+        report = a.check(self.input, runs / "run-001")
+        located = {item["at"]: item["problem"] for item in report["errors"]}
+        self.assertEqual(set(located), {"Scope scope-example", "Fact fact-declared", *cascade})
+        self.assertEqual({at: located[at] for at in cascade}, cascade)
+        # Raising only the edited records leaves four stale pins: all of them are listed together.
+        payload["scope"]["revision"] = payload["scope"]["roles"][0]["revision"] = 1
+        self.input.write_text(json.dumps(payload))
+        stale = ["requirements[0].fact_refs[0]", "requirements[1].fact_refs[0]",
+                 "applicability_decisions[0].fact_refs[0]", "applicability_decisions[0].scope"]
+        report = a.check(self.input)
+        self.assertEqual(sorted(item["at"] for item in report["errors"]), sorted(stale))
+        self.assertEqual(report["total_errors"], 4)
+        self.assertIn("declarations: invalid (4 problem(s))", a.format_check(report))
+        report = a.check(self.input, runs / "run-001")
+        self.assertEqual({item["at"] for item in report["errors"]}, {*stale, *cascade})
+        # Following that one report is enough for a valid declaration and a successor run.
+        for requirement in payload["requirements"]:
+            requirement["revision"] = requirement["fact_refs"][0]["revision"] = 1
+        decision = payload["applicability_decisions"][0]
+        decision["revision"] = decision["scope"]["revision"] = decision["fact_refs"][0]["revision"] = 1
+        self.input.write_text(json.dumps(payload))
+        self.assertEqual(a.check(self.input, runs / "run-001")["errors"], [])
+        r.run(self.input, runs / "run-002", previous=runs / "run-001")
+        # The cascade is transitive: a source pinned by obligations reaches every record pinning those.
+        payload = deepcopy(self.payload)
+        payload["sources"][0]["source"]["provisions"].append("Fictional section 9")
+        self.input.write_text(json.dumps(payload))
+        located = {item["at"]: item["problem"] for item in a.check(self.input, runs / "run-001")["errors"]}
+        self.assertEqual(set(located), {"LegalSource source-example", "Obligation obligation-example",
+                                        "Obligation obligation-unmapped", "DeclaredRequirement requirement-example",
+                                        "ApplicabilityDecision decision-example", "EvidenceReview review-example",
+                                        "source_reviews[0]"})
+        self.assertEqual(located["source_reviews[0]"], "LegalSource source-example rises to revision 1; update the pin to it")
+
     def test_state_dir_is_private_keyed_by_project_id_and_symlink_free(self):
         from unittest.mock import patch as env_patch
         project = self.root / "app"
