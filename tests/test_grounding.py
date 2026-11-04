@@ -4,6 +4,7 @@ from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
 from pathlib import Path
+import stat
 import tempfile
 import unittest
 
@@ -144,6 +145,18 @@ class GroundingTests(unittest.TestCase):
                                         "--apply", "fact-cookie-lifetime=app/web.py:2")
         self.assertEqual((code, stderr), (0, ""))
         self.assertEqual(json.loads(stdout), {"applied": [{"fact": "fact-cookie-lifetime", "location": "app/web.py:2"}]})
+
+    def test_apply_keeps_the_declarations_mode_and_refuses_a_read_only_file(self):
+        for mode in (0o644, 0o640, 0o600):
+            with self.subTest(mode=oct(mode)):
+                self.declarations.chmod(mode)
+                g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+                self.assertEqual(stat.S_IMODE(self.declarations.stat().st_mode), mode)
+        self.declarations.chmod(0o444)
+        before = self.declarations.read_bytes()
+        code, _, stderr = self.cli("ground", "--input", str(self.declarations), "--apply", "fact-llm-weight=app/chat.py:2")
+        self.assertEqual((code, "io-failed" in stderr), (2, True))
+        self.assertEqual((self.declarations.read_bytes(), stat.S_IMODE(self.declarations.stat().st_mode)), (before, 0o444))
 
     def test_apply_replaces_a_planted_temp_symlink_instead_of_writing_through_it(self):
         victim = Path(self.temporary.name) / "victim.txt"
