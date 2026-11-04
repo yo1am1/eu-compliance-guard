@@ -605,3 +605,32 @@ class WorkflowTests(unittest.TestCase):
             r.run(self.input, self.root / "expired")
         self.assertEqual(caught.exception.code, "budget-exceeded")
         self.assertFalse((self.root / "expired").exists())
+
+
+class PinProblemTests(unittest.TestCase):
+    """The pin checks assemble records, shared with the scorecard; codes map to the recorded phrases."""
+
+    def setUp(self):
+        payload = json.loads(FIXTURE.read_bytes())
+        self.selected = m.SelectedSource.model_validate(payload["sources"][0])
+        self.sources = {self.selected.source.id: self.selected}
+        self.pin = m.ProvisionRef.model_validate(payload["obligations"][0]["source_provisions"][0])
+
+    def test_each_failing_check_has_one_code_in_pin_order(self):
+        unlisted = self.pin.model_copy(update={"locator": "Fictional section 9"})
+        target_only = self.pin.model_copy(update={"source_id": None})
+        cases = [
+            ([], {}, False, ["no_pin"]),
+            ([self.pin], {}, True, []),
+            ([target_only], {}, False, ["target_only"]),
+            ([self.pin], {"source-example": ["open"]}, False, ["source_review_open"]),
+            ([unlisted, self.pin], {}, False, ["locator_not_listed"]),
+        ]
+        for pins, gaps, duty, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(r.pin_problems(pins, self.sources, gaps, duty), expected)
+        guidance = self.selected.model_copy(update={"source": self.selected.source.model_copy(update={"type": "final_guidance"})})
+        self.assertEqual(r.pin_problems([self.pin], {"source-example": guidance}, {}, True), ["non_binding_for_duty"])
+        self.assertEqual(r.pin_problems([self.pin], {"source-example": guidance}, {}, False), [])
+        self.assertEqual(set(r.PIN_GAPS), {"no_pin", "target_only", "source_review_open", "locator_not_listed",
+                                           "non_binding_for_duty"})
