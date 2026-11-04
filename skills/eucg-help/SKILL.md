@@ -58,6 +58,11 @@ writes a static HTML view of the verified run and opens it in your browser.
 - `view --run <run dir> [--open]` writes
   `<parent>/views/<run>.html` from a verified run (the run itself is unchanged).
 
+## Fewer permission prompts
+
+Allow `Bash(uv run --project * --locked --no-dev python -P -m eu_compliance_guard *)`
+in `.claude/settings.json` or with `/permissions`. Fetching still needs consent.
+
 ## Limits
 
 No output is a compliance verdict. Reviewer names are self-attested. Retrieved pages

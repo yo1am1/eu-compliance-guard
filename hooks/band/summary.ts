@@ -111,14 +111,25 @@ export function parseSteps(dir: string, text: string): NextSteps | null {
   return { dir, steps }
 }
 
+// A safe id in words: "fact-accounts-basis" -> "accounts basis". Ids are validated, never free text.
+export function words(id: string): string {
+  return id.replace(/^(fact|obl|obligation|req|requirement|target|source|activity)[-_]/, '').replace(/[-_.:]+/g, ' ').trim()
+}
+
 export function describeStep(step: NextStep): string {
   const what = {
-    retrieve: 'fetch official text',
-    fact: `confirm ${step.subject}`,
-    source: `review source ${step.subject}`,
-    applicability: `decide ${step.subject}`,
-    mapping: `map ${step.subject}`,
-    family: 'screen legal families',
+    retrieve: 'Fetch the official law text',
+    fact: `Confirm the ${words(step.subject)}`,
+    source: `Read and approve the ${words(step.subject)} text`,
+    applicability: `Decide whether ${words(step.subject)} applies`,
+    mapping: `Link ${words(step.subject)} to a legal duty`,
+    family: 'Check which areas of EU law apply',
   }[step.kind]
   return `${what} · unblocks ${step.unblocks} open requirement${step.unblocks === 1 ? '' : 's'}`
+}
+
+// "████░░░░░░ 3/12": a fixed-width bar of supported requirements.
+export function progressBar(done: number, total: number, width = 10): string {
+  const filled = total > 0 ? Math.round((done / total) * width) : 0
+  return `${'█'.repeat(filled)}${'░'.repeat(width - filled)} ${done}/${total}`
 }

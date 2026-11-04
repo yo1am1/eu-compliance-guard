@@ -2,13 +2,13 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Band, NextSteps } from '../../types'
-import { daysOld, describeStep, parseSteps, summarize } from './summary'
+import { daysOld, describeStep, parseSteps, progressBar, summarize, words } from './summary'
 
 const LEVELS = ['lite', 'full', 'strict', 'off']
 const PROJECT_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/
 const EMPTY: Band = { isActive: false, level: 'full', stateDir: '', run: null, problem: null }
 // Shape tags decline values an earlier version stored, which outlive a reload.
-const band = atom({ plugin: 'eu-compliance-guard', key: 'band' } as const, EMPTY, { shape: 'band-2' })
+const band = atom({ plugin: 'eu-compliance-guard', key: 'band' } as const, EMPTY, { shape: 'band-3' })
 const isFolded = atom({ plugin: 'eu-compliance-guard', key: 'isFolded' } as const, false)
 const lastView = atom({ plugin: 'eu-compliance-guard', key: 'lastView' } as const, null)
 const nextSteps = atom({ plugin: 'eu-compliance-guard', key: 'next' } as const, null as NextSteps | null, { shape: 'next-3' })
@@ -54,6 +54,7 @@ async function refresh($: EngineInterface): Promise<void> {
   const stateDir = identity ? `${(await $.env.get('XDG_STATE_HOME')) ?? `${home}/.local/state`}/eu-compliance-guard/${identity}` : ''
   let run = null
   let problem = null
+  let previousGaps: number | null = null
   if (identity !== null) {
     const runs = (await $.fs.list(stateDir).catch(() => []))
       .filter(entry => entry.kind === 'dir' && !entry.isLink && entry.name.startsWith('run-'))
@@ -63,16 +64,22 @@ async function refresh($: EngineInterface): Promise<void> {
     for (const name of runs) {
       const files = await $.fs.list(`${stateDir}/${name}`).catch(() => [])
       if (!files.some(file => file.name === 'complete.json' && file.kind === 'file')) continue
+      if (run !== null) {
+        // The run before the newest, for progress since then.
+        const previous = summarize(`${stateDir}/${name}`, await $.fs.read(`${stateDir}/${name}/bundle.json`).catch(() => ''))
+        if (previous?.projectId === identity) previousGaps = previous.gaps
+        break
+      }
       run = summarize(`${stateDir}/${name}`, await $.fs.read(`${stateDir}/${name}/bundle.json`).catch(() => ''))
       if (run === null) problem = 'latest run could not be summarized'
       else if (run.projectId !== identity) {
         run = null
         problem = 'latest run belongs to another project'
       }
-      break
+      if (run === null) break
     }
   }
-  await update($, band, () => ({ isActive, level, stateDir, run, problem }))
+  await update($, band, () => ({ isActive, level, stateDir, run, problem, previousGaps }))
   // Ranked once per run, in the background, so a slow interpreter start never holds the session.
   if (run !== null && (await read($, nextSteps))?.dir !== run.dir) void rankNext($, run.dir)
 }
@@ -133,6 +140,13 @@ async function openReport($: EngineInterface, linked: string) {
   $.ui.toast(result?.stderr.includes('no-browser') ? `Report written: ${path}` : 'Report opened in your browser')
 }
 
+// "▓▓▓░░░ 3/12 requirements supported · 94 open items (−7 since last run)": progress first, never a verdict.
+function summaryLine(run: NonNullable<Band['run']>, previousGaps: number | null): string {
+  const delta = previousGaps === null ? '' : run.gaps < previousGaps ? ` (−${previousGaps - run.gaps} since last run)`
+    : run.gaps > previousGaps ? ` (+${run.gaps - previousGaps} since last run)` : ' (same as last run)'
+  return `${progressBar(run.requirements.supported, run.requirements.total)} requirements supported · ${run.gaps} open items${delta}`
+}
+
 async function openPanel($: EngineInterface) {
   const { isPlaced } = await $.ui.open({ id: PANE, title: PANE_TITLE })
   if (!isPlaced) $.ui.toast('EU Compliance Guard: this surface cannot show the panel now')
@@ -175,7 +189,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
-          <Text bold>{run.state} · {run.gaps} gaps · {run.requirements.supported}/{run.requirements.total} requirements supported</Text>
+          <Text bold>{summaryLine(run, b.previousGaps ?? null)}</Text>
           <Text dimColor>run {run.id} · assessed {run.assessmentDate}{age === null ? '' : ` (${age}d ago)`}</Text>
           {run.synthetic ? <Text color="yellow">fictional data</Text> : null}
         </Box>
@@ -189,7 +203,7 @@ export const register: Register = on => {
         <Box flexDirection="column">
           <Text bold>Questions for the owner ({questionsTotal})</Text>
           {questions.length === 0 ? <Text dimColor>Every declared fact is declared or observed.</Text> : null}
-          {questions.slice(0, 12).map(item => <Text>{`${item.id} · ${item.basis}`}</Text>)}
+          {questions.slice(0, 12).map(item => <Text>{`${words(item.id)}? · now ${item.basis}`}</Text>)}
           {questionsTotal > 12 ? <Text dimColor>{`and ${questionsTotal - 12} more in the report`}</Text> : null}
         </Box>
         <Box flexDirection="column">
@@ -224,9 +238,7 @@ export const register: Register = on => {
     const fold = (
       <Button key="fold" label={folded ? '+' : '–'} plain onPress={() => update($, isFolded, value => !value)} />
     )
-    const status = run
-      ? `${run.state} · ${run.gaps} gaps · ${run.requirements.supported}/${run.requirements.total} requirements supported`
-      : b.problem ?? 'no completed run yet'
+    const status = run ? summaryLine(run, b.previousGaps ?? null) : b.problem ?? 'no completed run yet'
     if (folded) {
       return (
         <Box flexDirection="row" gap={1}>

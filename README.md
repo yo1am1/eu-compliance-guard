@@ -15,6 +15,30 @@ reports, predecessor revalidation and the Claude Code plugin), plus code-grounde
 facts, article text beside each reference, the next best step, a pull-request check
 and a side panel. See the [changelog](CHANGELOG.md).
 
+![Walkthrough: the band and side panel in Claude Code, then article text and articles to read in the report](docs/images/walkthrough.gif)
+
+<details>
+<summary>Screenshots</summary>
+
+**In Claude Code:** the band above the prompt names the next step and shows progress;
+the side panel lists the top steps, the questions for the owner and open items by area.
+
+![The band and the side panel in Claude Code](docs/images/plugin-band-panel.png)
+
+**In the report:** each declared article opens to its text, retrieved from the
+Publications Office and labelled as an unreviewed candidate.
+
+![Article text beside each declared legal reference](docs/images/report-article-text.png)
+
+**Articles to read:** each requirement lists the articles a local text search ranks
+highest. A suggestion, not a mapping.
+
+![Articles to read under each requirement](docs/images/report-articles-to-read.png)
+
+All screenshots show the fictional FitBox example project.
+
+</details>
+
 ## Quick start (Claude Code)
 
 ```text
@@ -79,6 +103,22 @@ Runs are stored outside the repository in
 `${XDG_STATE_HOME:-~/.local/state}/eu-compliance-guard/<project_id>/`, keyed by the
 declared `project_id`. `eu-compliance-guard state-dir` prints and creates it with
 mode 0700. Keep runs out of Git.
+
+### Fewer permission prompts
+
+Each CLI step asks for permission by default. To allow the plugin's own read-only CLI
+in a project, add this to `.claude/settings.json` (or run `/permissions` and add it):
+
+```json
+{
+  "permissions": {
+    "allow": ["Bash(uv run --project * --locked --no-dev python -P -m eu_compliance_guard *)"]
+  }
+}
+```
+
+`revalidate --fetch-official` still asks for your consent in the conversation before
+any network use.
 
 ## Command-line tool
 
