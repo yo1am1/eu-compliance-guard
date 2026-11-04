@@ -2,6 +2,7 @@
 
 from contextlib import redirect_stderr, redirect_stdout
 import io
+import os
 import json
 from pathlib import Path
 import re
@@ -137,6 +138,20 @@ class RunViewTests(unittest.TestCase):
             self.assertEqual(main(["view", "--run", str(self.runs / "PRIVATE-SECRET")]), 2)
         self.assertIn("incomplete-run", stderr.getvalue())
         self.assertNotIn("PRIVATE-SECRET", stderr.getvalue() + stdout.getvalue())
+
+    def test_open_with_a_relative_run_path_uses_an_absolute_uri(self):
+        cwd = os.getcwd()
+        os.chdir(self.runs)
+        try:
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with patch("webbrowser.open", return_value=True) as opened, redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(main(["view", "--run", self.run.name, "--open"]), 0)
+            with patch("webbrowser.open", side_effect=RuntimeError("no display")), redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(main(["view", "--run", self.run.name, "--open"]), 0)
+        finally:
+            os.chdir(cwd)
+        self.assertTrue(opened.call_args.args[0].startswith("file:///"))
+        self.assertIn("no-browser", stderr.getvalue())
 
     def test_view_leads_with_owner_questions_and_groups_attention_by_area(self):
         html = v.write_view(self.run).read_text()

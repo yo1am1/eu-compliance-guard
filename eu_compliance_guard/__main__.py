@@ -225,8 +225,14 @@ def _view(run_dir: str, open_browser: bool) -> int:
         return 2
     print(path)
     if open_browser:
+        import os
         import webbrowser
-        if not webbrowser.open(path.as_uri()):
+        from pathlib import Path
+        try:
+            opened = webbrowser.open(Path(os.path.abspath(path)).as_uri())
+        except Exception:
+            opened = False
+        if not opened:
             print("eu-compliance-guard: no-browser: open the file above manually", file=sys.stderr)
     return 0
 
