@@ -299,6 +299,8 @@ evidence or a requirement origin changed), `in review` or `recorded steps closed
 none of them is a verdict. `--against` adds point changes only when that run is the
 recorded parent and used the same tool version; the trend never changes the status.
 
+![Review progress at the top of the HTML view of the synthetic fixture run](docs/images/review-progress-view.png)
+
 `view` also writes `<parent>/views/<run>.scorecard.json` (0600). The local dashboard
 page in `frontend/` renders such a file: run `npm --prefix frontend run build` and
 `npm --prefix frontend run preview` (it listens on 127.0.0.1), then choose or drop the
