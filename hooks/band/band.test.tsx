@@ -52,7 +52,7 @@ async function eventually<T>(probe: () => Promise<T | undefined>): Promise<T | u
   return undefined
 }
 
-function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT, older = '', stateHome = '/state', state = STATE } = {}) {
+function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT, older = '', stateHome = '/state', state = STATE, level = '' } = {}) {
   const dirs: Record<string, Dir[]> = {
     [PROJECT]: enabled ? [{ name: '.eu-compliance-guard', kind: 'dir' }] : [],
     [state]: runs ? [{ name: 'run-20261025T000000Z', kind: 'dir' }, { name: 'run-incomplete', kind: 'dir' }, { name: 'views', kind: 'dir' }] : [],
@@ -71,7 +71,7 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
     opened.push(e.id)
     return { value: { isPlaced: true } }
   })
-  mock.env(on, { HOME: '/home/me', XDG_STATE_HOME: stateHome })
+  mock.env(on, { HOME: '/home/me', XDG_STATE_HOME: stateHome, ...(level === '' ? {} : { EUCG_DEFAULT_MODE: level }) })
   mock.clock(on, { now: Date.parse('2026-10-25T12:00:00Z') })
   on('session.repo', () => ({ value: { root: '/work', remote: null, internal: false, name: 'monorepo' } }))
   on('session.root', () => ({ value: root }))
@@ -270,6 +270,16 @@ test('without declarations the panel says so and offers nothing to run', async (
   await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect(await ui.find({ type: 'Text', text: /No \.eu-compliance-guard\/ declarations/ })).toBeDefined()
+  expect(await ui.find({ key: 'audit' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('with the default level off the panel says so instead of claiming no declarations', async ($, on) => {
+  host(on, { level: 'off' })
+  await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: 'The default level is off; resume with /eucg.' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'declarations' })).toBeUndefined()
   expect(await ui.find({ key: 'audit' })).toBeUndefined()
   await ui.unmount()
 })

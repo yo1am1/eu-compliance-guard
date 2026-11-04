@@ -179,7 +179,8 @@ export const register: Register = on => {
     if (!b.isActive || run === null) {
       return (
         <Box flexDirection="column" gap={1}>
-          <Text dimColor>{b.isActive ? b.problem ?? 'No completed run yet.' : 'No .eu-compliance-guard/ declarations in this project.'}</Text>
+          <Text dimColor>{b.isActive ? b.problem ?? 'No completed run yet.'
+            : b.level === 'off' ? 'The default level is off; resume with /eucg.' : 'No .eu-compliance-guard/ declarations in this project.'}</Text>
           {b.isActive ? <Button key="audit" label="Run an audit" variant="primary" onPress={() => runSkill($, 'eucg-audit')} /> : null}
         </Box>
       )
