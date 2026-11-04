@@ -80,6 +80,23 @@ class PRCheckTests(unittest.TestCase):
         if origin is None:
             self.assertEqual(report["requirements_in_changed_files"], [])
 
+    def test_paths_cannot_break_out_of_code_spans(self):
+        diff = ("--- /dev/null\n+++ b/app/a`<img src=https://evil.example/p.png> [x](https://evil.example) @someone`.py\n"
+                "@@ -0,0 +1 @@\n+cookie = analytics()\n")
+        markdown = p.format_markdown(p.pr_check(diff))
+        for line in markdown.splitlines():
+            if "evil" in line:
+                self.assertEqual(line.count("`"), 2, line)
+        self.assertTrue(markdown.startswith(p.MARKER))
+
+    def test_broad_words_alone_do_not_count_as_mentioned(self):
+        payload = json.loads(FIXTURE.read_bytes())
+        payload["requirements"][0]["statement"] = "FICTIONAL: the user model and the api are documented."
+        report = p.pr_check("--- /dev/null\n+++ b/a.py\n@@ -0,0 +1 @@\n+reply = openai.complete(prompt)\n",
+                            m.RevalidationInput.model_validate(payload))
+        [ai] = [item for item in report["touchpoints"] if item["concept"] == "ai"]
+        self.assertFalse(ai["declared"])
+
     def test_empty_diff_is_not_a_clean_bill(self):
         report = p.pr_check("")
         self.assertEqual(report["attention"], 0)

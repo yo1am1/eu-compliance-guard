@@ -12,6 +12,8 @@ import re
 from . import models as m
 from .grounding import CONCEPTS, SKIP_DIRS, TEXT_NAMES, TEXT_SUFFIXES, tokens
 
+# Lets a workflow find and update its own comment, never another bot's.
+MARKER = "<!-- eu-compliance-guard-pr-check -->"
 MAX_DIFF_BYTES = 16 * 1024 * 1024
 MAX_EXAMPLES = 5
 SNIPPET = 120
@@ -80,6 +82,18 @@ def concepts_in(line: str) -> list[str]:
             if (hits := vocabulary & terms) and (len(hits) >= 2 or hits & STRONG)]
 
 
+def _code(text: str) -> str:
+    """Text safe inside a markdown code span: no backticks or line breaks to break out with."""
+    return re.sub(r"[\r\n]+", " ", text.replace("`", "'"))
+
+
+def _mentioned(concept: str, declared_terms: set[str]) -> bool:
+    """Strong terms count alone; a concept without them needs two of its terms in the declarations."""
+    vocabulary = CONCEPTS[concept][1]
+    strong = vocabulary & STRONG
+    return bool(strong & declared_terms) if strong else len(vocabulary & declared_terms) >= 2
+
+
 def _snippet(text: str) -> str:
     text = re.sub(r"\s+", " ", text.replace("`", "'")).strip()
     return text if len(text) <= SNIPPET else text[:SNIPPET - 1] + "…"
@@ -119,36 +133,36 @@ def pr_check(diff: str, declared: m.RevalidationInput | None = None) -> dict:
     touchpoints = []
     for concept in CONCEPTS:
         if concept in found:
-            label, vocabulary = CONCEPTS[concept]
+            label = CONCEPTS[concept][0]
             touchpoints.append({"concept": concept, "label": label, "families": FAMILIES[concept],
                                 "count": len(found[concept]), "examples": found[concept][:MAX_EXAMPLES],
-                                "declared": bool(vocabulary & vocabulary_declared)})
+                                "declared": _mentioned(concept, vocabulary_declared)})
     attention = sum(not item["declared"] for item in touchpoints) + len(pinned) + len(requirements)
     return {"files": len(touched), "declarations": declared is not None, "touchpoints": touchpoints,
             "pinned_evidence": pinned, "requirements_in_changed_files": requirements, "attention": attention}
 
 
 def format_markdown(report: dict) -> str:
-    lines = ["### EU Compliance Guard: legal touchpoints in this diff", ""]
+    lines = [MARKER, "### EU Compliance Guard: legal touchpoints in this diff", ""]
     if not report["touchpoints"] and not report["pinned_evidence"] and not report["requirements_in_changed_files"]:
         lines.append(f"No legal touchpoints matched in {report['files']} changed file(s). "
                      "A keyword check, not a clean bill: review data flows the words miss.")
     if report["touchpoints"]:
-        lines += ["| Concept | Candidate families | Added lines | Declared |", "| --- | --- | --- | --- |"]
+        lines += ["| Concept | Candidate families | Added lines | Mentioned in declarations |", "| --- | --- | --- | --- |"]
         for item in report["touchpoints"]:
             declared = "yes" if item["declared"] else ("**no**" if report["declarations"] else "no declarations")
             lines.append(f"| {item['label']} | {', '.join(item['families'])} | {item['count']} | {declared} |")
         lines.append("")
         for item in report["touchpoints"]:
             lines.append(f"<details><summary>{item['label']}</summary>\n")
-            lines += [f"- `{example}`" for example in item["examples"]]
+            lines += [f"- `{_code(example)}`" for example in item["examples"]]
             lines.append("\n</details>")
     if report["pinned_evidence"]:
         lines += ["", "**Code evidence pinned to a changed file** (ground these facts again: `eu-compliance-guard ground`):"]
-        lines += [f"- `{item['path']}` backs {', '.join(item['facts']) or item['evidence']}" for item in report["pinned_evidence"]]
+        lines += [f"- `{_code(item['path'])}` backs {', '.join(item['facts']) or item['evidence']}" for item in report["pinned_evidence"]]
     if report["requirements_in_changed_files"]:
         lines += ["", "**Requirements declared in a changed file** (re-read their statements):"]
-        lines += [f"- {item['requirement']} (`{item['path']}`)" for item in report["requirements_in_changed_files"]]
+        lines += [f"- {item['requirement']} (`{_code(item['path'])}`)" for item in report["requirements_in_changed_files"]]
     if not report["declarations"]:
         lines += ["", "No `.eu-compliance-guard/declarations.json` found, so nothing is compared with declarations."]
     lines += ["", f"{report['attention']} item(s) need attention. Candidate families are screening hints, "
@@ -159,7 +173,7 @@ def format_markdown(report: dict) -> str:
 def format_text(report: dict) -> str:
     lines = [f"{report['files']} changed file(s); {report['attention']} item(s) need attention."]
     for item in report["touchpoints"]:
-        state = "declared" if item["declared"] else "not declared"
+        state = "mentioned in declarations" if item["declared"] else "not mentioned in declarations"
         lines.append(f"- {item['label']} ({', '.join(item['families'])}): {item['count']} added line(s), {state}")
         lines += [f"    {example}" for example in item["examples"][:3]]
     for item in report["pinned_evidence"]:
