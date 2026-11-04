@@ -43,6 +43,8 @@ def starter(project_id: str, assessment_date: str | None = None, jurisdictions: 
 
 def init(path: str | os.PathLike, project_id: str, **options) -> Path:
     """Write a starter declaration; an existing file is never replaced."""
+    if os.fspath(path).endswith(os.sep):
+        raise r.RevalidationError("invalid-input")  # names a folder; Path() would drop the slash and write a file
     path = Path(path)
     # Paths resolve against the project (the parent) only for the dedicated subfolder;
     # anywhere else that parent could be a folder of several projects.

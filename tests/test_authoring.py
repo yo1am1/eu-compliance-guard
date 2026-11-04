@@ -72,6 +72,12 @@ class AuthoringTests(unittest.TestCase):
         self.assertIn("unsafe-path", stderr)
         self.assertFalse((self.root / "real/sub").exists())
 
+    def test_init_refuses_a_path_that_names_a_folder(self):
+        code, stdout, stderr = self.cli("init", "--project-id", "shop", "--path", str(self.root / "newdir") + "/")
+        self.assertEqual((code, stdout), (2, ""))
+        self.assertIn("invalid-input", stderr)
+        self.assertFalse((self.root / "newdir").exists())
+
     def test_valid_fixture_reports_counts_files_targets_and_warnings(self):
         report = self.check()
         self.assertTrue(report["valid"])
