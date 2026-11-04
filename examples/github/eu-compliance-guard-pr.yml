@@ -2,7 +2,7 @@
 # Screens each pull request's diff for EU legal touchpoints and keeps one comment updated.
 # Keyword screening against your declarations, not a compliance verdict. No network use
 # beyond installing the tool; nothing from the diff leaves the runner except the comment.
-# For a stricter supply chain, pin the actions and the tool to commit SHAs.
+# The tool is pinned to a commit; for a stricter supply chain, pin the actions to SHAs too.
 name: EU Compliance Guard PR check
 on:
   pull_request:
@@ -25,7 +25,8 @@ jobs:
         run: |
           git diff --no-color "origin/$BASE_REF...HEAD" > "$RUNNER_TEMP/pr.diff"
           set +e
-          uvx --from "git+https://github.com/yo1am1/eu-compliance-guard@v1.1.0" \
+          # 1.1.0, pinned to its commit so the install cannot change under you.
+          uvx --from "git+https://github.com/yo1am1/eu-compliance-guard@a31c4df795a2b066b8b25612f8fe09ce6e4c4a76" \
             eu-compliance-guard pr-check --diff "$RUNNER_TEMP/pr.diff" --markdown --strict > "$RUNNER_TEMP/eucg.md"
           code=$?
           set -e
