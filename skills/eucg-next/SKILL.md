@@ -25,13 +25,15 @@ requirements`. Then work on step 1 only, by its `kind`:
   (`<cli> ground --apply <fact>=<path>:<line>`). Without a command, the fact is
   organisational: ask the owner the question and offer to record their answer as
   `declared` with them as `owner`. Never guess an answer.
-- `retrieve`: ask for consent to fetch, then run the `command` with a new run
-  directory under `<cli> state-dir`.
+- `retrieve`: ask for consent to fetch, then run
+  `<cli> revalidate --fetch-official --input .eu-compliance-guard/declarations.json --output <new run> --previous <latest run>`,
+  with a new run directory under `<cli> state-dir` and the run `next` reported as `--previous`.
 - `source`: open the report (`<cli> view --run <run> --open`) so the owner can read
   the retrieved article text. Recording a source review needs a named reviewer who
   read it; never write one on their behalf.
 - `applicability`: show the obligation's articles from the report and its conditions;
-  ask the owner or reviewer to decide. Record only their decision and name.
+  ask the owner or reviewer to decide. Record the decision, rationale, reviewer and
+  review time exactly as they give them. If any of these is missing, leave it `unresolved`.
 - `mapping`: list the report's "Articles to read" for the requirement and offer to
   declare a candidate obligation citing the one the owner picks.
 - `family`: list unscreened families; screening needs a named reviewer.
