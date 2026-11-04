@@ -121,6 +121,14 @@ class PRCheckTests(unittest.TestCase):
         [personal] = [item for item in report["touchpoints"] if item["concept"] == "personal_data"]
         self.assertTrue(personal["declared"])
 
+    def test_renames_binaries_and_mode_changes_count_as_touched(self):
+        diff = ("diff --git a/src/old name.py b/src/old name.py\nold mode 100644\nnew mode 100755\n"
+                "diff --git a/ev.txt b/ev2.txt\nsimilarity index 100%\nrename from ev.txt\nrename to ev2.txt\n"
+                "diff --git a/logo.png b/logo.png\nBinary files a/logo.png and b/logo.png differ\n"
+                'diff --git "a/gr\\303\\266\\303\\237e.py" "b/gr\\303\\266\\303\\237e.py"\nold mode 100644\nnew mode 100755\n')
+        _, touched = p.parse_diff(diff)
+        self.assertEqual(touched, {"src/old name.py", "ev.txt", "ev2.txt", "logo.png", "größe.py"})
+
     def test_empty_diff_is_not_a_clean_bill(self):
         report = p.pr_check("")
         self.assertEqual(report["attention"], 0)

@@ -69,6 +69,21 @@ def _path(header: str) -> str | None:
     return value[2:] if value[:2] in ("a/", "b/") else value
 
 
+def _header_paths(rest: str) -> set[str]:
+    """Both paths of a `diff --git a/X b/Y` header, quoted or not; spaces are allowed when X == Y."""
+    if rest.startswith('"'):
+        quoted = re.findall(r'"(?:[^"\\]|\\.)*"|\S+', rest)
+        names = [_unquote(item) for item in quoted]
+    else:
+        half = (len(rest) - 1) // 2
+        if rest[half] == " " and rest[:half].removeprefix("a/") == rest[half + 1:].removeprefix("b/"):
+            names = [rest[:half], rest[half + 1:]]
+        else:
+            names = rest.split(" b/", 1)
+            names = [names[0], "b/" + names[1]] if len(names) == 2 else []
+    return {name[2:] if name[:2] in ("a/", "b/") else name for name in names if name and name != "/dev/null"}
+
+
 def _lines(text: str) -> list[str]:
     """Split on newlines only, like git and editors; form feeds and other separators stay in the line."""
     return [line[:-1] if line.endswith("\r") else line for line in text.split("\n")]
@@ -90,6 +105,9 @@ def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str]]:
     for line in _lines(text):
         if line.startswith("diff --git "):
             old_left = new_left = 0  # a new file always ends the hunk, even one whose counts were short
+            # Renames, copies, binary and mode-only changes have no ---/+++ lines; the header names them.
+            touched.update(_header_paths(line[len("diff --git "):]))
+            current = None
             continue
         if old_left > 0 or new_left > 0:
             if line.startswith("+"):
@@ -104,7 +122,10 @@ def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str]]:
                 old_left -= 1
                 new_left -= 1
             continue  # "\\ No newline at end of file" and the like
-        if line.startswith("--- "):
+        if line.startswith(("rename from ", "rename to ", "copy from ", "copy to ")):
+            value = line.split(" ", 2)[2]
+            touched.add(_unquote(value) if value.startswith('"') else value)
+        elif line.startswith("--- "):
             old = _path(line)
             if old:
                 touched.add(old)
