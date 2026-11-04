@@ -5,10 +5,13 @@ one never establishes compliance; it only removes a recorded reason a requiremen
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
+import stat
 
 from . import models as m, sources
 from .grounding import not_observable
+from .revalidation import RevalidationError
 
 class NoRun(LookupError):
     def __init__(self, code: str):
@@ -145,10 +148,22 @@ def format_steps(steps: list[dict]) -> str:
 
 
 def latest_run(state: str | Path) -> Path | None:
-    """Newest run directory (by its timestamped name) that has a completion marker."""
+    """Newest run directory (by its timestamped name) that has a completion marker.
+
+    None only when no completed run exists. Storage that cannot be read is `unsafe-path`, as
+    `next --run` reports for the same directory, never a missing run and never an older run.
+    """
     try:
         names = sorted((item for item in Path(state).iterdir()
                         if item.name.startswith("run-") and item.is_dir() and not item.is_symlink()), reverse=True)
-    except OSError:
+        for item in names:
+            try:
+                if stat.S_ISREG(os.stat(item / "complete.json").st_mode):
+                    return item
+            except FileNotFoundError:
+                continue
+    except FileNotFoundError:
         return None
-    return next((item for item in names if (item / "complete.json").is_file()), None)
+    except OSError:
+        raise RevalidationError("unsafe-path") from None
+    return None

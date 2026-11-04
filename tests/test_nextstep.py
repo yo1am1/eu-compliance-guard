@@ -123,6 +123,28 @@ class NextStepTests(unittest.TestCase):
             self.assertEqual(main(["next"]), 2)
         self.assertEqual(err.getvalue(), "eu-compliance-guard: no-run: next step failed\n")
 
+    def test_unreadable_run_storage_is_unsafe_path_never_no_run(self):
+        older = self.run_bundle("run-20261025T000000Z")
+        newer = self.run_bundle("run-20261026T000000Z")
+        real_stat = os.stat
+
+        def denied(path, *args, **kwargs):
+            if os.fspath(path) == os.fspath(newer / "complete.json"):
+                raise PermissionError(13, "Permission denied")
+            return real_stat(path, *args, **kwargs)
+        # Permissions do not bind root, so the refusals the kernel would give are simulated.
+        for label, case in (("state dir", patch.object(Path, "iterdir", side_effect=PermissionError(13, "denied"))),
+                            ("newest run", patch("os.stat", side_effect=denied))):
+            out, err = io.StringIO(), io.StringIO()
+            with self.subTest(label):
+                with patch("eu_compliance_guard.authoring.state_dir", return_value=older.parent), case, \
+                        redirect_stdout(out), redirect_stderr(err):
+                    code = main(["next"])
+                self.assertEqual((code, err.getvalue()), (2, "eu-compliance-guard: unsafe-path: next step failed\n"))
+                self.assertEqual(out.getvalue(), "")
+        # A state directory that does not exist yet still means no run.
+        self.assertIsNone(n.latest_run(self.root / "missing"))
+
     def test_report_leads_with_next_steps(self):
         html = v.write_view(self.run_bundle()).read_text()
         self.assertLess(html.index("<h2>Next best steps</h2>"), html.index("<h2>Questions for the project owner</h2>"))
