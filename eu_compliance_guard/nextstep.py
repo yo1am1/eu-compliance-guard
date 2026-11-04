@@ -64,7 +64,8 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
     for obligation, decision in decisions.items():
         for ref in decision.fact_refs:
             relied.setdefault(ref.id, set()).update(by_obligation.get(obligation, set()))
-    for fact in m.scope_facts(declared.scope):
+    # A fact copied into several activities is one question, asked once.
+    for fact in {item.id: item for item in m.scope_facts(declared.scope)}.values():
         if fact.basis in ("assumed", "unknown") or fact.conflicts:
             observable = not NOT_OBSERVABLE.search(fact.key)
             steps.append(_step("fact", fact.id, relied.get(fact.id, set()),

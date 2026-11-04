@@ -57,6 +57,12 @@ class NextStepTests(unittest.TestCase):
         self.assertEqual(facts[0]["subject"], fact["id"])
         self.assertEqual(facts[0]["unblocks"], 2)
 
+    def test_a_fact_copied_into_several_places_is_one_step(self):
+        fact = next(item for item in self.payload["scope"]["roles"] if item["basis"] == "unknown")
+        self.payload["scope"]["size_and_sector"] = [*self.payload["scope"].get("size_and_sector", []), dict(fact)]
+        steps = n.next_steps(v.verify_run(self.run_bundle()), top=10)
+        self.assertEqual(sum(step["subject"] == fact["id"] for step in steps), 1)
+
     def test_cli_uses_the_newest_completed_run_and_reports_missing_runs(self):
         older = self.run_bundle("run-20261025T000000Z")
         newer = self.run_bundle("run-20261026T000000Z")
