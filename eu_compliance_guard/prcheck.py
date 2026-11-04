@@ -236,12 +236,17 @@ def format_markdown(report: dict) -> str:
 def format_text(report: dict) -> str:
     lines = [f"{report['files']} changed file(s); {report['attention']} item(s) need attention."]
     for item in report["touchpoints"]:
-        state = "mentioned in declarations" if item["declared"] else "not mentioned in declarations"
+        if not report["declarations"]:
+            state = "no declarations to compare"
+        else:
+            state = "mentioned in declarations" if item["declared"] else "not mentioned in declarations"
         lines.append(f"- {item['label']} ({', '.join(item['families'])}): {item['count']} added line(s), {state}")
         lines += [f"    {example}" for example in item["examples"][:3]]
     for item in report["pinned_evidence"]:
         lines.append(f"- pinned evidence in changed {item['path']}: ground {', '.join(item['facts']) or item['evidence']} again")
     for item in report["requirements_in_changed_files"]:
         lines.append(f"- requirement {item['requirement']} is declared in changed {item['path']}")
+    if not report["declarations"]:
+        lines.append("No declarations file found, so nothing is compared with declarations.")
     lines.append("Keyword screening only; not a compliance verdict.")
     return "\n".join(lines)

@@ -61,6 +61,16 @@ class PRCheckTests(unittest.TestCase):
         self.assertNotIn("`rm -rf`", markdown)  # backticks in diff text cannot break out of code spans
         self.assertIn("not a legal conclusion or a compliance verdict", markdown)
 
+    def test_plain_text_says_when_no_declarations_were_read(self):
+        text = p.format_text(p.pr_check(DIFF))
+        self.assertNotIn("not mentioned in declarations", text)
+        self.assertIn("no declarations to compare", text)
+        self.assertIn("No declarations file found, so nothing is compared with declarations.", text)
+        declared = m.RevalidationInput.model_validate(json.loads(FIXTURE.read_bytes()))
+        text = p.format_text(p.pr_check(DIFF, declared))
+        self.assertIn("not mentioned in declarations", text)
+        self.assertNotIn("No declarations file found", text)
+
     def test_declared_concepts_pinned_evidence_and_requirement_origins(self):
         payload = json.loads(FIXTURE.read_bytes())
         payload["requirements"][0]["statement"] = "FICTIONAL: honour cookie choices before analytics run."
