@@ -48,6 +48,10 @@ The 1.1 audits found the same weak spots repeatedly:
 | NFR-2 | Every new write path refuses links, writes atomically and validates before writing, as `ground --apply` does. |
 | NFR-3 | Network use only with the existing per-run consent and the fixed host registry. |
 | NFR-4 | Every user-visible suggestion is labelled as a candidate, never as a mapping or a conclusion. |
+| NFR-5 | Every output says it is not legal advice or a verdict; failures surface as gaps, never as silent success. |
+| NFR-6 | Deterministic: identical inputs give byte-identical outputs, proven by a run-twice test. |
+| NFR-7 | Regular expressions only as anchored, bounded `fullmatch` validators; parsing is structured. Enforced by lint. |
+| NFR-8 | Only verified official hosts; SHA-pinned actions; a 14-day cooldown on new versions, except security hotfixes. |
 
 ## Out of scope for 1.5
 

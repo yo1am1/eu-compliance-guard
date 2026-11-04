@@ -1,7 +1,7 @@
 ---
 intent: 003-compliance-workspace-v2
 phase: inception
-status: brainstorm-decisions-recorded
+status: direction-approved
 created: 2026-11-04T18:00:00Z
 ---
 
@@ -147,13 +147,38 @@ Star counts and dates come from the surveys and were not checked again.
 6. Import-only evidence (SARIF from code scanners, EDPS Website Evidence Collector).
 7. An application-date timeline quoted from the text.
 
-**Open questions for the Owner.** The research recommends these changes to the decisions
-above:
-- **Packs:** ship only the signed pack *format* in 2.0, with no lawyer-reviewed content
-  yet, because of liability and maintenance cost.
-- **Scanners:** import the EDPS collector's results (the format regulators use) instead
-  of building our own scanner.
-- **Dashboard and review queue:** defer them, and export to existing GRC tools instead.
+**Owner answer (2026-11-04): the research version is adopted.** 2.0 ships the law
+lockfile, law-change impact, signed decisions and the citation guard. Packs ship as a
+signed *format* only, with no lawyer-reviewed content yet. Evidence comes from importing
+EDPS Website Evidence Collector and SARIF results, not from our own scanner. The
+dashboard and review queue are deferred; exports to existing GRC tools come first.
 
-Inception continues once these are settled: units, stories and bolts
-follow the specsmd flow, as for [1.5](../002-trustworthy-guidance-v1-5/requirements.md).
+## Stability, liability and supply chain (Owner, 2026-11-04; binding for 1.5 and 2.0)
+
+Priorities, in order: **security, then determinism, then features.**
+
+1. **No liability for outcomes.** The MIT licence already disclaims warranty. In
+   addition, every output, export, pack and signed record states that it is workflow
+   evidence, not legal advice or a compliance verdict. The decision always belongs to
+   the named person who signed it. Failures are reported as explicit gaps, never as
+   silent success.
+2. **Determinism.** The same inputs (declarations, lockfile, retrieved bytes) give
+   byte-identical outputs. No wall-clock, locale, random or dictionary-order effects
+   in ranking, search or rendering, and a test proves it by running twice.
+3. **Fewer regular expressions.** Heuristic text parsing moves to structured parsers:
+   HTML structure through `html.parser`, CELEX and ELI identifiers through small
+   explicit parsers, diffs through a line-state parser. A regular expression stays
+   only as an anchored `fullmatch` validator on a short, bounded input, with no nested
+   quantifiers. A lint check enforces this rule. Today there are 23 uses in 7 modules.
+4. **Verified services only.** Every host in the registry is an official EU institution
+   domain, and a recorded check confirms its owner, its purpose and that it is still
+   reachable. That check is a consented, on-demand `make verify-hosts`, never part of
+   ordinary tests. A host that fails the check raises a gap; there is no silent fallback
+   to another site. Third-party CI actions are pinned to full commit SHAs.
+5. **14-day version cooldown.** A dependency, tool or action version is adopted only
+   14 days after its release (`[tool.uv] exclude-newer = "14 days"`, and Dependabot
+   `cooldown.default-days: 14`). Security fixes and hotfixes for a published advisory
+   are exempt, each with a recorded reason. Exact pins and the lockfile stay.
+
+Inception continues now: units, stories and bolts follow the specsmd flow, as for
+[1.5](../002-trustworthy-guidance-v1-5/requirements.md).
