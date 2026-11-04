@@ -47,6 +47,28 @@ class GroundingTests(unittest.TestCase):
             code = main(list(args))
         return code, stdout.getvalue(), stderr.getvalue()
 
+    def test_lawful_basis_slots_and_plural_role_keys_are_never_grounded_in_code(self):
+        data = json.loads(self.declarations.read_text())
+        data["scope"]["roles"].append(fact("fact-roles", "Processor roles for analytics cookie"))
+        data["scope"]["activities"] = [{"id": "activity-web", "purpose": "Fictional analytics", "subjects": [],
+            "data_categories": [], "roles": [], "lawful_basis": fact("fact-basis", "Analytics cookie max age"),
+            "recipients": [], "locations": [], "stores": [], "retention": [], "evidence_owner": "Fictional owner"}]
+        self.declarations.write_text(json.dumps(data, indent=2))
+        facts = {item["fact"]: item for item in g.ground(self.declarations)["facts"]}
+        self.assertEqual((facts["fact-basis"]["observable"], facts["fact-roles"]["observable"]), (False, False))
+        for fact_id in ("fact-basis", "fact-roles"):
+            code, _, stderr = self.cli("ground", "--input", str(self.declarations), "--apply", f"{fact_id}=app/web.py:2")
+            self.assertEqual((code, "not-observable" in stderr), (2, True))
+
+    def test_a_cited_line_hides_only_itself_from_uncovered_touchpoints(self):
+        (self.project / "app/web.py").write_text(CODE["app/web.py"]
+            + "def notify(user):\n    send(user.email, user.phone, user.address)\n")
+        self.assertEqual(self.cli("ground", "--input", str(self.declarations), "--apply",
+                                  "fact-cookie-lifetime=app/web.py:2")[0], 0)
+        examples = [example for item in g.ground(self.declarations)["undeclared"] for example in item["examples"]]
+        self.assertTrue(any(example.startswith("app/web.py:4 ") for example in examples), examples)
+        self.assertFalse(any(example.startswith("app/web.py:2 ") for example in examples))
+
     def test_tokens_split_identifiers(self):
         self.assertEqual(g.tokens("response.set_cookie(maxAge=395)"), ["response", "set", "cookie", "max", "age", "395"])
 

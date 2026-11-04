@@ -55,8 +55,26 @@ CONCEPTS = {
     "accessibility": ("Accessibility", {"aria", "alt", "tabindex", "role", "label", "contrast", "a11y"}),
 }
 # Organisational facts are owner decisions or legal positions; code can never show them.
-NOT_OBSERVABLE = re.compile(r"lawful basis|legal basis|legitimate|establishment|controller|processor|\brole\b|"
-                            r"enterprise size|\bsize\b|sector|dpia|contract|policy|notice", re.I)
+# Words naming organisational or legal judgements that code cannot show (whole words, any case).
+NOT_OBSERVABLE_WORDS = frozenset({
+    "lawful", "legal", "legitimate", "establishment", "establishments", "controller", "controllers",
+    "processor", "processors", "role", "roles", "enterprise", "size", "sizes", "sector", "sectors",
+    "dpia", "contract", "contracts", "policy", "policies", "notice", "notices"})
+
+
+def _key_words(text: str) -> set[str]:
+    return set("".join(char.lower() if char.isalnum() else " " for char in text).split())
+
+
+def not_observable(scope: m.Scope) -> frozenset[str]:
+    """Ids of facts only a person can confirm: every lawful basis and size or sector fact, and any
+    fact whose key names an organisational or legal judgement."""
+    ids = {fact.id for fact in scope.size_and_sector}
+    ids.update(activity.lawful_basis.id for activity in scope.activities)
+    ids.update(fact.id for fact in m.scope_facts(scope) if _key_words(fact.key) & NOT_OBSERVABLE_WORDS)
+    return frozenset(ids)
+
+
 STOPWORDS = {"the", "and", "for", "with", "this", "that", "from", "are", "is", "of", "to", "in", "on", "by", "as", "or",
              "be", "if", "it", "at", "an", "a", "def", "return", "self", "none", "true", "false", "const", "let", "var",
              "function", "import", "public", "private", "class", "new", "not", "known", "unknown", "assumed"}
@@ -203,12 +221,14 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
     declared, root = _declarations(path)
     index = build_index(root, _own_files(path, root))
     facts = {fact.id: fact for fact in m.scope_facts(declared.scope)}
-    cited = {ref.split(":")[0] for item in declared.evidence for ref in item.evidence.source_refs}
+    # Only the cited lines are accounted for; the rest of a cited file may hold other touchpoints.
+    cited = {ref for item in declared.evidence for ref in item.evidence.source_refs}
+    unobservable = not_observable(declared.scope)
     results, covered = [], set()
     for fact in facts.values():
         if fact.basis not in ("assumed", "unknown") and not fact.conflicts:
             continue
-        observable = not NOT_OBSERVABLE.search(fact.key)
+        observable = fact.id not in unobservable
         candidates = search(index, _fact_query(fact), top) if observable else []
         covered.update(item["location"] for item in candidates)
         results.append({"fact": fact.id, "key": fact.key, "basis": fact.basis, "observable": observable,
@@ -216,10 +236,10 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
                         "next": ("confirm a candidate with --apply, or ask the owner" if candidates
                                  else "ask the owner; code cannot show this" if not observable
                                  else "no code evidence found; ask the owner")})
-    undeclared = []
+    undeclared, accounted = [], covered | cited
     for key, (label, vocabulary) in CONCEPTS.items():
         hits = [line for line in index.lines if vocabulary & set(line.terms) and len(vocabulary & set(line.terms)) >= 2
-                and f"{line.path}:{line.number}" not in covered and line.path not in cited]
+                and f"{line.path}:{line.number}" not in accounted]
         if hits:
             undeclared.append({"concept": key, "label": label, "count": len(hits),
                                "examples": [f"{line.path}:{line.number}  {line.text}" for line in hits[:3]]})
@@ -295,7 +315,7 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
     fact = facts.get(fact_id)
     if fact is None:
         raise r.RevalidationError("invalid-input")
-    if NOT_OBSERVABLE.search(fact.key):
+    if fact.id in not_observable(declared.scope):
         raise GroundingError("not-observable")
     relative, _, number = location.rpartition(":")
     if not relative or not number.isdigit():

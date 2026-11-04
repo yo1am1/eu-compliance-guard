@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from . import models as m
-from .grounding import NOT_OBSERVABLE
+from .grounding import not_observable
 
 class NoRun(LookupError):
     def __init__(self, code: str):
@@ -65,9 +65,10 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         for ref in decision.fact_refs:
             relied.setdefault(ref.id, set()).update(by_obligation.get(obligation, set()))
     # A fact copied into several activities is one question, asked once.
+    unobservable = not_observable(declared.scope)
     for fact in {item.id: item for item in m.scope_facts(declared.scope)}.values():
         if fact.basis in ("assumed", "unknown") or fact.conflicts:
-            observable = not NOT_OBSERVABLE.search(fact.key)
+            observable = fact.id not in unobservable
             steps.append(_step("fact", fact.id, relied.get(fact.id, set()),
                                f"Confirm '{fact.key}' (now {fact.basis})"
                                + (": look for code evidence." if observable else f": ask {fact.owner or 'the project owner'}."),
