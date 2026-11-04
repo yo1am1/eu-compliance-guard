@@ -14,7 +14,7 @@ from pathlib import Path
 import re
 import stat
 
-from . import models as m, revalidation as r
+from . import articles, models as m, revalidation as r
 
 CSS = """
 :root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--line:#e4e1d8;--card:#fff;--warn:#9a5b00;--warnbg:#fff4df;--bad:#a1271b;--badbg:#fde9e6;--ok:#2d6a3e;--okbg:#e6f3e9}
@@ -27,7 +27,8 @@ main{max-width:1080px;margin:0 auto;padding:24px 16px 64px}h1{font-size:24px;mar
 .scroll{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}table{width:100%;border-collapse:collapse}tr:last-child td{border-bottom:0}
 th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}th{color:var(--muted);font-weight:600}
 .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--warnbg);color:var(--warn)}
-.tag.ok{background:var(--okbg);color:var(--ok)}.tag.bad{background:var(--badbg);color:var(--bad)}
+.law{margin:4px 0 0}.law summary{font-weight:500;padding:2px 0}.law p{margin:4px 0;font-size:13px;color:var(--muted);white-space:pre-line}
+.suggest{font-size:13px;margin-top:4px}.tag.ok{background:var(--okbg);color:var(--ok)}.tag.bad{background:var(--badbg);color:var(--bad)}
 details{margin:10px 0}summary{cursor:pointer;font-weight:600;padding:6px 0}summary .count{display:inline-block;min-width:1.6em;padding:0 7px;margin-left:6px;border-radius:999px;background:var(--line);text-align:center;font-size:13px}
 details>.scroll{margin-top:6px}
 ul{margin:0;padding-left:20px}code{font-size:13px;word-break:break-all}
@@ -117,8 +118,50 @@ def _digest(value: str | None) -> str:
     return f'<code title="{escape(value, quote=True)}">{escape(value.removeprefix("sha256:")[:12])}…</code>'
 
 
-def render_html(bundle: m.RevalidationBundle) -> str:
+EXCERPT_CHARS = 700
+
+
+def catalogue(bundle: m.RevalidationBundle, contents: dict[str, bytes]) -> dict[str, dict[str, dict]]:
+    """Articles per source target: this run's retrieved bytes first, else the declared retained file."""
+    found: dict[str, dict[str, dict]] = {}
+    for attempt in bundle.source_attempts:
+        retrieval = attempt.retrieval
+        if attempt.retrieved_source and retrieval.artifact_path in contents and retrieval.media_type:
+            parsed = articles.parse(contents[retrieval.artifact_path], retrieval.media_type)
+            if parsed:
+                found[attempt.source_target_id] = parsed
+    for selected in bundle.declarations.sources:
+        path = "sources/" + selected.source.content_digest.removeprefix("sha256:") + ".bin"
+        if selected.target_id not in found and path in contents:
+            parsed = articles.parse(contents[path], selected.media_type)
+            if parsed:
+                found[selected.target_id] = parsed
+    return found
+
+
+def _article(target: str, locator: str, acts: dict[str, dict[str, dict]]) -> str:
+    key = articles.article_key(locator)
+    item = acts.get(target, {}).get(key) if key else None
+    if item is None:
+        return ""
+    text = item["text"] if len(item["text"]) <= EXCERPT_CHARS else item["text"][:EXCERPT_CHARS].rsplit(" ", 1)[0] + " …"
+    return (f'<details class="law"><summary>{escape(key)} — {escape(item["title"] or "untitled")}</summary>'
+            f'<p>{escape(text)}</p><p>Unreviewed candidate text from the retained <code>{escape(target)}</code> bytes; '
+            "check the official consolidated version before relying on it.</p></details>")
+
+
+def _suggestions(statement: str, acts: dict[str, dict[str, dict]]) -> str:
+    found = articles.suggest(statement, acts, top=3)
+    if not found:
+        return ""
+    names = " · ".join(f'{escape(item["article"])} <span class="muted">{escape(item["title"][:60])} ({escape(item["source"])})</span>'
+                       for item in found)
+    return f'<div class="suggest">Articles to read: {names}<br><span class="muted">Text search suggestion, not a mapping.</span></div>'
+
+
+def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None = None) -> str:
     """Every dynamic value passes through html.escape; nothing executes or loads."""
+    acts = catalogue(bundle, contents or {})
     declared = bundle.declarations
     obligations = {item.id: item for item in declared.obligations}
     decisions = {item.obligation.id: item for item in bundle.effective_applicability_decisions}
@@ -134,16 +177,18 @@ def render_html(bundle: m.RevalidationBundle) -> str:
     for assessment in bundle.requirement_assessments:
         requirement = next(item for item in declared.requirements if item.id == assessment.requirement.id)
         location = f"{requirement.origin.path} — {requirement.locator}" if requirement.origin else "declared in JSON"
-        requirement_rows.append([f"<code>{escape(requirement.id)}</code>", escape(requirement.statement), escape(location),
+        requirement_rows.append([f"<code>{escape(requirement.id)}</code>", escape(requirement.statement) + _suggestions(requirement.statement, acts),
+                                 escape(location),
                                  _tag(assessment.state), _list(assessment.gaps)])
     obligation_rows = []
     for disposition in bundle.obligation_dispositions:
         obligation = obligations[disposition.obligation_id]
         decision = decisions[disposition.obligation_id]
-        references = [f"{pin.source_id or pin.source_target_id} — {pin.locator}" for pin in obligation.source_provisions]
+        references = "".join(f"<li>{escape(f'{pin.source_id or pin.source_target_id} — {pin.locator}')}"
+                             f"{_article(pin.source_target_id, pin.locator, acts)}</li>" for pin in obligation.source_provisions)
         methods = " ".join(_tag(f"{item.method}: {item.outcome}") for item in disposition.required_method_dispositions)
         obligation_rows.append([f"<code>{escape(obligation.id)}</code>", escape(f"{obligation.family} · {obligation.classification}"),
-                                _list(references), _tag(decision.applicability) + f'<br><span class="muted">{escape(decision.reviewer or "no reviewer")}</span>',
+                                f"<ul>{references}</ul>" if references else "—", _tag(decision.applicability) + f'<br><span class="muted">{escape(decision.reviewer or "no reviewer")}</span>',
                                 methods or '<span class="muted">none declared</span>'])
     attempt_rows = [[f"<code>{escape(item.source_target_id)}</code>", _tag(item.state),
                      f"<code>{escape(item.retrieval.final_url or item.retrieval.requested_url)}</code>",
@@ -206,11 +251,11 @@ def render_html(bundle: m.RevalidationBundle) -> str:
     return "\n".join(parts)
 
 
-def verify_run(run_dir: str | os.PathLike) -> m.RevalidationBundle:
+def verify_run(run_dir: str | os.PathLike, contents: dict[str, bytes] | None = None) -> m.RevalidationBundle:
     """Accept a run only when its marker and every listed artifact digest match."""
     from .history import load_run
     try:
-        return load_run(run_dir)[0]
+        return load_run(run_dir, sources_out=contents)[0]
     except r.RevalidationError as error:
         raise ViewError(error.code) from None
 
@@ -218,7 +263,8 @@ def verify_run(run_dir: str | os.PathLike) -> m.RevalidationBundle:
 def write_view(run_dir: str | os.PathLike) -> Path:
     """Write ``<parent>/views/<run>.html`` (0700 directory, 0600 file), replacing an older view."""
     run_dir = Path(run_dir)
-    html = render_html(verify_run(run_dir)).encode("utf-8")
+    contents: dict[str, bytes] = {}
+    html = render_html(verify_run(run_dir, contents), contents).encode("utf-8")
     try:
         with r._parent(run_dir) as (parent_fd, _):
             r._private_parent(parent_fd)

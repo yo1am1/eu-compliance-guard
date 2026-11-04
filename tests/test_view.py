@@ -55,6 +55,27 @@ class RunViewTests(unittest.TestCase):
         v.write_view(self.run)  # A later view replaces the derived file.
         self.assertEqual(sorted(item.name for item in path.parent.iterdir()), [path.name])
 
+    def test_article_text_and_suggestions_come_from_retained_source_bytes(self):
+        text = ("FICTIONAL SOURCE — SYNTHETIC EXAMPLE ONLY\nArticle 1\nFictional review records\n"
+                "The fictional controller shall retain a declared review record & 1 < 2.\n"
+                "Article 2\nFictional erasure\nThe fictional controller shall erase an account on request.\n").encode()
+        folder = self.root / "revalidation-synthetic"
+        (folder / "source.txt").write_bytes(text)
+        raw = FIXTURE.read_text().replace("Fictional section 1", "Article 1").replace(
+            "sha256:b89f4bb123cc3732e9560553b419757350e5bdab12f0f1f4a8bdc53dfd89f5a0", m.content_digest(text))
+        payload = json.loads(raw)
+        payload["requirements"][1]["statement"] = "FICTIONAL: users can delete their account."
+        self.input.write_text(json.dumps(payload))
+        run = self.runs / "run-20261025T000001Z"
+        r.run(self.input, run)
+        html = v.write_view(run).read_text()
+        self.assertIn("<summary>Article 1 — Fictional review records</summary>", html)
+        self.assertIn("retain a declared review record &amp; 1 &lt; 2.", html)
+        self.assertIn("Unreviewed candidate text", html)
+        self.assertRegex(html, r"Articles to read: Article 2 <span class=\"muted\">Fictional erasure")
+        self.assertIn("not a mapping", html)
+        self.assertNotRegex(html, r"(?i)<script")
+
     def test_unverified_runs_are_refused(self):
         (self.runs / "run-incomplete").mkdir()
         for target, code in ((self.runs / "missing", "incomplete-run"), (self.runs / "run-incomplete", "incomplete-run")):

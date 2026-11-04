@@ -13,8 +13,11 @@ def _parse(record, raw):
     return m.parse_record(record, raw, m.MAX_BUNDLE_BYTES)
 
 
-def load_run(path, deadline=None):
-    """Read only marker-listed files, with the workflow's byte and time bounds."""
+def load_run(path, deadline=None, sources_out=None):
+    """Read only marker-listed files, with the workflow's byte and time bounds.
+
+    With ``sources_out`` (a dict), digest-verified ``sources/*.bin`` bytes are copied into it.
+    """
     r._primitives()
     try:
         with r._parent(Path(path) / "complete.json") as (fd, _):
@@ -27,7 +30,8 @@ def load_run(path, deadline=None):
                 limit = (r.MAX_REPORT_BYTES if item.path == "report.md" else r.MAX_FILE_BYTES
                          if item.path.startswith("sources/") else m.MAX_BUNDLE_BYTES)
                 observed = r._read_file(fd, item.path, limit=min(limit, r.MAX_TOTAL_BYTES - total),
-                    retain=item.path in {"input.json", "manifest.json", "bundle.json", "comparison.json"}, deadline=deadline)
+                    retain=item.path in {"input.json", "manifest.json", "bundle.json", "comparison.json"}
+                    or (sources_out is not None and item.path.startswith("sources/")), deadline=deadline)
                 total += observed.size
                 if observed.availability != "available" or observed.digest != item.digest:
                     raise r.RevalidationError("corrupt-run")
@@ -63,6 +67,8 @@ def load_run(path, deadline=None):
                     pending.extend([*review.act_chain, *review.case_law_refs, *review.national_overlay_ids])
             if not required <= files.keys():
                 raise r.RevalidationError("corrupt-run")
+            if sources_out is not None:
+                sources_out.update((key, item.content) for key, item in files.items() if key.startswith("sources/"))
             return bundle, files["bundle.json"].digest
     except FileNotFoundError:
         raise r.RevalidationError("incomplete-run") from None

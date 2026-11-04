@@ -53,7 +53,11 @@ has **Audit**, **Review diff**, **Gaps**, **Open report** and **Help** buttons, 
 folds it to one line. It shows counts and fixed-format fields only, never gap text.
 
 **Open report** writes a static HTML view of the verified run and opens it in your
-browser. The page has no scripts, loads nothing and escapes every value.
+browser. The page has no scripts, loads nothing and escapes every value. When the run
+retains an act's text (a declared file or a `--fetch-official` retrieval), each declared
+"Article N" reference expands to that article's text, and each requirement lists up to
+three articles to read, ranked by a local text search. Both are unreviewed candidates:
+the excerpt is not the consolidated version and a suggestion is not a mapping.
 
 **Session hook.** In projects with `.eu-compliance-guard/`, it adds the active level,
 the CLI command for this machine and a summary of the latest run. Set the default
