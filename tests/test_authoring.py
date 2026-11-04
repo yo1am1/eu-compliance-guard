@@ -471,6 +471,26 @@ class AuthoringTests(unittest.TestCase):
         self.input.write_text(json.dumps(self.payload))
         self.assertIn("unsafe-path", self.cli("state-dir", "--input", str(self.root / "linked.json"))[2])
 
+    def test_a_relative_xdg_state_home_is_ignored_so_the_state_dir_never_depends_on_the_cwd(self):
+        import os
+        from unittest.mock import patch as env_patch
+        project = self.root / "app"
+        declarations = project / ".eu-compliance-guard/declarations.json"
+        self.cli("init", "--project-id", "client-a", "--path", str(declarations))
+        home = self.root / "home"
+        previous = os.getcwd()
+        self.addCleanup(os.chdir, previous)
+        seen = set()
+        for name in ("one", "two"):
+            (self.root / name).mkdir()
+            os.chdir(self.root / name)
+            # The XDG Base Directory spec: a relative path in these variables is invalid and ignored.
+            for value in ("relstate", "./relstate", ""):
+                with env_patch.dict("os.environ", {"HOME": str(home), "XDG_STATE_HOME": value}):
+                    seen.add(a.state_dir(declarations))
+            self.assertFalse((self.root / name / "relstate").exists())
+        self.assertEqual(seen, {Path(os.path.realpath(home)) / ".local/state/eu-compliance-guard/client-a"})
+
     def test_no_declared_string_value_ever_reaches_check_output(self):
         marker = "LEAK-MARKER-\x1b[2J"
 

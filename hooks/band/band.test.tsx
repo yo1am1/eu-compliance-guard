@@ -52,16 +52,16 @@ async function eventually<T>(probe: () => Promise<T | undefined>): Promise<T | u
   return undefined
 }
 
-function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT, older = '' } = {}) {
+function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT, older = '', stateHome = '/state', state = STATE } = {}) {
   const dirs: Record<string, Dir[]> = {
     [PROJECT]: enabled ? [{ name: '.eu-compliance-guard', kind: 'dir' }] : [],
-    [STATE]: runs ? [{ name: 'run-20261025T000000Z', kind: 'dir' }, { name: 'run-incomplete', kind: 'dir' }, { name: 'views', kind: 'dir' }] : [],
-    [RUN]: [{ name: 'complete.json', kind: 'file' }, { name: 'bundle.json', kind: 'file' }],
-    [`${STATE}/run-incomplete`]: [{ name: 'bundle.json', kind: 'file' }],
+    [state]: runs ? [{ name: 'run-20261025T000000Z', kind: 'dir' }, { name: 'run-incomplete', kind: 'dir' }, { name: 'views', kind: 'dir' }] : [],
+    [`${state}/run-20261025T000000Z`]: [{ name: 'complete.json', kind: 'file' }, { name: 'bundle.json', kind: 'file' }],
+    [`${state}/run-incomplete`]: [{ name: 'bundle.json', kind: 'file' }],
   }
   if (older !== '') {
-    dirs[STATE].push({ name: 'run-20261024T000000Z', kind: 'dir' })
-    dirs[`${STATE}/run-20261024T000000Z`] = [{ name: 'complete.json', kind: 'file' }]
+    dirs[state].push({ name: 'run-20261024T000000Z', kind: 'dir' })
+    dirs[`${state}/run-20261024T000000Z`] = [{ name: 'complete.json', kind: 'file' }]
   }
   const commands: string[] = []
   const processes: (readonly string[])[] = []
@@ -71,7 +71,7 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
     opened.push(e.id)
     return { value: { isPlaced: true } }
   })
-  mock.env(on, { HOME: '/home/me', XDG_STATE_HOME: '/state' })
+  mock.env(on, { HOME: '/home/me', XDG_STATE_HOME: stateHome })
   mock.clock(on, { now: Date.parse('2026-10-25T12:00:00Z') })
   on('session.repo', () => ({ value: { root: '/work', remote: null, internal: false, name: 'monorepo' } }))
   on('session.root', () => ({ value: root }))
@@ -82,8 +82,8 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
     return { value: entries.map(entry => ({ ...entry, size: 0, mtimeMs: 0, isLink: false })) }
   })
   on('fs.read', (_, e) => {
-    if (e.path === `${RUN}/bundle.json`) return { value: bundle }
-    if (older !== '' && e.path === `${STATE}/run-20261024T000000Z/bundle.json`) return { value: older }
+    if (e.path === `${state}/run-20261025T000000Z/bundle.json`) return { value: bundle }
+    if (older !== '' && e.path === `${state}/run-20261024T000000Z/bundle.json`) return { value: older }
     if (e.path === `${PROJECT}/.eu-compliance-guard/declarations.json`) return { value: '{"project_id": "shop-id"}' }
     throw new Error('missing')
   })
@@ -165,6 +165,14 @@ test('without a run the band offers an audit', async ($, on) => {
   await ui.press({ key: 'fold' })
   expect(await ui.find({ key: 'audit' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /EU Compliance Guard · no completed run yet/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a relative XDG_STATE_HOME is ignored, as the CLI and the session hook ignore it', async ($, on) => {
+  host(on, { stateHome: 'state', state: '/home/me/.local/state/eu-compliance-guard/shop-id' })
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /1\/2 requirements supported/ })).toBeDefined()
   await ui.unmount()
 })
 

@@ -102,7 +102,8 @@ level with `EUCG_DEFAULT_MODE` or `~/.config/eu-compliance-guard/config.json`
 Runs are stored outside the repository in
 `${XDG_STATE_HOME:-~/.local/state}/eu-compliance-guard/<project_id>/`, keyed by the
 declared `project_id`. `eu-compliance-guard state-dir` prints and creates it with
-mode 0700. Keep runs out of Git.
+mode 0700. A relative `XDG_STATE_HOME` is ignored, as the XDG Base Directory spec
+requires, so the path never depends on the current folder. Keep runs out of Git.
 
 ### Fewer permission prompts
 

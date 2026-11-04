@@ -43,7 +43,7 @@ async function declaredProject($: EngineInterface, project: string): Promise<str
   }
 }
 
-// An empty XDG variable counts as unset, as in the session hook and the CLI.
+// An empty or relative XDG_STATE_HOME counts as unset (XDG Base Directory spec), as in the session hook and the CLI.
 // `rerank` (Refresh, /eucg-panel) retries a ranking that failed for the newest run.
 async function refresh($: EngineInterface, rerank = false): Promise<void> {
   const home = (await $.env.get('HOME')) ?? ''
@@ -53,7 +53,9 @@ async function refresh($: EngineInterface, rerank = false): Promise<void> {
   const entries = await $.fs.list(project).catch(() => [])
   const isActive = level !== 'off' && entries.some(entry => entry.name === '.eu-compliance-guard' && entry.kind === 'dir')
   const identity = isActive ? await declaredProject($, project) : null
-  const stateDir = identity ? `${(await $.env.get('XDG_STATE_HOME')) || `${home}/.local/state`}/eu-compliance-guard/${identity}` : ''
+  const configured = (await $.env.get('XDG_STATE_HOME')) ?? ''
+  const stateHome = configured.startsWith('/') ? configured : `${home}/.local/state`
+  const stateDir = identity ? `${stateHome}/eu-compliance-guard/${identity}` : ''
   let run = null
   let problem = null
   let previousGaps: number | null = null

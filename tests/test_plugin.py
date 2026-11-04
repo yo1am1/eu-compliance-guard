@@ -204,6 +204,14 @@ class SessionHookTests(unittest.TestCase):
         self.assertIn("belongs to another project", text)
         self.assertNotIn("run-a", text)
 
+    def test_a_relative_xdg_state_home_is_ignored_like_the_cli_does(self):
+        self.enable()
+        (self.project / ".eu-compliance-guard/declarations.json").write_text('{"project_id": "client-a"}')
+        expected = Path(os.path.realpath(self.home)) / ".local/state/eu-compliance-guard/client-a"
+        for value in ("state", "./state", ""):
+            with self.subTest(value=value):
+                self.assertIn(f"`{expected}`", self.hook(XDG_STATE_HOME=value))
+
     def test_untrusted_or_corrupt_run_data_is_never_echoed(self):
         self.enable()
         (self.project / ".eu-compliance-guard/declarations.json").write_text('{"project_id": "project-example"}')

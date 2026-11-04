@@ -65,7 +65,9 @@ def project_id(project: Path) -> str | None:
 
 
 def state_dir(identity: str) -> Path:
-    base = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
+    # As in the CLI: a relative XDG_STATE_HOME is invalid (XDG Base Directory spec) and ignored.
+    configured = os.environ.get("XDG_STATE_HOME", "")
+    base = Path(configured if os.path.isabs(configured) else Path.home() / ".local/state")
     return Path(os.path.realpath(base)) / "eu-compliance-guard" / identity
 
 

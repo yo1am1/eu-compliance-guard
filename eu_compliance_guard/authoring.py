@@ -127,8 +127,11 @@ def state_dir(path: str | os.PathLike = DEFAULT_PATH, create: bool = True) -> Pa
 
     `${XDG_STATE_HOME:-~/.local/state}/eu-compliance-guard/<project_id>`; the session hook and the
     band derive the same path. Missing directories are created 0700; existing ones are not changed.
+    A relative XDG_STATE_HOME is invalid under the XDG Base Directory spec and ignored, so the
+    path never depends on the current directory.
     """
-    base = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
+    configured = os.environ.get("XDG_STATE_HOME", "")
+    base = Path(configured if os.path.isabs(configured) else Path.home() / ".local/state")
     directory = Path(os.path.realpath(base)) / "eu-compliance-guard" / project_id(path)
     if create:
         os.makedirs(directory.parent.parent, 0o700, exist_ok=True)
