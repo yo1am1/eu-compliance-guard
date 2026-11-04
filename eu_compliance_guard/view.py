@@ -403,12 +403,19 @@ def verify_run(run_dir: str | os.PathLike, contents: dict[str, bytes] | None = N
 
 
 def write_view(run_dir: str | os.PathLike) -> Path:
-    """Write ``<parent>/views/<run>.html`` (0700 directory, 0600 file), replacing an older view."""
+    """Write ``<parent>/views/<run>.html`` and ``<run>.scorecard.json`` (0700 directory, 0600 files).
+
+    Each file is written to a temporary name and renamed into place, never through a symlink;
+    an older view of the same run is replaced. Returns the HTML path.
+    """
     if not os.fspath(run_dir):
         raise ViewError("unsafe-path")  # Path("") is ".": never fall back to the working directory.
     run_dir = Path(run_dir)
     contents: dict[str, bytes] = {}
-    html = render_html(verify_run(run_dir, contents), contents).encode("utf-8")
+    bundle = verify_run(run_dir, contents)
+    card = scorecard.score(bundle)
+    html = render_html(bundle, contents, card).encode("utf-8")
+    files = [(run_dir.name + ".scorecard.json", scorecard.to_json(card)), (run_dir.name + ".html", html)]
     try:
         with r._parent(run_dir) as (parent_fd, _):
             r._private_parent(parent_fd)
@@ -421,13 +428,14 @@ def write_view(run_dir: str | os.PathLike) -> Path:
                 info = os.fstat(views_fd)
                 if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077:
                     raise ViewError("privacy-unavailable")
-                name, temporary = run_dir.name + ".html", "." + run_dir.name + ".html.tmp"
-                try:
-                    os.unlink(temporary, dir_fd=views_fd)
-                except FileNotFoundError:
-                    pass
-                r._write(views_fd, temporary, html, float("inf"))
-                os.replace(temporary, name, src_dir_fd=views_fd, dst_dir_fd=views_fd)
+                for name, content in files:
+                    temporary = "." + name + ".tmp"
+                    try:
+                        os.unlink(temporary, dir_fd=views_fd)
+                    except FileNotFoundError:
+                        pass
+                    r._write(views_fd, temporary, content, float("inf"))
+                    os.replace(temporary, name, src_dir_fd=views_fd, dst_dir_fd=views_fd)
                 os.fsync(views_fd)
             finally:
                 os.close(views_fd)

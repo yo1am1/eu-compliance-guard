@@ -54,7 +54,8 @@ class RunViewTests(unittest.TestCase):
             self.assertIn(f"<td>{family}</td>", html)
         self.assertEqual(len(re.findall(r'<span class="tag [a-z]*">family</span>', html)), 11)
         v.write_view(self.run)  # A later view replaces the derived file.
-        self.assertEqual(sorted(item.name for item in path.parent.iterdir()), [path.name])
+        self.assertEqual(sorted(item.name for item in path.parent.iterdir()),
+                         [path.name, "run-20261025T000000Z.scorecard.json"])
 
     def test_article_text_and_suggestions_come_from_retained_source_bytes(self):
         text = ("FICTIONAL SOURCE — SYNTHETIC EXAMPLE ONLY\nArticle 1\nFictional review records\n"
@@ -194,6 +195,28 @@ class RunViewTests(unittest.TestCase):
         self.assertNotIn("total", section.replace("not scored", "").replace("no total exists", "").lower())
         for forbidden in ("<script", "<img", "<svg", "<link", "url(", "http://", "https://", "src="):
             self.assertNotIn(forbidden, section.lower())
+
+    def test_view_writes_the_scorecard_json_privately_and_deterministically(self):
+        before = self.snapshot()
+        html = v.write_view(self.run)
+        path = html.with_name("run-20261025T000000Z.scorecard.json")
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        first = path.read_bytes()
+        self.assertEqual(m.parse_record(m.Scorecard, first), s.score(self.bundle))
+        self.assertEqual(first, s.to_json(s.score(self.bundle)))
+        first_html = html.read_bytes()
+        v.write_view(self.run)
+        self.assertEqual((path.read_bytes(), html.read_bytes()), (first, first_html))
+        self.assertEqual(self.snapshot(), before)
+        # A planted link is replaced, never followed.
+        outside = self.root / "outside.json"
+        outside.write_text("keep")
+        path.unlink()
+        path.symlink_to(outside)
+        v.write_view(self.run)
+        self.assertFalse(path.is_symlink())
+        self.assertEqual((outside.read_text(), path.read_bytes()), ("keep", first))
+        self.assertEqual(sorted(item.name for item in path.parent.iterdir()), [html.name, path.name])
 
     def test_review_progress_escapes_declared_text(self):
         payload = json.loads(self.input.read_text())

@@ -136,7 +136,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `next [--run <run dir>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
 | `score [--run <run dir>] [--against <run dir>] [--top N] [--json]` | Show the review progress of the newest (or given) run: separate meters, points out of 10, never a compliance score. Exit 0 whatever the points |
 | `pr-check [--diff <file>\|-] [--input <file>] [--markdown\|--json] [--strict]` | Screen a diff's added lines for legal touchpoints, undeclared concepts and pinned evidence in changed files; `--strict` exits 1 when something needs attention |
-| `view --run <run dir> [--open]` | Verify a run and write `<parent>/views/<run>.html`; optionally open it |
+| `view --run <run dir> [--open]` | Verify a run and write `<parent>/views/<run>.html` and `<run>.scorecard.json` (both 0600); optionally open the HTML |
 
 ```sh
 eu-compliance-guard init --project-id shop --jurisdiction EU --jurisdiction DE

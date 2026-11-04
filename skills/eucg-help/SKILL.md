@@ -58,7 +58,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 - `pr-check [--diff <file>|-] [--input <file>] [--markdown|--json] [--strict]` screens a unified diff's added lines for legal touchpoints and compares them with the declarations.
 - `state-dir` prints (and creates, 0700) the private run storage for this project's `project_id`.
 - `view --run <run dir> [--open]` writes
-  `<parent>/views/<run>.html` from a verified run (the run itself is unchanged).
+  `<parent>/views/<run>.html` and `<run>.scorecard.json` from a verified run (the run itself is unchanged).
 
 ## Fewer permission prompts
 
