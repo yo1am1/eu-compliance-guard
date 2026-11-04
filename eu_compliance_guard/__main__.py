@@ -166,6 +166,9 @@ def _ground(args) -> int:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'ground-failed'}: grounding failed", file=sys.stderr)
         return 2
+    if pins and args.json:
+        print(json.dumps({"applied": [{"fact": fact, "location": location} for fact, location in pins]}, indent=2))
+        return 0
     if pins:
         for fact, location in pins:
             print(f"{fact}: observed, pinned to {location}")

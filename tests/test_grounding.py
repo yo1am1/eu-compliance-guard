@@ -139,6 +139,12 @@ class GroundingTests(unittest.TestCase):
         facts = {item.id: item for item in m.scope_facts(r.load_input(self.declarations).scope)}
         self.assertEqual({facts[name].basis for name in ("fact-cookie-lifetime", "fact-llm-weight")}, {"observed"})
 
+    def test_apply_with_json_prints_json(self):
+        code, stdout, stderr = self.cli("ground", "--input", str(self.declarations), "--json",
+                                        "--apply", "fact-cookie-lifetime=app/web.py:2")
+        self.assertEqual((code, stderr), (0, ""))
+        self.assertEqual(json.loads(stdout), {"applied": [{"fact": "fact-cookie-lifetime", "location": "app/web.py:2"}]})
+
     def test_apply_replaces_a_planted_temp_symlink_instead_of_writing_through_it(self):
         victim = Path(self.temporary.name) / "victim.txt"
         victim.write_text("untouched")
