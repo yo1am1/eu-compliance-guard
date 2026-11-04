@@ -111,6 +111,17 @@ class AuthoringTests(unittest.TestCase):
         self.assertEqual(report["targets"][0]["fetch"], "never fetched (fictional fixture)")
         self.assertTrue(any("no obligation_refs" in item["problem"] for item in report["warnings"]))
 
+    def test_sources_sharing_a_file_are_each_screened_with_their_own_media_type(self):
+        second = deepcopy(self.payload["sources"][0])
+        second["source"]["id"] = "source-two"
+        second.update(media_type="application/msword", charset=None)
+        for sources, flagged in (([self.payload["sources"][0], second], ["sources[1].file"]),
+                                 ([second, self.payload["sources"][0]], ["sources[0].file"])):
+            with self.subTest(flagged=flagged):
+                report = self.check(dict(self.payload, sources=sources))
+                self.assertTrue(report["valid"], report["errors"])
+                self.assertEqual([item["at"] for item in report["warnings"] if "source content" in item["problem"]], flagged)
+
     def test_cross_reference_errors_are_located_with_identifiers(self):
         cases = [
             (lambda p: p["requirements"][0]["fact_refs"][0].update(revision=7),

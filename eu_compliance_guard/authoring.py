@@ -303,15 +303,17 @@ def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors:
         errors.append({"at": "obligations", "problem": "duplicate required methods, an unknown method name, "
                        "or an identifier that collides with a derived disposition/unresolved identifier"})
     sources = {item.file.path for item in declared.sources if item.file}
-    selected = [(f"sources[{index}].file", item.file.path, item.file.digest)
+    # Each selected source is screened with its own media type and charset, as a run does;
+    # origins and evidence are never screened as source content.
+    selected = [(f"sources[{index}].file", item.file.path, item.file.digest, item)
                 for index, item in enumerate(declared.sources) if item.file]
-    selected += [(f"requirements[{index}].origin", item.origin.path, item.origin.digest)
+    selected += [(f"requirements[{index}].origin", item.origin.path, item.origin.digest, None)
                  for index, item in enumerate(declared.requirements) if item.origin]
-    selected += [(f"evidence[{index}].path", item.path, item.evidence.digest)
+    selected += [(f"evidence[{index}].path", item.path, item.evidence.digest, None)
                  for index, item in enumerate(declared.evidence) if item.path]
     total, observations = 0, {}
     with r.files_root(declared, fd) as root_fd:
-        for at, relative, digest in selected:
+        for at, relative, digest, source in selected:
             try:
                 seen = r._read_file(root_fd, relative, limit=min(r.MAX_FILE_BYTES, r.MAX_TOTAL_BYTES - total),
                                     retain=relative in sources)
@@ -330,9 +332,8 @@ def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors:
                                f"relative to the {base})"})
             elif seen.digest != digest:
                 errors.append({"at": at, "problem": "declared digest differs from the file; observed " + seen.digest})
-            elif seen.content is not None:
-                media = next(item for item in declared.sources if item.file and item.file.path == relative)
-                admission = r.admit_source_content(seen.content, media.media_type, media.charset)
+            elif source is not None and seen.content is not None:
+                admission = r.admit_source_content(seen.content, source.media_type, source.charset)
                 if admission.state != "accepted":
                     warnings.append({"at": at, "problem": f"source content needs review ({admission.reason})"})
     return observations
