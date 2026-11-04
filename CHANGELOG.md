@@ -28,6 +28,11 @@ First stable MVP of the read-only requirements-to-law revalidation workflow.
 - `state-dir` prints and creates (0700, symlink-free) the private run storage, keyed by
   the declared `project_id`. The hook, band and skills use the same location.
 - `eu-compliance-guard` console command and `make plugin-check`.
+- The report view opens with "Questions for the project owner": each assumed or
+  unknown fact, its current answer and the requirements relying on it. Open gaps are
+  grouped by area with counts, collapsing the long fact and family lists. The
+  predecessor comparison says added, removed or changed and names obligations instead
+  of digests.
 
 ### Changed
 
@@ -56,6 +61,7 @@ First stable MVP of the read-only requirements-to-law revalidation workflow.
 - **Diagnostics.** `check` never echoes declared values or raw unknown keys. Symlinked
   path components report `unsafe-path`. The CLI runs with `python -P`, so a project's
   own package cannot replace it.
+- **Band report link.** The band hides its report link once a newer run exists.
 - **Labels and levels.** The session hook labels fictional runs and keeps a level
   chosen earlier in the session. Offline and fetch runs of one version count as the
   same configuration.
