@@ -23,7 +23,7 @@ const BAND = {
 type Dir = { name: string; kind: 'file' | 'dir' }
 
 // A small in-memory host: the project, the private state directory and one complete run.
-function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE } = {}) {
+function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html` } = {}) {
   const dirs: Record<string, Dir[]> = {
     [PROJECT]: enabled ? [{ name: '.eu-compliance-guard', kind: 'dir' }] : [],
     [STATE]: runs ? [{ name: 'run-20261025T000000Z', kind: 'dir' }, { name: 'run-incomplete', kind: 'dir' }, { name: 'views', kind: 'dir' }] : [],
@@ -61,7 +61,7 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
       return { value: { exitCode: 0, stdout: `${e.argv[2]}\n`, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     const isView = e.argv.includes('view')
-    return { value: { exitCode: 0, stdout: isView ? '/state/eu-compliance-guard/shop/views/run-20261025T000000Z.html\n' : 'uv 0.9', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    return { value: { exitCode: 0, stdout: isView ? `${viewPath}\n` : 'uv 0.9', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   return { commands, processes }
@@ -145,5 +145,14 @@ test('a run written for another project_id is not shown as this project', async 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /belongs to another project/ })).toBeDefined()
   expect(await ui.find({ key: 'report' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('a report link written for an older run is not shown for a newer run', async ($, on) => {
+  host(on, { viewPath: `${STATE}/views/run-20261024T000000Z.html` })
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await ui.press({ key: 'report' })
+  expect(await ui.find({ type: 'Link' })).toBeUndefined()
   await ui.unmount()
 })

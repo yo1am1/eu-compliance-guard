@@ -141,6 +141,9 @@ export const register: Register = on => {
       )
     }
     const view = await read($, lastView)
+    // A view written for an older run must not stand for the newest run the band summarizes.
+    const runName = run ? run.dir.replace(/\/+$/, '').split('/').pop() : null
+    const viewForRun = view && runName && view.endsWith(`/views/${runName}.html`) ? view : null
     return (
       <Box flexDirection="column">
         <Box flexDirection="row" gap={1}>
@@ -161,7 +164,7 @@ export const register: Register = on => {
           {run ? <Button key="report" label="Open report" hotkey="o" onPress={() => openReport($, run.dir)} /> : null}
           <Button key="help" label="Help" hotkey="h" onPress={() => runSkill($, 'eucg-help')} />
         </Box>
-        {view ? <Link href={`file://${view}`} label={`Report view: ${view}`} /> : null}
+        {viewForRun ? <Link href={`file://${viewForRun}`} label={`Report view: ${viewForRun}`} /> : null}
         <Text dimColor>Processing state is not a compliance verdict.</Text>
       </Box>
     )
