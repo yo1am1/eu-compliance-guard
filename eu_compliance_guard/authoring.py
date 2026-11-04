@@ -286,6 +286,11 @@ def _check(path, previous) -> dict:
     if previous is not None:
         revisions, prior = _previous_problems(declared, previous)
         errors.extend(revisions)
+        if prior is not None:
+            from . import history
+            for problem in history.renewal_problems(prior[0], declared):
+                at, detail = problem.split(": ", 1)
+                warnings.append({"at": at, "problem": detail})
     if not errors:
         errors.extend(_run_problems(declared, observations, observed.digest, prior))
     report["valid"] = not errors

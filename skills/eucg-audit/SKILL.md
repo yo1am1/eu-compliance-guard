@@ -108,7 +108,9 @@ state="$(<cli> state-dir)"   # private 0700 run storage, keyed by the declared p
 - Increase revisions when changing versioned semantic records and update their
   explicit pins. A changed fact also changes the `scope` (and its activity) that
   contains it. `<cli> check --previous <run-directory>` names every record that
-  still needs a higher revision before you run. Never invent renewed reviewer approval to clear a stale result.
+  still needs a higher revision before you run, and warns about withdrawn support the
+  declarations do not renew yet. A renewal recorded in the same run as another relevant
+  change does not count; the reviewer renews again after that run. Never invent renewed reviewer approval to clear a stale result.
   Explain stale dependencies and unknown freshness separately; unchanged bytes
   renew neither legal currency nor reviewer approval. Historical files stay intact.
 - Exit 2: show the safe error code (for example `invalid-input`), fix the

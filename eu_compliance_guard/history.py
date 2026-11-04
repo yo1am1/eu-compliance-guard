@@ -1,6 +1,6 @@
 """Verify one explicit predecessor and compare recorded dependencies without changing it."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import json
 import os
@@ -233,40 +233,75 @@ def _dependencies(previous, current, identity):
 MAX_LISTED_CHANGES = 20
 FAMILY_WITHDRAWN_GAP = "Predecessor withdrew this family screening; renew it with complete dependency attribution."
 INVALIDATED_GAP = "Predecessor dependencies changed or incomplete; accountable review must be renewed."
+SAME_RUN_RENEWAL = ("Reviews renewed in the same run as these changes do not count, because they cannot be shown "
+                    "to follow them; renew them again after this run.")
 WITHDRAWN_DECISION_RATIONALE = "Support withdrawn after the predecessor comparison; effective applicability awaits renewed accountable review."
 WITHDRAWN_MAPPING_RATIONALE = "Mapped obligation support withdrawn after the predecessor comparison; renew the mapped reviews."
 
 
-def _reviewed_between(value, previous, current) -> bool:
+def _reviewed_between(value, previous, started_at) -> bool:
     """A review time after the predecessor run and no later than this run; future dates never count."""
     return bool(value) and (datetime.fromisoformat(previous.run.ended_at) < datetime.fromisoformat(value)
-                            <= datetime.fromisoformat(current.run.started_at))
+                            <= datetime.fromisoformat(started_at))
 
 
-def _attestations(bundle) -> dict:
-    declared = bundle.declarations
+def _attestations(declared) -> dict:
     records = {("decision", item.id): item for item in declared.applicability_decisions}
     records.update((("evidence_review", item.id), item) for item in declared.evidence_reviews)
     records.update((("family", item.family), item) for item in declared.family_screenings)
     return records
 
 
-def _classify_attestations(previous, current) -> tuple[set, set]:
+def _classify_attestations(previous, declared, started_at) -> tuple[set, set]:
     """Split new or changed review records into renewals and stale attestations.
 
     A renewal is reviewed between the two runs (and is a higher revision where the record has
     one); it is the review a withdrawal asks for, not a new change. Any other new or changed
     review record cannot carry support, whatever obligation id it is attached to now.
     """
-    before, after = _attestations(previous), _attestations(current)
+    before, after = _attestations(previous.declarations), _attestations(declared)
     renewals, stale = set(), set()
     for key, item in after.items():
         prior = before.get(key)
         if prior is not None and prior.model_dump() == item.model_dump():
             continue
         newer = prior is None or not hasattr(item, "revision") or item.revision > prior.revision
-        (renewals if newer and _reviewed_between(item.reviewed_at, previous, current) else stale).add(key)
+        (renewals if newer and _reviewed_between(item.reviewed_at, previous, started_at) else stale).add(key)
     return renewals, stale
+
+
+def _own_attestations(declared, identity) -> set:
+    own = {("decision", item.id) for item in declared.applicability_decisions if item.obligation.id == identity}
+    return own | {("evidence_review", item.id) for item in declared.evidence_reviews if item.obligation.id == identity}
+
+
+def _carried(previous) -> tuple[set, set]:
+    """Obligations and families whose support the predecessor withdrew; the marker gaps carry it forward."""
+    return ({item.obligation.id for item in previous.effective_applicability_decisions if INVALIDATED_GAP in item.gaps},
+            {item.family for item in previous.family_screenings if FAMILY_WITHDRAWN_GAP in item.gaps})
+
+
+def renewal_problems(previous, declared, now: str | None = None) -> list[str]:
+    """Withdrawn support these declarations would not restore yet, named by kind and identifier only.
+
+    ``now`` (default: the current time) bounds the renewal window as the next run's start would.
+    Changes made together with a renewal are not visible here; the run reports those (SAME_RUN_RENEWAL).
+    """
+    now = now or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    renewals, _ = _classify_attestations(previous, declared, now)
+    obligations, families = _carried(previous)
+    problems = []
+    for obligation in declared.obligations:
+        own = _own_attestations(declared, obligation.id)
+        if obligation.id in obligations and not (any(kind == "decision" for kind, _ in own) and own <= renewals):
+            problems.append(f"Obligation {obligation.id}: the predecessor withdrew its support; give its applicability "
+                            "decision and every evidence review a higher revision and a reviewed_at after that run, "
+                            "or support stays withdrawn")
+    for screening in declared.family_screenings:
+        if screening.family in families and ("family", screening.family) not in renewals:
+            problems.append(f"Family {screening.family}: the predecessor withdrew this screening; renew it with a "
+                            "reviewed_at after that run, or it stays withdrawn")
+    return problems
 
 
 def compare(previous, current, previous_digest):
@@ -291,7 +326,7 @@ def compare(previous, current, previous_digest):
         regained = key[0] == "file" and key not in before and declared_files.get(key[1]) == after[key]
         if key[0] != "evidence_availability" and not lost and not regained:
             changed.add(key)
-    renewals, stale_attestations = _classify_attestations(previous, current)
+    renewals, stale_attestations = _classify_attestations(previous, current.declarations, current.run.started_at)
     changed -= renewals
     comparison = m.DependencyComparison(previous_run_id=previous.run.id, previous_manifest_id=previous.manifest.id,
         previous_bundle_digest=previous_digest, historical_disposition_ids=[item.id for item in previous.obligation_dispositions],
@@ -308,15 +343,12 @@ def compare(previous, current, previous_digest):
     evidence = {item.id: item for item in current.evidence}
     attempts = {item.source_target_id: item for item in current.source_attempts}
     overlays, invalidated, gaps = [], set(), []
-    carried = {item.obligation.id for item in previous.effective_applicability_decisions if INVALIDATED_GAP in item.gaps}
+    carried, withdrawn = _carried(previous)
     # What the predecessor's reviewers declared, not what it could observe: a file it could not read
     # leaves its effective decision unresolved, but the attestation still rests on the old dependencies.
     declared_support = {item.obligation.id for item in previous.declarations.applicability_decisions
                         if item.applicability != "unresolved"}
-
-    def own_attestations(identity):
-        own = {("decision", item.id) for item in current.declarations.applicability_decisions if item.obligation.id == identity}
-        return own | {("evidence_review", item.id) for item in current.declarations.evidence_reviews if item.obligation.id == identity}
+    own_attestations = lambda identity: _own_attestations(current.declarations, identity)
 
     stale_review = "A new or changed review record is not dated between the predecessor run and this run; record a renewed review."
     historical = {item.obligation_id for item in previous.obligation_dispositions}
@@ -339,7 +371,7 @@ def compare(previous, current, previous_digest):
         if identity in carried and not renewed:
             # Invalidation persists across runs; rerunning without renewed reviews must not restore support.
             reasons.append("The predecessor already withdrew this support; it stays withdrawn until the applicability "
-                           "decision and every evidence review are reviewed after the predecessor run.")
+                           "decision and every evidence review are new revisions reviewed after the predecessor run.")
             invalidated.add(identity)
         # Only support the predecessor declared (or withdrew) can be withdrawn. An obligation it never
         # decided is decided for the first time here, like a new obligation: only stale attestations count.
@@ -348,6 +380,9 @@ def compare(previous, current, previous_digest):
             reasons.append("Recorded dependencies changed; renew dependent reviews.")
             if supported:
                 invalidated.add(identity)
+                if own & renewals:
+                    # Conservative: a review in the same window cannot be shown to follow the change.
+                    reasons.append(SAME_RUN_RENEWAL)
         if not complete:
             reasons.append("Dependency attribution is incomplete; historical support cannot be renewed.")
             if supported:
@@ -407,7 +442,6 @@ def compare(previous, current, previous_digest):
             assessment["state"] = "unresolved"
             assessment["gaps"].append("Mapped historical dependencies changed or incomplete; renew review.")
             assessment["next_actions"].append("Obtain accountable review of the changed dependency comparison.")
-    withdrawn = {item.family for item in previous.family_screenings if FAMILY_WITHDRAWN_GAP in item.gaps}
     declared_families = {item.family for item in previous.declarations.family_screenings if item.applicability != "unresolved"}
     screened = {item.family for item in current.declarations.family_screenings}
     for screening in data["family_screenings"]:
@@ -423,7 +457,8 @@ def compare(previous, current, previous_digest):
             screening["applicability"] = "unresolved"
             if FAMILY_WITHDRAWN_GAP not in screening["gaps"]:
                 screening["gaps"].append(FAMILY_WITHDRAWN_GAP)
-            gaps.append(f"Family {family}: {FAMILY_WITHDRAWN_GAP}")
+            same_run = changed and held and renewed
+            gaps.append(f"Family {family}: {FAMILY_WITHDRAWN_GAP}" + (f" {SAME_RUN_RENEWAL}" if same_run else ""))
     if gaps:
         data["gaps"].extend(gaps)
         data["next_actions"].append("Review comparison.json and renew affected reviews; preserve predecessor artifacts.")

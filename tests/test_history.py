@@ -285,6 +285,44 @@ class HistoryTests(unittest.TestCase):
         quiet = r.run(self.input, self.root / "w-4", previous=self.root / "w-3")
         self.assertEqual((quiet.requirement_assessments[0].state, family(quiet)), ("supported", "applicable"))
 
+    def test_renewal_in_the_same_run_as_a_change_is_explained_and_flagged_by_check(self):
+        from eu_compliance_guard import authoring as a
+        decision = self.payload["applicability_decisions"][0]
+        self.payload["family_screenings"] = [{
+            "family": "gdpr", "synthetic": True, "scope": decision["scope"], "assessment_date": decision["assessment_date"],
+            "applicability": "applicable", "rationale": "Fictional screening.", "fact_refs": decision["fact_refs"],
+            "source_refs": [{"id": "source-example", "revision": 0}], "reviewer": "Fictional reviewer",
+            "reviewed_at": decision["reviewed_at"], "gaps": []}]
+        self.save()
+        r.run(self.input, self.root / "sr-1")
+        family = lambda bundle: next(item for item in bundle.family_screenings if item.family == "gdpr").applicability
+
+        def renew():
+            stamp = self.now()
+            for key in ("applicability_decisions", "evidence_reviews"):
+                for item in self.payload[key]:
+                    if item["obligation"]["id"] == "obligation-example":
+                        item.update(revision=item["revision"] + 1, reviewed_at=stamp)
+            self.payload["family_screenings"][0].update(rationale=f"Fictional screening, renewed {stamp}.", reviewed_at=stamp)
+            self.save()
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        renew()
+        same = r.run(self.input, self.root / "sr-2", previous=self.root / "sr-1")
+        # The conservative rule stays: the review cannot be shown to follow a change made in the same run.
+        self.assertEqual((same.requirement_assessments[0].state, family(same)), ("unresolved", "unresolved"))
+        self.assertIn(h.SAME_RUN_RENEWAL, self.overlay(same).reasons)
+        self.assertIn(f"Family gdpr: {h.FAMILY_WITHDRAWN_GAP} {h.SAME_RUN_RENEWAL}", same.gaps)
+        warned = {item["at"]: item["problem"] for item in a.check(self.input, self.root / "sr-2")["warnings"]}
+        self.assertIn("Obligation obligation-example", warned)
+        self.assertIn("Family gdpr", warned)
+        self.assertIn("higher revision", warned["Obligation obligation-example"])
+        renew()
+        report = a.check(self.input, self.root / "sr-2")
+        self.assertTrue(report["valid"])
+        self.assertFalse({"Obligation obligation-example", "Family gdpr"} & {item["at"] for item in report["warnings"]})
+        restored = r.run(self.input, self.root / "sr-3", previous=self.root / "sr-2")
+        self.assertEqual((restored.requirement_assessments[0].state, family(restored)), ("supported", "applicable"))
+
     def test_renamed_obligation_cannot_reuse_old_reviews(self):
         self.withdraw()
         self.payload = json.loads(json.dumps(self.payload).replace("obligation-example", "obligation-renamed"))

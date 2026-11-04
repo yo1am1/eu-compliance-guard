@@ -44,7 +44,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 ## CLI
 
 - `init --project-id <id>` writes a valid starter `.eu-compliance-guard/declarations.json` (never overwrites).
-- `check [--input <file>] [--previous <run dir>] [--json]` validates declarations with located problems, observed file digests, target fetchability and (with `--previous`) records that need a higher revision.
+- `check [--input <file>] [--previous <run dir>] [--json]` validates declarations with located problems, observed file digests, target fetchability and (with `--previous`) records that need a higher revision and withdrawn support not yet renewed.
 - `revalidate --input <declarations.json> --output <new run dir> [--offline | --fetch-official] [--previous <run dir>]`
 
 - Offline by default. `--fetch-official` GETs only the declared targets on six fixed

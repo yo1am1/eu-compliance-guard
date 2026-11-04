@@ -243,7 +243,11 @@ Withdrawn support stays withdrawn in later runs. It is restored only when the
 obligation's applicability decision and every evidence review for it are new
 revisions with a `reviewed_at` after the predecessor run and no later than the
 current run. Withdrawn family screenings follow the same rule. Renewals are not counted
-as new changes. Any other new or changed review record, including one moved to a
+as new changes. A renewal recorded in the same run as another relevant change does not
+count, because the review cannot be shown to follow that change: the run withdraws
+support and says so, and the reviews must be renewed again after that run.
+`check --previous` warns about withdrawn obligations and family screenings that the
+declarations do not renew yet. Any other new or changed review record, including one moved to a
 renamed or re-added obligation, cannot carry support. An attestation dated after the
 run that reads it is always a review gap.
 
