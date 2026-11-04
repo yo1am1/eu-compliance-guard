@@ -5,6 +5,9 @@ from copy import deepcopy
 import io
 import json
 from pathlib import Path
+import resource
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -77,6 +80,28 @@ class AuthoringTests(unittest.TestCase):
         self.assertEqual((code, stdout), (2, ""))
         self.assertIn("invalid-input", stderr)
         self.assertFalse((self.root / "newdir").exists())
+
+    def test_init_reports_unusable_paths_by_cause_and_leaves_nothing_behind(self):
+        (self.root / "file").touch()
+        for path, expected in ((self.root / "file/decl.json", "unsafe-path"),
+                               (self.root / "q2/r" / ("n" * 300), "io-failed")):
+            with self.subTest(expected=expected):
+                code, stdout, stderr = self.cli("init", "--project-id", "shop", "--path", str(path))
+                self.assertEqual((code, stdout), (2, ""))
+                self.assertIn(f"{expected}: init failed", stderr)
+        self.assertFalse((self.root / "q2").exists())
+        # A write that fails part-way (here the file-size limit) must not leave a file that blocks a retry.
+        path = self.root / "limited/declarations.json"
+        result = subprocess.run([sys.executable, "-m", "eu_compliance_guard", "init", "--project-id", "shop", "--path", str(path)],
+                                cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, timeout=30,
+                                preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_FSIZE,
+                                                                      (0, resource.getrlimit(resource.RLIMIT_FSIZE)[1])))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("io-failed: init failed", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertFalse((self.root / "limited").exists())
+        self.assertEqual(self.cli("init", "--project-id", "shop", "--path", str(path))[0], 0)
+        self.assertTrue(a.check(path)["valid"])
 
     def test_valid_fixture_reports_counts_files_targets_and_warnings(self):
         report = self.check()

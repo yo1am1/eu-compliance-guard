@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import codecs
 from datetime import date
+import errno
 from functools import cache
 import json
 import os
@@ -42,7 +43,7 @@ def starter(project_id: str, assessment_date: str | None = None, jurisdictions: 
 
 
 def init(path: str | os.PathLike, project_id: str, **options) -> Path:
-    """Write a starter declaration; an existing file is never replaced."""
+    """Write a starter declaration; an existing file is never replaced, and a failed write leaves nothing behind."""
     if os.fspath(path).endswith(os.sep):
         raise r.RevalidationError("invalid-input")  # names a folder; Path() would drop the slash and write a file
     path = Path(path)
@@ -50,18 +51,54 @@ def init(path: str | os.PathLike, project_id: str, **options) -> Path:
     # anywhere else that parent could be a folder of several projects.
     root = "project" if path.parent.name == ".eu-compliance-guard" else "declarations_dir"
     record = starter(project_id, files_root=root, **options)
-    absolute = Path(os.path.abspath(path.parent))
-    if any(item.is_symlink() for item in (absolute, *absolute.parents)):
-        raise r.RevalidationError("unsafe-path")
-    path.parent.mkdir(parents=True, exist_ok=True)
+    content = (json.dumps(record.model_dump(mode="json"), indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+    r._primitives()
     try:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o644)
-    except FileExistsError:
-        raise r.RevalidationError("output-exists") from None
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        json.dump(record.model_dump(mode="json"), handle, indent=2, ensure_ascii=False)
-        handle.write("\n")
+        _create(Path(os.path.abspath(path.parent)), path.name, content)
+    except OSError as error:
+        # O_NOFOLLOW reports a symlinked (or non-folder) path component as ELOOP or ENOTDIR.
+        raise r.RevalidationError("unsafe-path" if error.errno in (errno.ELOOP, errno.ENOTDIR) else "io-failed") from None
     return path
+
+
+def _create(folder: Path, name: str, content: bytes) -> None:
+    """Create the missing folders, then the file exclusively, never through a symlink.
+
+    If anything fails, the file and the folders this call created are removed again.
+    """
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+    folders, created = [os.open("/", flags)], []
+    try:
+        for part in folder.parts[1:]:
+            try:
+                next_fd = os.open(part, flags, dir_fd=folders[-1])
+            except FileNotFoundError:
+                os.mkdir(part, 0o777, dir_fd=folders[-1])
+                created.append((folders[-1], part))
+                next_fd = os.open(part, flags, dir_fd=folders[-1])
+            folders.append(next_fd)
+        try:
+            fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o644, dir_fd=folders[-1])
+        except FileExistsError:
+            raise r.RevalidationError("output-exists") from None
+        try:
+            with open(fd, "wb", closefd=False) as handle:
+                handle.write(content)
+        except BaseException:
+            os.unlink(name, dir_fd=folders[-1])
+            raise
+        finally:
+            os.close(fd)
+    except BaseException:
+        for parent_fd, part in reversed(created):
+            try:
+                os.rmdir(part, dir_fd=parent_fd)
+            except OSError:
+                pass
+        raise
+    finally:
+        for folder_fd in folders:
+            os.close(folder_fd)
 
 
 def project_id(path: str | os.PathLike) -> str:
