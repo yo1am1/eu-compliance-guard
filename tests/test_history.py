@@ -112,6 +112,35 @@ class HistoryTests(unittest.TestCase):
         self.assertIn("requirement:requirement-example", self.overlay(both).changed_dependencies)
         self.assertNotIn("decision:decision-example", self.overlay(both).changed_dependencies)
 
+    def test_a_first_decision_after_the_predecessor_is_not_withdrawn(self):
+        import copy
+        from datetime import datetime, timezone
+        import time
+        decisions = self.payload["applicability_decisions"]
+        reviews = self.payload["evidence_reviews"]
+        first, review = copy.deepcopy(decisions[0]), copy.deepcopy(reviews[0])
+        self.payload["applicability_decisions"] = [item for item in decisions if item["obligation"]["id"] != "obligation-unmapped"]
+        self.save()
+        before = r.run(self.input, self.root / "undecided")
+        time.sleep(0.01)
+        decided_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        first.update(id="decision-unmapped", reviewed_at=decided_at, evidence_ids=[])
+        first["obligation"]["id"] = "obligation-unmapped"
+        review.update(id="review-unmapped", reviewed_at=decided_at, method="organizational")
+        review["obligation"]["id"] = "obligation-unmapped"
+        self.payload["applicability_decisions"].append(first)
+        self.payload["evidence_reviews"].append(review)
+        requirement = self.payload["requirements"][1]
+        requirement.update(revision=requirement["revision"] + 1,
+                           obligation_refs=[{"id": "obligation-unmapped", "revision": 0}])
+        self.save()
+        after = r.run(self.input, self.root / "decided", previous=self.root / "undecided")
+        states = {item.requirement.id: item.state for item in after.requirement_assessments}
+        self.assertEqual(states[requirement["id"]], "supported")
+        rerun = r.run(self.input, self.root / "decided-again", previous=self.root / "decided")
+        self.assertEqual({item.requirement.id: item.state for item in rerun.requirement_assessments}[requirement["id"]], "supported")
+        self.assertEqual(before.run.parent_run_id, None)
+
     def test_future_dated_reviews_never_establish_or_restore_support(self):
         for key in ("applicability_decisions", "evidence_reviews"):
             for item in self.payload[key]:
