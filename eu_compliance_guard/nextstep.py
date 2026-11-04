@@ -125,7 +125,7 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
     unscreened = [item.family for item in bundle.family_screenings if item.applicability == "unresolved"]
     if unscreened:
         steps.append(_step("family", "", set(),
-                           f"Screen {len(unscreened)} legal families (applicable, not applicable or out of scope)."))
+                           f"Screen {len(unscreened)} legal families (applicable or not applicable)."))
 
     steps.sort(key=lambda step: (-step["unblocks"], KINDS.index(step["kind"]), step["subject"]))
     return steps[:top]

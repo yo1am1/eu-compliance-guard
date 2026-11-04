@@ -6,10 +6,11 @@ import json
 import os
 from pathlib import Path
 import tempfile
+from typing import get_args
 import unittest
 from unittest.mock import patch
 
-from eu_compliance_guard import nextstep as n, revalidation as r, view as v
+from eu_compliance_guard import models as m, nextstep as n, revalidation as r, view as v
 from eu_compliance_guard.__main__ import main
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures/revalidation-synthetic.json"
@@ -85,6 +86,13 @@ class NextStepTests(unittest.TestCase):
         steps = n.next_steps(v.verify_run(self.run_bundle()), top=100)
         self.assertFalse([step for step in steps if step["kind"] == "retrieve"])
         self.assertTrue([step for step in steps if step["kind"] == "source" and step["subject"] == "target-national"])
+
+    def test_family_step_names_only_outcomes_the_model_accepts(self):
+        steps = n.next_steps(v.verify_run(self.run_bundle()), top=100)
+        family = next(step for step in steps if step["kind"] == "family")
+        named = family["action"].partition("(")[2].partition(")")[0].split(" or ")
+        accepted = [value.replace("_", " ") for value in get_args(m.Applicability) if value != "unresolved"]
+        self.assertEqual(sorted(named), sorted(accepted))
 
     def test_cli_uses_the_newest_completed_run_and_reports_missing_runs(self):
         older = self.run_bundle("run-20261025T000000Z")
