@@ -48,7 +48,8 @@ def main(argv: list[str] | None = None) -> int:
     ground.add_argument("--top", type=int, default=3, choices=range(1, 11), metavar="1-10", help="Candidates per fact")
     ground.add_argument("--json", action="store_true", help="Print the result as JSON")
     ground.add_argument("--apply", action="append", metavar="FACT=PATH:LINE",
-                        help="Mark a technical fact observed, pinned to this file line; repeat for several")
+                        help="Mark a technical fact observed, pinned to this file line; repeat for several "
+                             "(all are checked before any is written)")
     view = commands.add_parser("view", help="Write and optionally open a static HTML view of a verified run", allow_abbrev=False)
     view.add_argument("--run", required=True, help="Existing run directory with a valid completion marker")
     view.add_argument("--open", action="store_true", help="Open the view in the default browser")
@@ -144,23 +145,32 @@ def _check(path: str, as_json: bool, previous: str | None = None) -> int:
 def _ground(args) -> int:
     import json
     from . import grounding
+    pins = []
     try:
         if args.apply:
             for item in args.apply:
                 fact, separator, location = item.partition("=")
                 if not separator:
                     raise grounding.GroundingError("bad-location")
+                pins.append((fact, location))
+            # Check every pin before writing any, so a refused one leaves the declarations unchanged.
+            for fact, location in pins:
+                grounding.apply(args.input, fact, location, write=False)
+            for fact, location in pins:
                 grounding.apply(args.input, fact, location)
-                print(f"{fact}: observed, pinned to {location}")
-            print("Run check, then a new revalidate run; a later change to the file makes this evidence unavailable.")
-            return 0
-        report = grounding.ground(args.input, args.top)
+        else:
+            report = grounding.ground(args.input, args.top)
     except KeyboardInterrupt:
         return 130
     except Exception as error:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'ground-failed'}: grounding failed", file=sys.stderr)
         return 2
+    if pins:
+        for fact, location in pins:
+            print(f"{fact}: observed, pinned to {location}")
+        print("Run check, then a new revalidate run; a later change to the file makes this evidence unavailable.")
+        return 0
     print(json.dumps(report, indent=2) if args.json else grounding.format_ground(report))
     return 0
 

@@ -302,12 +302,13 @@ def _bump_pins(data, kinds: dict[str, tuple[int, int]]) -> None:
         changes.update(moved)
 
 
-def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None = None) -> m.RevalidationInput:
+def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None = None, *,
+          write: bool = True) -> m.RevalidationInput:
     """Mark one technical fact observed, pinned to a code line whose terms match the fact.
 
     Adds (or extends) a code-file evidence record with the file's digest, raises the fact's and
     the scope's revisions and updates every pin to them. The file is rewritten only if the result
-    validates.
+    validates; with write=False nothing is written, so a caller can check several pins first.
     """
     path = Path(path)
     declared, root = _declarations(path)
@@ -382,6 +383,8 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
                         evidence_ids=sorted(set(copy.get("evidence_ids", [])) | {evidence_id}))
     _bump_pins(data, revisions)
     record = m.RevalidationInput.model_validate(data)
+    if not write:
+        return record
     content = (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
     with r._parent(path) as (parent_fd, name):
         # Created exclusively without following links, so a planted temp symlink is replaced, never written through.

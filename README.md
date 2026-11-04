@@ -255,7 +255,8 @@ more). For every assumed or unknown fact it lists ranked `file:line` candidates,
 also lists touchpoints that no fact covers. Organisational facts are flagged, because
 code can never show them. `--apply` accepts a line only if it shares terms with the
 fact. It then records the fact as `observed` with the file as evidence, which closes
-that fact's gap until the file changes.
+that fact's gap until the file changes. Repeated `--apply` values are all checked
+first: if one is refused, none is written.
 
 ### Pull-request check
 

@@ -123,6 +123,22 @@ class GroundingTests(unittest.TestCase):
         code, _, stderr = self.cli("ground", "--input", str(self.declarations), "--apply", "fact-cookie-basis=app/web.py:2")
         self.assertEqual((code, "not-observable" in stderr), (2, True))
 
+    def test_a_refused_apply_in_a_batch_writes_none_of_them(self):
+        before = self.declarations.read_bytes()
+        for second in ("fact-cookie-basis=app/web.py:2", "fact-cookie-lifetime=app/billing.py:1", "no-separator"):
+            with self.subTest(second=second):
+                code, stdout, stderr = self.cli("ground", "--input", str(self.declarations),
+                                                "--apply", "fact-cookie-lifetime=app/web.py:2", "--apply", second)
+                self.assertEqual((code, stdout), (2, ""))
+                self.assertIn("grounding failed", stderr)
+                self.assertEqual(self.declarations.read_bytes(), before)
+        code, stdout, _ = self.cli("ground", "--input", str(self.declarations), "--apply",
+                                   "fact-cookie-lifetime=app/web.py:2", "--apply", "fact-llm-weight=app/chat.py:2")
+        self.assertEqual(code, 0)
+        self.assertIn("fact-llm-weight: observed, pinned to app/chat.py:2", stdout)
+        facts = {item.id: item for item in m.scope_facts(r.load_input(self.declarations).scope)}
+        self.assertEqual({facts[name].basis for name in ("fact-cookie-lifetime", "fact-llm-weight")}, {"observed"})
+
     def test_apply_replaces_a_planted_temp_symlink_instead_of_writing_through_it(self):
         victim = Path(self.temporary.name) / "victim.txt"
         victim.write_text("untouched")
