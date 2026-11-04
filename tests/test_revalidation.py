@@ -270,6 +270,30 @@ class WorkflowTests(unittest.TestCase):
                 self.assertEqual(bundle.requirement_assessments[0].state, "unresolved")
                 self.assertTrue(bundle.requirement_assessments[0].gaps)
 
+    def test_requirement_gaps_blame_mapped_obligations_only_when_one_is_open(self):
+        baseline = deepcopy(self.payload)
+        mapped_gap = "Mapped obligations retain unresolved, insufficient or untested methods."
+        (self.root / "other.txt").write_bytes(b"fictional other bytes")
+        for dependency in ("fact", "origin", "open-obligation"):
+            self.payload = deepcopy(baseline)
+            requirement = self.payload["requirements"][0]
+            if dependency == "fact":
+                requirement["fact_refs"] = [{"id": "fact-assumed", "revision": 0}]
+            elif dependency == "origin":
+                requirement.update(origin={"path": "other.txt", "digest": m.content_digest(b"different")}, locator="line 1")
+            else:
+                self.payload["evidence_reviews"] = []
+            self.save()
+            bundle = self.assemble()
+            assessment = bundle.requirement_assessments[0]
+            passed = [item.outcome for item in bundle.obligation_dispositions[0].required_method_dispositions] == ["passed"]
+            with self.subTest(dependency=dependency):
+                self.assertEqual(assessment.state, "unresolved")
+                self.assertEqual(passed, dependency != "open-obligation")
+                self.assertEqual(mapped_gap in assessment.gaps, not passed)
+                self.assertEqual(f"Requirement requirement-example: {mapped_gap}" in bundle.gaps, not passed)
+                self.assertEqual(len(assessment.gaps), 1)
+
     def test_independent_verification_does_not_follow_unretained_attestation(self):
         self.payload["evidence"][0]["evidence"]["provenance"] = "independently_verified"
         self.save()

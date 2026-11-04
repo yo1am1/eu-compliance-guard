@@ -695,11 +695,12 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
                 requirement_gaps.append("Declared requirement origin unavailable or corrupt.")
         if not mapped:
             requirement_gaps.append("No declared obligation mapping.")
-        supported = bool(mapped and not requirement_gaps and all(item.manual_review == "supported" and item.applicability == "applicable"
-            and item.required_method_dispositions and all(method.outcome == "passed" for method in item.required_method_dispositions)
-            for item in mapped))
-        if not supported and mapped:
+        # Blame the mapped obligations only when one of them is open, not for the requirement's own gaps.
+        if not all(item.manual_review == "supported" and item.applicability == "applicable"
+                   and item.required_method_dispositions and all(method.outcome == "passed" for method in item.required_method_dispositions)
+                   for item in mapped):
             requirement_gaps.append("Mapped obligations retain unresolved, insufficient or untested methods.")
+        supported = not requirement_gaps
         state = "supported" if supported else "conflicting" if any(item.manual_review == "unsupported" for item in mapped) else "unresolved"
         for problem in requirement_gaps:
             record_gap(f"Requirement {requirement.id}: {problem}")
