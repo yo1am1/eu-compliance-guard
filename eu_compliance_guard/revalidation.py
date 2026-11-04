@@ -133,6 +133,18 @@ def _parent(path: str | os.PathLike, base_fd: int | None = None):
         os.close(fd)
 
 
+@contextmanager
+def _named_path():
+    """Operations on the input or output path the user named: a missing folder or an overlong
+    name is a path they can fix (unsafe-path, as for a missing input file), not an I/O fault."""
+    try:
+        yield
+    except OSError as error:
+        if error.errno in (errno.ENOENT, errno.ENAMETOOLONG):
+            raise RevalidationError("unsafe-path") from None
+        raise
+
+
 def _read_file(parent_fd: int, path: str, *, limit: int, retain: bool,
                deadline: float | None = None) -> FileObservation:
     _check_budget(deadline)
@@ -885,7 +897,7 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
     try:
         from . import history
         prior = history.load_run(previous, deadline) if previous is not None else None
-        with _parent(input_path) as (fd, name):
+        with _named_path(), _parent(input_path) as (fd, name):
             declared, input_digest = _load(fd, name, deadline)
             if prior is not None:
                 if (prior[0].project_id, prior[0].synthetic) != (declared.project_id, declared.synthetic):
@@ -896,7 +908,8 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
         retrievals = None
         if fetch_official:
             from . import sources
-            _preflight_output(output_path)
+            with _named_path():
+                _preflight_output(output_path)
             requests = [sources.TargetRequest(item.id, item.intended_url, tuple(item.redirect_hosts),
                                               item.intended_type == "synthetic_fixture", item.language)
                         for item in declared.source_targets]
@@ -918,8 +931,9 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
                 raise RevalidationError("capacity-exceeded") from None
             raise
         _check_budget(deadline)
-        _publish(output_path, bundle, observations, report, deadline,
-                 {m.content_digest(item.content): item.content for item in retrievals or [] if item.content is not None})
+        with _named_path():
+            _publish(output_path, bundle, observations, report, deadline,
+                     {m.content_digest(item.content): item.content for item in retrievals or [] if item.content is not None})
         return bundle
     except RevalidationError:
         raise

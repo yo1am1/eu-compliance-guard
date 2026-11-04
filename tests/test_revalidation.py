@@ -534,6 +534,26 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "unsafe-path")
         self.assertEqual(list(runs.iterdir()), [])
 
+    def test_missing_or_overlong_path_components_report_unsafe_path(self):
+        runs = self.root / "real-runs"
+        runs.mkdir(mode=0o700)
+        overlong = "x" * 256
+        cases = {
+            "missing output parent": (self.input, runs / "missing-parent/run", False),
+            "missing output parent before fetching": (self.input, runs / "missing-parent/run", True),
+            "overlong output name": (self.input, runs / overlong, False),
+            "overlong output name before fetching": (self.input, runs / overlong, True),
+            "missing input folder": (self.root / "missing-folder/input.json", runs / "run-a", False),
+            "overlong input folder": (self.root / overlong / "input.json", runs / "run-b", False),
+            "missing input file": (self.root / "missing.json", runs / "run-c", False),
+        }
+        for case, (input_path, output_path, fetch) in cases.items():
+            with self.subTest(case=case):
+                with self.assertRaises(r.RevalidationError) as caught:
+                    r.run(input_path, output_path, fetch_official=fetch, transport_factory=AssertionError)
+                self.assertEqual(caught.exception.code, "unsafe-path")
+        self.assertEqual(list(runs.iterdir()), [])
+
     def test_failures_and_interrupts_leave_incomplete_directory_without_marker(self):
         for failure in (OSError("PRIVATE_SENTINEL"), KeyboardInterrupt()):
             for after_marker in (False, True):
