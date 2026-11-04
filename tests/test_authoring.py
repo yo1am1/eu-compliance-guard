@@ -317,6 +317,34 @@ class AuthoringTests(unittest.TestCase):
         self.assertTrue(a.check(self.input, runs / "run-001")["valid"])
         r.run(self.input, runs / "run-002", previous=runs / "run-001")
 
+    def test_check_reports_a_run_beyond_the_output_limits_before_revalidate(self):
+        from unittest.mock import patch
+        from eu_compliance_guard import history, revalidation as r
+        expected = [{"at": "(document)", "problem": a.RUN_CAPACITY}]
+        runs = self.root / "runs"
+        runs.mkdir(mode=0o700)
+        self.input.write_text(json.dumps(self.payload))
+        r.run(self.input, runs / "run-001")
+        # A comparison with the predecessor is assembled as revalidate --previous assembles it.
+        with patch.object(history, "compare", side_effect=r.RevalidationError("capacity-exceeded")):
+            self.assertEqual(a.check(self.input, runs / "run-001")["errors"], expected)
+        # Each requirement repeats the review and evidence identifiers of one obligation's 200 methods.
+        payload = deepcopy(self.payload)
+        payload["obligations"] = payload["obligations"][:1]
+        payload["obligations"][0]["required_methods"] = [f"method-{index}" for index in range(200)]
+        evidence = payload["evidence"][0]
+        payload["evidence"] += [{"evidence": {**evidence["evidence"], "id": f"evidence-{index}"}} for index in range(199)]
+        review = payload["evidence_reviews"][0]
+        payload["evidence_reviews"] = [{**review, "id": f"review-{index}", "method": f"method-{index}",
+                                        "evidence_ids": [payload["evidence"][index]["evidence"]["id"]]} for index in range(200)]
+        payload["requirements"] = [{**payload["requirements"][0], "id": f"requirement-{index}"} for index in range(200)]
+        self.input.write_text(json.dumps(payload))
+        code, stdout, stderr = self.cli("check", "--input", str(self.input), "--json")
+        self.assertEqual((code, stderr, json.loads(stdout)["errors"]), (2, "", expected))
+        with self.assertRaises(r.RevalidationError) as caught:
+            r.run(self.input, runs / "over")
+        self.assertEqual(caught.exception.code, "capacity-exceeded")
+
     def test_state_dir_is_private_keyed_by_project_id_and_symlink_free(self):
         from unittest.mock import patch as env_patch
         project = self.root / "app"

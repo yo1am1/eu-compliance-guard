@@ -20,6 +20,8 @@ from . import models as m, revalidation as r
 DEFAULT_PATH = ".eu-compliance-guard/declarations.json"
 MAX_PROBLEMS = 50
 ENCODING = "declarations must be UTF-8 JSON without a byte-order mark"
+RUN_CAPACITY = ("a run of these declarations would exceed the output limits (5,000 gaps or items per list, "
+                "50,000 items in all, 16 MiB per bundle or report); declare fewer or smaller records")
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 
 
@@ -134,7 +136,7 @@ def check(path: str | os.PathLike, previous: str | os.PathLike | None = None) ->
 
 
 def _check(path, previous) -> dict:
-    errors, warnings, files, targets = [], [], [], []
+    errors, warnings, files, targets, observations = [], [], [], [], {}
     report = {"valid": False, "total_errors": 0, "errors": errors, "warnings": warnings, "files": files, "targets": targets}
     r._primitives()
     try:
@@ -180,7 +182,7 @@ def _check(path, previous) -> dict:
             # Every cross-reference and bound problem at once, each with its own JSON location.
             errors.extend({"at": at, "problem": problem} for at, problem in problems)
             if not problems:
-                _observe_selected(declared, fd, name, errors, warnings, files)
+                observations = _observe_selected(declared, fd, name, errors, warnings, files)
     except FileNotFoundError:
         errors.append({"at": "(file)", "problem": "declarations file or its folder was not found"})
         return report
@@ -208,8 +210,12 @@ def _check(path, previous) -> dict:
     uncertain = sum(item.basis in ("assumed", "unknown") for item in m.scope_facts(declared.scope))
     if uncertain:
         warnings.append({"at": "scope", "problem": f"{uncertain} fact occurrence(s) are assumed or unknown and stay review gaps"})
+    prior = None
     if previous is not None:
-        errors.extend(_previous_problems(declared, previous))
+        revisions, prior = _previous_problems(declared, previous)
+        errors.extend(revisions)
+    if not errors:
+        errors.extend(_run_problems(declared, observations, observed.digest, prior))
     report["valid"] = not errors
     report["counts"] = {"requirements": len(declared.requirements), "obligations": len(declared.obligations),
                         "source_targets": len(declared.source_targets), "sources": len(declared.sources),
@@ -217,8 +223,8 @@ def _check(path, previous) -> dict:
     return report
 
 
-def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors: list, warnings: list, files: list) -> None:
-    """Observe each selected file of a declaration whose records are consistent."""
+def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors: list, warnings: list, files: list) -> dict:
+    """Observe each selected file of a declaration whose records are consistent, by path."""
     try:
         r._load(fd, name)
     except r.RevalidationError:
@@ -231,7 +237,7 @@ def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors:
                  for index, item in enumerate(declared.requirements) if item.origin]
     selected += [(f"evidence[{index}].path", item.path, item.evidence.digest)
                  for index, item in enumerate(declared.evidence) if item.path]
-    total = 0
+    total, observations = 0, {}
     with r.files_root(declared, fd) as root_fd:
         for at, relative, digest in selected:
             try:
@@ -242,6 +248,7 @@ def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors:
                                if error.code == "capacity-exceeded" else "selected file could not be read safely"})
                 continue
             total += seen.size
+            observations.setdefault(relative, seen)
             entry = {"at": at, "availability": seen.availability, "observed_digest": seen.digest,
                      "matches_declared": seen.digest == digest}
             files.append(entry)
@@ -256,23 +263,57 @@ def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors:
                 admission = r.admit_source_content(seen.content, media.media_type, media.charset)
                 if admission.state != "accepted":
                     warnings.append({"at": at, "problem": f"source content needs review ({admission.reason})"})
+    return observations
 
 
-def _previous_problems(declared: m.RevalidationInput, previous) -> list[dict]:
-    """Verify the predecessor and name every record that needs a higher revision or a pin update."""
+def _previous_problems(declared: m.RevalidationInput, previous) -> tuple[list[dict], tuple | None]:
+    """Verify the predecessor and name every record that needs a higher revision or a pin update.
+
+    Also returns the predecessor run and its bundle digest when it is a usable baseline.
+    """
     from . import history
     try:
-        prior = history.load_run(previous)[0]
+        prior = history.load_run(previous)
     except r.RevalidationError as error:
-        return [{"at": "--previous", "problem": f"predecessor run is unusable ({error.code})"}]
+        return [{"at": "--previous", "problem": f"predecessor run is unusable ({error.code})"}], None
     # As in revalidate, another project's run is never a revision baseline.
-    if (prior.project_id, prior.synthetic) != (declared.project_id, declared.synthetic):
-        return [{"at": "--previous", "problem": "predecessor belongs to another project or synthetic class"}]
+    if (prior[0].project_id, prior[0].synthetic) != (declared.project_id, declared.synthetic):
+        return [{"at": "--previous", "problem": "predecessor belongs to another project or synthetic class"}], None
     problems = []
-    for problem in history.revision_problems(prior, declared):
+    for problem in history.revision_problems(prior[0], declared):
         at, detail = problem.split(": ", 1)
         problems.append({"at": at, "problem": detail})
-    return problems + _revision_cascade(prior.declarations, declared, {item["at"] for item in problems})
+    return problems + _revision_cascade(prior[0].declarations, declared, {item["at"] for item in problems}), prior
+
+
+def _run_problems(declared: m.RevalidationInput, observations: dict, input_digest: str, prior: tuple | None) -> list[dict]:
+    """Assemble, in memory only, the offline run revalidate would publish, so an output limit is reported now.
+
+    Identifiers have the lengths revalidate uses; nothing is written or fetched. Records fetched
+    with --fetch-official can still add to a run.
+    """
+    from datetime import datetime, timezone
+    from . import history
+    from .report import render_report
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    try:
+        bundle = r.assemble(declared, observations, input_digest=input_digest, timestamp=timestamp,
+                            run_id="run-" + "0" * 32, manifest_id="manifest-" + "0" * 32)
+        if prior is not None:
+            bundle = history.compare(prior[0], bundle, prior[1])
+        report = render_report(bundle)
+    except ValidationError as error:
+        code = r._output_validation_error(error).code
+    except r.RevalidationError as error:
+        code = error.code
+    except ValueError as error:
+        code = "capacity-exceeded" if error.args == ("report-too-large",) else "invalid-output"
+    else:
+        too_large = len(m.canonical_json(bundle)) > m.MAX_BUNDLE_BYTES or len(report.encode("utf-8")) > r.MAX_REPORT_BYTES
+        code = "capacity-exceeded" if too_large else None
+    if code is None:
+        return []
+    return [{"at": "(document)", "problem": RUN_CAPACITY if code == "capacity-exceeded" else f"revalidate would fail ({code})"}]
 
 
 def _versioned(declared: m.RevalidationInput) -> dict:
