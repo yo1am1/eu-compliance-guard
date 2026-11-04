@@ -41,8 +41,9 @@ class ViewError(ValueError):
         super().__init__(code)
 
 
-def _tag(value: str) -> str:
-    kind = "ok" if value in ("supported", "applicable", "passed", "retrieved", "completed", "same_bytes") else (
+def _tag(value: str, confirmed: bool = True) -> str:
+    """``confirmed=False`` never styles a value as ok, e.g. fetched bytes that still need review."""
+    kind = "ok" if confirmed and value in ("supported", "applicable", "passed", "retrieved", "completed", "same_bytes") else (
         "bad" if value in ("conflicting", "observed_failure", "retrieval_failed", "different_bytes") else "")
     return f'<span class="tag {kind}">{escape(value)}</span>'
 
@@ -223,9 +224,10 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
         obligation_rows.append([f"<code>{escape(obligation.id)}</code>", escape(f"{obligation.family} · {obligation.classification}"),
                                 f"<ul>{references}</ul>" if references else "—", _tag(decision.applicability) + f'<br><span class="muted">{escape(decision.reviewer or "no reviewer")}</span>',
                                 methods or '<span class="muted">none declared</span>'])
-    attempt_rows = [[f"<code>{escape(item.source_target_id)}</code>", escape(item.intended_type), _tag(item.state),
+    attempt_rows = [[f"<code>{escape(item.source_target_id)}</code>", escape(item.intended_type),
+                     _tag(item.state, item.retrieval.admission == "accepted"),
                      f"<code>{escape(item.retrieval.final_url or item.retrieval.requested_url)}</code>",
-                     escape(str(item.retrieval.status or "—")), _tag(item.retrieval.comparison),
+                     escape(str(item.retrieval.status or "—")), _tag(item.retrieval.comparison, item.retrieval.admission == "accepted"),
                      escape(f"{item.failure.code}: {item.failure.safe_message}" if item.failure else "—")]
                     for item in bundle.source_attempts]
     family_rows = [[escape(item.family), _tag(item.applicability), escape(item.reviewer or "—"), _list(item.gaps)]

@@ -214,6 +214,26 @@ class RunViewTests(unittest.TestCase):
         self.assertIn("<th scope=\"col\">Type</th>", retrieval)
         self.assertIn("<td>engineering_practice</td>", retrieval)
 
+    def test_a_retrieval_that_needs_review_is_not_styled_as_confirmed(self):
+        digest = "sha256:" + "a" * 64
+        def attempt(admission):
+            return m.SourceAttempt.model_validate({
+                "id": f"attempt-{admission}", "source_target_id": "target-example", "intended_url": "https://example.invalid/a",
+                "publisher": "Fictional fixture authority", "intended_type": "synthetic_fixture", "language": "en",
+                "attempted_at": "2026-10-18T10:00:00Z", "state": "retrieved",
+                "retrieved_source": {"id": "source-example", "revision": 0},
+                "retrieval": {"requested_url": "https://example.invalid/a", "final_url": "https://example.invalid/a",
+                              "redirects": [], "bytes_read": 1, "status": 200, "digest": digest,
+                              "artifact_path": "sources/" + "a" * 64 + ".bin", "admission": admission,
+                              "admission_reason": "fictional-reason", "started_at": "2026-10-18T10:00:00Z",
+                              "ended_at": "2026-10-18T10:00:00Z", "comparison": "same_bytes"}})
+        for admission, styled in (("needs_review", False), ("accepted", True)):
+            with self.subTest(admission=admission):
+                html = v.render_html(self.bundle.model_copy(update={"source_attempts": [attempt(admission)]}))
+                retrieval = html[html.index("<h2>Official-source retrieval</h2>"):html.index("<h2>Eleven")]
+                self.assertEqual('<span class="tag ok">retrieved</span>' in retrieval, styled)
+                self.assertEqual('<span class="tag ok">same_bytes</span>' in retrieval, styled)
+
     def test_a_removed_historical_obligation_is_named_in_view_and_report(self):
         payload = json.loads(self.input.read_text())
         payload["obligations"] = [item for item in payload["obligations"] if item["id"] != "obligation-unmapped"]

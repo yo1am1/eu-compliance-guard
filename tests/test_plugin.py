@@ -204,6 +204,21 @@ class SessionHookTests(unittest.TestCase):
         self.assertIn("belongs to another project", text)
         self.assertNotIn("run-a", text)
 
+    def test_a_retrieved_but_unadmitted_source_is_not_counted_as_confirmed(self):
+        self.enable()
+        (self.project / ".eu-compliance-guard/declarations.json").write_text('{"project_id": "client-a"}')
+        run = self.home / "state/eu-compliance-guard/client-a/run-20261103T000000Z"
+        run.mkdir(parents=True)
+        (run / "complete.json").write_text("{}")
+        attempts = [{"state": "retrieved", "retrieval": {"admission": "accepted"}},
+                    {"state": "retrieved", "retrieval": {"admission": "needs_review"}},
+                    {"state": "retrieval_failed", "retrieval": None}]
+        (run / "bundle.json").write_text(json.dumps({"project_id": "client-a", "run": {"id": "run-a", "state": "partial"},
+                                                     "declarations": {"scope": {}}, "source_attempts": attempts}))
+        text = self.hook()
+        self.assertIn("source attempts 1 confirmed / 2 not confirmed", text)
+        self.assertNotIn("retrieved /", text)
+
     def test_a_relative_xdg_state_home_is_ignored_like_the_cli_does(self):
         self.enable()
         (self.project / ".eu-compliance-guard/declarations.json").write_text('{"project_id": "client-a"}')
