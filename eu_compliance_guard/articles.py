@@ -1,9 +1,10 @@
 """Split retained legal-act text into articles and suggest articles for a statement.
 
 Official Journal XHTML marks each article with `oj-ti-art` (number) and `oj-sti-art`
-(title); older EUR-Lex HTML uses `ti-art`/`sti-art`. Plain text falls back to lines that
-start with "Article N". The text is shown as an unreviewed candidate next to a declared
-provision; a suggestion is a search result, never a mapping or a legal conclusion.
+(title); older EUR-Lex HTML uses `ti-art`/`sti-art`. Unmarked pages and plain-text lines
+fall back to paragraphs that read "Article N". The text is shown as an unreviewed
+candidate next to a declared provision; a suggestion is a search result, never a mapping
+or a legal conclusion.
 """
 from __future__ import annotations
 
@@ -96,7 +97,10 @@ def _is_end(classes, text: str) -> bool:
 
 
 def _segment(paragraphs) -> dict[str, dict]:
-    """Class-marked articles when the page has them, else paragraphs that read exactly "Article N"."""
+    """Class-marked articles when the page has them, else paragraphs that read exactly "Article N".
+
+    Only a paragraph that is just "Article N" opens an article; "Article 6(1) applies" is a reference.
+    """
     marked = any(_is_number(classes) for classes, _ in paragraphs)
     found: dict[str, dict] = {}
     current = None
@@ -142,26 +146,14 @@ def parse(content: bytes, media_type: str) -> dict[str, dict]:
         except (AssertionError, ValueError):
             return {}
         parser._flush()
-        return {key: {"title": item["title"], "text": _tidy(item["text"])[:MAX_ARTICLE_CHARS]}
-                for key, item in _segment(parser.paragraphs).items()}
-    if media_type == "text/plain":
-        articles, current = {}, None
-        for line in text.splitlines():
-            # Only a line that is just "Article N" opens an article; "Article 6(1) applies" is a reference.
-            match = ARTICLE_ONLY.match(line.strip())
-            if _is_end((), line.strip()):
-                current = None
-            elif match:
-                # A repeated number (an annex correlation table) never reopens an article.
-                key = f"Article {match.group(1)}"
-                current = None if key in articles or len(articles) >= MAX_ARTICLES else articles.setdefault(key, {"title": "", "text": ""})
-            elif current is not None:
-                if not current["title"] and line.strip():
-                    current["title"] = _tidy(line)
-                elif len(current["text"]) < MAX_ARTICLE_CHARS:
-                    current["text"] += " " + line
-        return {key: {"title": item["title"], "text": _tidy(item["text"])[:MAX_ARTICLE_CHARS]} for key, item in articles.items()}
-    return {}
+        paragraphs = parser.paragraphs
+    elif media_type == "text/plain":
+        # Each non-blank line is a paragraph of an unmarked page, so both follow the same rules.
+        paragraphs = [((), line) for line in map(_tidy, text.splitlines()) if line]
+    else:
+        return {}
+    return {key: {"title": item["title"], "text": _tidy(item["text"])[:MAX_ARTICLE_CHARS]}
+            for key, item in _segment(paragraphs).items()}
 
 
 def article_key(locator: str) -> str | None:

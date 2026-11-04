@@ -82,6 +82,14 @@ class ArticleTests(unittest.TestCase):
         self.assertEqual(a.parse(XHTML, "Application/XHTML+XML"), a.parse(XHTML, "application/xhtml+xml"))
         self.assertEqual(list(a.parse(b"<p>Article 1</p><p>Fictional title</p><p>Body.</p>", "Text/HTML")), ["Article 1"])
 
+    def test_plain_text_untitled_article_keeps_its_first_paragraph_as_text(self):
+        parsed = a.parse(b"Article 6\n\n1. Member States shall provide fictional fairness.\n2. It shall be for the controller.\n"
+                         b"Article 7\n" + b"Fictional words " * 20 + b"\nArticle 8\nFictional title\nBody.\n", "text/plain")
+        self.assertEqual(parsed["Article 6"], {"title": "", "text": "1. Member States shall provide fictional fairness. "
+                                                                      "2. It shall be for the controller."})
+        self.assertEqual(parsed["Article 7"]["title"], "")
+        self.assertEqual(parsed["Article 8"], {"title": "Fictional title", "text": "Body."})
+
     def test_locators_normalise_to_article_keys(self):
         self.assertEqual(a.article_key("Article 9(2)(a)"), "Article 9")
         self.assertEqual(a.article_key("Art. 17"), "Article 17")
