@@ -275,6 +275,35 @@ class AuthoringTests(unittest.TestCase):
                 self.assertEqual(len(refusals), fetch != "fetchable")
                 self.assertTrue(all("(invalid-language)" in problem and language not in problem for problem in refusals))
 
+    def test_changed_grounded_code_is_a_review_warning_without_a_digest_to_copy(self):
+        from eu_compliance_guard import grounding as g, revalidation as r
+        project = self.root / "shop"
+        (project / "app").mkdir(parents=True)
+        code = project / "app/web.py"
+        code.write_text('def landing(response, visitor_id):\n    response.set_cookie("_analytics", visitor_id, max_age=395)\n')
+        path = a.init(project / ".eu-compliance-guard/declarations.json", "shop", synthetic=True)
+        data = json.loads(path.read_text())
+        data["scope"]["roles"] = [{"id": "fact-cookie-lifetime", "revision": 0, "key": "Analytics cookie lifetime",
+                                   "value": None, "basis": "unknown", "evidence_ids": [], "owner": "Fictional owner",
+                                   "observed_at": "2026-11-04T00:00:00Z", "conflicts": []}]
+        path.write_text(json.dumps(data))
+        g.apply(path, "fact-cookie-lifetime", "app/web.py:2")
+        runs = self.root / "runs"
+        runs.mkdir(mode=0o700)
+        r.run(path, runs / "run-001")
+        code.write_text("def landing(response):\n    return response\n")
+        observed = m.content_digest(code.read_bytes())
+        for previous in (None, runs / "run-001"):
+            with self.subTest(previous=previous):
+                report = a.check(path, previous)
+                self.assertTrue(report["valid"], report["errors"])
+                problem = next(item["problem"] for item in report["warnings"] if item["at"] == "evidence[0].path")
+                self.assertIn("ground --apply", problem)
+                self.assertNotIn(observed.removeprefix("sha256:"), problem)
+        # Hand-declared evidence keeps its digest error.
+        (self.root / "revalidation-synthetic/evidence.txt").write_bytes(b"changed")
+        self.assertIn("observed sha256:", next(item for item in self.check()["errors"] if item["at"] == "evidence[0].path")["problem"])
+
     def test_check_previous_names_records_needing_new_revisions(self):
         from eu_compliance_guard import revalidation as r
         runs = self.root / "runs"

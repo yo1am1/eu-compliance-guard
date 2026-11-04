@@ -311,6 +311,9 @@ def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors:
                  for index, item in enumerate(declared.requirements) if item.origin]
     selected += [(f"evidence[{index}].path", item.path, item.evidence.digest, None)
                  for index, item in enumerate(declared.evidence) if item.path]
+    # Code evidence written by `ground --apply`: when the code changes, its facts return to review.
+    grounded = {f"evidence[{index}].path" for index, item in enumerate(declared.evidence)
+                if item.path and item.evidence.id.startswith("evidence-code-")}
     total, observations = 0, {}
     with r.files_root(declared, fd) as root_fd:
         for at, relative, digest, source in selected:
@@ -330,6 +333,10 @@ def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors:
                 base = "project folder" if declared.files_root == "project" else "declarations file's folder"
                 errors.append({"at": at, "problem": f"selected file is {seen.availability} (paths resolve "
                                f"relative to the {base})"})
+            elif seen.digest != digest and at in grounded:
+                # Only an owner-confirmed line re-pins it; copying the new digest would confirm nothing.
+                warnings.append({"at": at, "problem": "grounded code changed, so this evidence is unavailable and its "
+                                 "gaps return until the owner confirms a line again with ground --apply <fact>=<path>:<line>"})
             elif seen.digest != digest:
                 errors.append({"at": at, "problem": "declared digest differs from the file; observed " + seen.digest})
             elif source is not None and seen.content is not None:

@@ -59,7 +59,8 @@ code can never show, and lists possible touchpoints that no fact covers.
   shows the technical fact (for example `set_cookie(..., max_age=…)` for a cookie
   lifetime): `<cli> ground --apply <fact-id>=<path>:<line>`. The fact becomes
   `observed`, with that file's digest as evidence. Later edits to the file make the evidence unavailable, and
-  the gap returns until it is grounded again.
+  the gap returns until it is grounded again. `check` warns about it; never copy the new digest into the
+  evidence, because only a line the owner confirms with `ground --apply` grounds the fact again.
 - Never apply a candidate that only mentions a related word. Organisational facts
   (lawful basis, establishment, roles, size, sector) stay owner questions; the CLI
   refuses them.
