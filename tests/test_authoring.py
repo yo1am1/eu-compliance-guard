@@ -223,6 +223,22 @@ class AuthoringTests(unittest.TestCase):
         self.input.write_text(json.dumps(payload))
         self.assertEqual(self.cli("check", "--input", str(self.input))[0], 2)
 
+    def test_a_target_whose_language_the_fetch_refuses_is_not_fetchable(self):
+        url = "https://publications.europa.eu/resource/celex/02002L0058-20091219"
+        for language, fetch in (("english", "not fetchable: invalid-language"), ("en_GB", "not fetchable: invalid-language"),
+                                ("zh-Hant-TW", "not fetchable: invalid-language"), ("de-DE", "fetchable")):
+            payload = deepcopy(self.payload)
+            payload["source_targets"].append({"id": "t-lang", "revision": 0, "family": "eprivacy", "intended_url": url,
+                                              "publisher": "Fictional publisher", "intended_type": "eu_act",
+                                              "language": language, "jurisdiction": "EU"})
+            with self.subTest(language=language):
+                report = self.check(payload)
+                self.assertTrue(report["valid"], report["errors"])
+                self.assertEqual(report["targets"][1]["fetch"], fetch)
+                refusals = [item["problem"] for item in report["warnings"] if item["at"] == "source_targets[1]"]
+                self.assertEqual(len(refusals), fetch != "fetchable")
+                self.assertTrue(all("(invalid-language)" in problem and language not in problem for problem in refusals))
+
     def test_check_previous_names_records_needing_new_revisions(self):
         from eu_compliance_guard import revalidation as r
         runs = self.root / "runs"

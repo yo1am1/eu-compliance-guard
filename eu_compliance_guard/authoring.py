@@ -224,11 +224,16 @@ def _check(path, previous) -> dict:
         state = "never fetched (fictional fixture)" if target.intended_type == "synthetic_fixture" else "fetchable"
         if state == "fetchable":
             try:
+                # The refusals sources.fetch applies before any request, in the same order.
                 s.allowed_hosts(s.TargetRequest(target.id, target.intended_url, tuple(target.redirect_hosts)))
+                if not s.LANGUAGE.fullmatch(target.language):
+                    raise s.RetrievalFailure("invalid-language")
             except s.RetrievalFailure as failure:
                 state = "not fetchable: " + failure.code
+                advice = ("use a plain language tag such as en or de-DE" if failure.code == "invalid-language"
+                          else "declare a manually downloaded copy as a selected source instead")
                 warnings.append({"at": f"source_targets[{index}]", "problem": "--fetch-official will refuse this target ("
-                                 + failure.code + "); declare a manually downloaded copy as a selected source instead"})
+                                 + failure.code + "); " + advice})
         targets.append({"at": f"source_targets[{index}]", "id": target.id, "fetch": state})
     if not declared.requirements:
         warnings.append({"at": "requirements", "problem": "empty: every run will report a coverage gap"})
