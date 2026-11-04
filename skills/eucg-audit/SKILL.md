@@ -73,11 +73,13 @@ possible touchpoints that no fact covers.
 EUR-Lex answers scripted requests with a bot challenge, so `--fetch-official` records
 a safe failure for it. When the user has downloaded the act (PDF or saved HTML):
 
-1. Put the file under `.eu-compliance-guard/sources/` and keep a source target for it.
-   With `"files_root": "project"`, its path is `.eu-compliance-guard/sources/<file>`.
+1. Put the file in a `sources/` folder beside the declarations file and keep a source
+   target for it. With `"files_root": "project"`, its path is `.eu-compliance-guard/sources/<file>`
+   (relative to the project folder). With `"files_root": "declarations_dir"`, its path is
+   `sources/<file>` (relative to the declarations file's folder).
 2. Add a `sources[]` entry: `target_id`, `media_type` (`application/pdf`, `text/html`
-   or `text/plain`), `charset` (`null` for PDF, else `utf-8`), `file.path` relative
-   to the declarations file, and a `source` with a stable `id`, `revision: 0`, and
+   or `text/plain`), `charset` (`null` for PDF, else `utf-8`), `file.path` as in step 1,
+   and a `source` with a stable `id`, `revision: 0`, and
    `type`, `url`, `identifier`,
    `publisher`, `language` and `jurisdiction` equal the target's exactly. Set
    `retrieved_at` to when the user downloaded it (UTC), `provisions` to the

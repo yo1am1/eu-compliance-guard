@@ -159,6 +159,15 @@ class SessionHookTests(unittest.TestCase):
                        "--previous <run-directory>", "--no-dev"):
             self.assertIn(phrase, audit)
 
+    def test_audit_manual_source_paths_follow_files_root(self):
+        audit = (ROOT / "skills/eucg-audit/SKILL.md").read_text()
+        section = " ".join(audit.split("## Manually downloaded official documents", 1)[1].split("## 2. Run", 1)[0].split())
+        # check resolves file.path from the project folder under "project", else from the declarations file's folder.
+        self.assertNotIn("`file.path` relative to the declarations file,", section)
+        self.assertIn('With `"files_root": "project"`, its path is `.eu-compliance-guard/sources/<file>`', section)
+        self.assertIn('With `"files_root": "declarations_dir"`', section)
+        self.assertIn("`file.path` as in step 1", section)
+
     def test_uses_payload_cwd_when_project_variable_is_absent(self):
         self.enable()
         env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.home), "XDG_STATE_HOME": str(self.home / "state")}
