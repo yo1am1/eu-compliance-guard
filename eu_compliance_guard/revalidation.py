@@ -134,14 +134,15 @@ def _parent(path: str | os.PathLike, base_fd: int | None = None):
 
 
 @contextmanager
-def _named_path():
-    """Operations on the input or output path the user named: a missing folder or an overlong
-    name is a path they can fix (unsafe-path, as for a missing input file), not an I/O fault."""
+def _named_path(missing: str = "unsafe-path"):
+    """Operations on the input or output path the user named: an overlong name or a missing output
+    parent is a path they can fix (unsafe-path), not an I/O fault. Missing declarations (file or
+    folder) are reported as `missing` says: io-failed, as every command that reads them does."""
     try:
         yield
     except OSError as error:
         if error.errno in (errno.ENOENT, errno.ENAMETOOLONG):
-            raise RevalidationError("unsafe-path") from None
+            raise RevalidationError(missing if error.errno == errno.ENOENT else "unsafe-path") from None
         raise
 
 
@@ -897,7 +898,7 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
     try:
         from . import history
         prior = history.load_run(previous, deadline) if previous is not None else None
-        with _named_path(), _parent(input_path) as (fd, name):
+        with _named_path(missing="io-failed"), _parent(input_path) as (fd, name):
             declared, input_digest = _load(fd, name, deadline)
             if prior is not None:
                 if (prior[0].project_id, prior[0].synthetic) != (declared.project_id, declared.synthetic):

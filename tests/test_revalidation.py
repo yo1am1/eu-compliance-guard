@@ -542,20 +542,21 @@ class WorkflowTests(unittest.TestCase):
         runs = self.root / "real-runs"
         runs.mkdir(mode=0o700)
         overlong = "x" * 256
+        # Missing declarations are io-failed, as in state-dir, next, ground and pr-check.
         cases = {
-            "missing output parent": (self.input, runs / "missing-parent/run", False),
-            "missing output parent before fetching": (self.input, runs / "missing-parent/run", True),
-            "overlong output name": (self.input, runs / overlong, False),
-            "overlong output name before fetching": (self.input, runs / overlong, True),
-            "missing input folder": (self.root / "missing-folder/input.json", runs / "run-a", False),
-            "overlong input folder": (self.root / overlong / "input.json", runs / "run-b", False),
-            "missing input file": (self.root / "missing.json", runs / "run-c", False),
+            "missing output parent": (self.input, runs / "missing-parent/run", False, "unsafe-path"),
+            "missing output parent before fetching": (self.input, runs / "missing-parent/run", True, "unsafe-path"),
+            "overlong output name": (self.input, runs / overlong, False, "unsafe-path"),
+            "overlong output name before fetching": (self.input, runs / overlong, True, "unsafe-path"),
+            "missing input folder": (self.root / "missing-folder/input.json", runs / "run-a", False, "io-failed"),
+            "overlong input folder": (self.root / overlong / "input.json", runs / "run-b", False, "unsafe-path"),
+            "missing input file": (self.root / "missing.json", runs / "run-c", False, "io-failed"),
         }
-        for case, (input_path, output_path, fetch) in cases.items():
+        for case, (input_path, output_path, fetch, expected) in cases.items():
             with self.subTest(case=case):
                 with self.assertRaises(r.RevalidationError) as caught:
                     r.run(input_path, output_path, fetch_official=fetch, transport_factory=AssertionError)
-                self.assertEqual(caught.exception.code, "unsafe-path")
+                self.assertEqual(caught.exception.code, expected)
         self.assertEqual(list(runs.iterdir()), [])
 
     def test_failures_and_interrupts_leave_incomplete_directory_without_marker(self):

@@ -177,8 +177,8 @@ must follow a raised revision.
 
 The output parent must exist, belong to you and exclude group/other permissions, and
 the run directory must be new. No component of an input, output or predecessor path may
-be a symbolic link (`unsafe-path`, as for a missing input folder or output parent, or an
-overlong name); `state-dir` prints a resolved path, and on macOS
+be a symbolic link (`unsafe-path`, as for a missing output parent or an overlong name;
+missing declarations, file or folder, are `io-failed` in every command); `state-dir` prints a resolved path, and on macOS
 `$TMPDIR` lives under the `/var` symlink, so use `state-dir` or `pwd -P` paths. Runs use modes 0700/0600 and are never overwritten.
 Each run holds:
 
