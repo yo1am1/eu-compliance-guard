@@ -22,8 +22,6 @@ MAX_PAGE_CHARS = 8 * 1024 * 1024
 BREAKS = frozenset({"p", "div", "td", "li", "tr", "br", "h1", "h2", "h3", "h4", "table"})
 # Code, styling, fallback content and site navigation of a saved page are never legal text.
 SKIPPED = frozenset({"script", "style", "noscript", "template", "nav", "footer"})
-ARTICLE = re.compile(r"^\s*Article\s+(\d+[a-z]?)\b", re.I)
-ARTICLE_ONLY = re.compile(r"^Article\s+(\d+[a-z]?)$", re.I)
 # Words that describe the project or the task rather than the legal subject matter.
 NOISE = frozenset({"code", "app", "py", "ts", "js", "determine", "decide", "whether", "currently", "define", "declare",
                    "document", "put", "place", "give", "provide", "users", "user", "customer", "customers"})
@@ -101,6 +99,19 @@ def _numeral(word: str) -> bool:
     return word.isascii() and (word.isdigit() or not word.strip("IVXLC"))
 
 
+def _article_number(text: str) -> str | None:
+    """'Article 5' -> '5', 'Article 10a' -> '10a'; any other paragraph is not an article heading.
+
+    "Article 6(1) applies" is a reference, and "‘Article 6a" is another act's article quoted by an amendment.
+    """
+    words = text.split()
+    if len(words) != 2 or words[0].lower() != "article":
+        return None
+    number = words[1]
+    digits = number[:-1] if len(number) > 1 and number[-1].isascii() and number[-1].isalpha() else number
+    return number if digits.isascii() and digits.isdigit() else None
+
+
 def _is_end(classes, text: str) -> bool:
     """An annex heading or "Done at …" closes the last article.
 
@@ -131,7 +142,8 @@ def _is_division(classes, text: str, marked: bool) -> bool:
 def _segment(paragraphs) -> dict[str, dict]:
     """Class-marked articles when the page has them, else paragraphs that read exactly "Article N".
 
-    Only a paragraph that is just "Article N" opens an article; "Article 6(1) applies" is a reference.
+    Only a paragraph that is just "Article N" opens an article. A marked heading that is not, such as
+    an amendment's quoted "‘Article 6a", stays text of the amending article.
     """
     marked = any(_is_number(classes) for classes, _ in paragraphs)
     found: dict[str, dict] = {}
@@ -141,12 +153,12 @@ def _segment(paragraphs) -> dict[str, dict]:
         if _is_end(classes, text) or _is_division(classes, text, marked):
             current, expect_title = None, False  # headings, annexes and the closing formula belong to no article
             continue
-        match = ARTICLE_ONLY.match(text)
-        if (_is_number(classes) if marked else match is not None):
-            match = match or ARTICLE.match(text)
+        number = _article_number(text) if _is_number(classes) or not marked else None
+        if number is not None:
+            key = f"Article {number}"
             current = None
-            if match and len(found) < MAX_ARTICLES and f"Article {match.group(1)}" not in found:
-                current = found[f"Article {match.group(1)}"] = {"title": "", "text": ""}
+            if len(found) < MAX_ARTICLES and key not in found:
+                current = found[key] = {"title": "", "text": ""}
             expect_title = True
             continue
         if current is None:

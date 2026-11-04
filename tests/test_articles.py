@@ -132,6 +132,21 @@ class ArticleTests(unittest.TestCase):
                 b"Fictional erasure\nBody two.\nTITLE IIIa\nFictional title\nPART 2\nFictional part\nArticle 3\nT\nBody three.\n")
         self.assertEqual([item["text"] for item in a.parse(text, "text/plain").values()], ["Body one.", "Body two.", "Body three."])
 
+    def test_a_quoted_inserted_article_stays_in_the_amending_article(self):
+        page = ('<p class="oj-ti-art">Article 4</p><p class="oj-sti-art">Fictional amendments</p>'
+                '<p class="oj-normal">Directive 2098/1 is amended as follows:</p><p class="oj-normal">(1) the following'
+                ' Article is inserted:</p><p class="oj-ti-art">‘Article 6a</p><p class="oj-sti-art">Fictional inserted'
+                ' requirements</p><p class="oj-normal">Inserted text.’;</p><p class="oj-normal">(2) fictional third'
+                ' amendment on erasure.</p><p class="oj-ti-art">Article 5</p><p class="oj-sti-art">Fictional transposition'
+                '</p><p class="oj-normal">Transpose.</p>').encode()
+        parsed = a.parse(page, "application/xhtml+xml")
+        self.assertEqual(list(parsed), ["Article 4", "Article 5"])
+        self.assertEqual(parsed["Article 4"], {
+            "title": "Fictional amendments",
+            "text": "Directive 2098/1 is amended as follows: (1) the following Article is inserted: ‘Article 6a "
+                    "Fictional inserted requirements Inserted text.’; (2) fictional third amendment on erasure."})
+        self.assertEqual(parsed["Article 5"], {"title": "Fictional transposition", "text": "Transpose."})
+
     def test_locators_normalise_to_article_keys(self):
         self.assertEqual(a.article_key("Article 9(2)(a)"), "Article 9")
         self.assertEqual(a.article_key("Art. 17"), "Article 17")
