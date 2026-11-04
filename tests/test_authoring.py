@@ -179,6 +179,11 @@ class AuthoringTests(unittest.TestCase):
         self.assertIn(f"error   Fact {fact_id}: content changed but revision is still 0", stdout)
         missing = a.check(self.input, runs / "absent")
         self.assertIn("predecessor run is unusable (incomplete-run)", missing["errors"][0]["problem"])
+        # Another project's run is never a revision baseline: only the wrong-project error remains.
+        other = json.loads(json.dumps(self.payload).replace('"project-example"', '"project-other"'))
+        self.input.write_text(json.dumps(other))
+        self.assertEqual(a.check(self.input, runs / "run-001")["errors"],
+                         [{"at": "--previous", "problem": "predecessor belongs to another project or synthetic class"}])
 
     def test_state_dir_is_private_keyed_by_project_id_and_symlink_free(self):
         from unittest.mock import patch as env_patch

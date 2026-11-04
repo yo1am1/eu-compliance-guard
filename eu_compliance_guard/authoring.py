@@ -227,11 +227,13 @@ def check(path: str | os.PathLike, previous: str | os.PathLike | None = None) ->
         except r.RevalidationError as error:
             errors.append({"at": "--previous", "problem": f"predecessor run is unusable ({error.code})"})
         else:
+            # As in revalidate, another project's run is never a revision baseline.
             if (prior.project_id, prior.synthetic) != (declared.project_id, declared.synthetic):
                 errors.append({"at": "--previous", "problem": "predecessor belongs to another project or synthetic class"})
-            for problem in history.revision_problems(prior, declared):
-                at, detail = problem.split(": ", 1)
-                errors.append({"at": at, "problem": detail})
+            else:
+                for problem in history.revision_problems(prior, declared):
+                    at, detail = problem.split(": ", 1)
+                    errors.append({"at": at, "problem": detail})
     report["valid"] = not errors
     report["counts"] = {"requirements": len(declared.requirements), "obligations": len(declared.obligations),
                         "source_targets": len(declared.source_targets), "sources": len(declared.sources),
