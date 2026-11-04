@@ -298,6 +298,25 @@ class AuthoringTests(unittest.TestCase):
                                         "source_reviews[0]"})
         self.assertEqual(located["source_reviews[0]"], "LegalSource source-example rises to revision 1; update the pin to it")
 
+    def test_check_and_revalidate_agree_at_the_declared_limits(self):
+        from eu_compliance_guard import revalidation as r
+        payload = deepcopy(self.payload)
+        obligation, requirement = payload["obligations"][0], payload["requirements"][0]
+        payload.update(obligations=[], requirements=[], applicability_decisions=[], evidence_reviews=[])
+        for index in range(200):
+            payload["obligations"].append({**deepcopy(obligation), "id": f"obligation-{index}",
+                                           "required_methods": ["document", "technical", "organizational"]})
+            payload["requirements"].append({**deepcopy(requirement), "id": f"requirement-{index}",
+                                             "obligation_refs": [{"id": f"obligation-{index}", "revision": 0}]})
+        self.input.write_text(json.dumps(payload))
+        self.assertTrue(a.check(self.input)["valid"])
+        runs = self.root / "runs"
+        runs.mkdir(mode=0o700)
+        # Over a thousand gaps: the run record holds every gap its bundle allows.
+        self.assertGreater(len(r.run(self.input, runs / "run-001").run.gaps), 1000)
+        self.assertTrue(a.check(self.input, runs / "run-001")["valid"])
+        r.run(self.input, runs / "run-002", previous=runs / "run-001")
+
     def test_state_dir_is_private_keyed_by_project_id_and_symlink_free(self):
         from unittest.mock import patch as env_patch
         project = self.root / "app"

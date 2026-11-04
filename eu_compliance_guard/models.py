@@ -1246,11 +1246,13 @@ def scope_facts(scope: Scope) -> list[Fact]:
     return [fact for _, fact in scope_fact_locations(scope)]
 
 
-def _collection_bounds(record: Record, *, list_limit: int = 1000, aggregate: int = 5000) -> None:
+def _collection_bounds(record: Record, *, list_limit: int = 1000, aggregate: int = 5000,
+                       record_limit: int | None = 1000) -> None:
     """Bound nested collections without counting model field names as data items.
 
-    The root's own lists are bounded by their declared max_length; the per-record limit
-    applies to nested records, where one entry could otherwise carry unbounded children.
+    The root's own lists are bounded by their declared max_length; `record_limit` bounds the
+    items across one nested record's lists, where an entry could otherwise carry unbounded
+    children. Without it, `list_limit` per list and `aggregate` in total bound nested records.
     A violation names the record or list where it occurs; dictionary keys are never named.
     """
     total = 0
@@ -1263,7 +1265,7 @@ def _collection_bounds(record: Record, *, list_limit: int = 1000, aggregate: int
             names = list(type(item).model_fields)
             values = [getattr(item, name) for name in names]
             own_items = sum(len(value) for value in values if isinstance(value, (list, dict)))
-            if depth and own_items > 1000:
+            if depth and record_limit is not None and own_items > record_limit:
                 raise LocatedProblem(at, "record exceeds nested collection limit")
             stack.extend((value, depth + 1, f"{at}.{name}" if at else name) for name, value in zip(names, values))
         elif isinstance(item, (list, dict)):
@@ -1489,7 +1491,9 @@ class RevalidationBundle(Record):
 
     @model_validator(mode="after")
     def membership(self) -> RevalidationBundle:
-        _collection_bounds(self, list_limit=5000, aggregate=50000)
+        # Nested declarations keep their own per-record limit. A run's derived records (its gaps,
+        # dispositions, assessments) are bounded per list and in total, as their declared maxima allow.
+        _collection_bounds(self, list_limit=5000, aggregate=50000, record_limit=None)
         declared = self.declarations
         if (self.project_id != declared.project_id or self.run.project_id != self.project_id
                 or self.synthetic != declared.synthetic or self.run.manifest_id != self.manifest.id

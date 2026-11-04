@@ -495,12 +495,16 @@ class WorkflowTests(unittest.TestCase):
         with patch.object(m, "RevalidationBundle", side_effect=semantic.exception), self.assertRaises(r.RevalidationError) as caught:
             self.assemble()
         self.assertEqual(caught.exception.code, "invalid-output")
-        template = deepcopy(self.payload["obligations"][0])
-        self.payload["obligations"] = [{**template, "id": f"obligation-{i}", "required_methods": [f"method-{j}" for j in range(7)]}
-                                       for i in range(200)]
-        self.payload["requirements"] = []
-        self.payload["applicability_decisions"] = []
-        self.payload["evidence_reviews"] = []
+        # Every requirement repeats the review and evidence identifiers of its one obligation's 200
+        # methods: valid declarations whose derived assessments exceed the bundle's aggregate bound.
+        self.payload["obligations"] = self.payload["obligations"][:1]
+        self.payload["obligations"][0]["required_methods"] = [f"method-{i}" for i in range(200)]
+        evidence = self.payload["evidence"][0]
+        self.payload["evidence"] += [{"evidence": {**evidence["evidence"], "id": f"evidence-{i}"}} for i in range(199)]
+        review = self.payload["evidence_reviews"][0]
+        self.payload["evidence_reviews"] = [{**review, "id": f"review-{i}", "method": f"method-{i}",
+                                             "evidence_ids": [self.payload["evidence"][i]["evidence"]["id"]]} for i in range(200)]
+        self.payload["requirements"] = [{**self.payload["requirements"][0], "id": f"requirement-{i}"} for i in range(200)]
         self.save()
         with self.assertRaises(r.RevalidationError) as caught:
             r.run(self.input, self.root / "derived-over-capacity")
