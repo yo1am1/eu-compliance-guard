@@ -43,6 +43,7 @@ In your project:
 | `/eucg-review [target]` | Maps a diff to the eleven candidate legal families and the facts to declare |
 | `/eucg-audit [--fetch-official] [--previous <run>]` | Prepares declarations, runs the private report and ranks what needs attention |
 | `/eucg-next` | Walks through the step that unblocks the most open requirements |
+| `/eucg-pr [target]` | Screens a branch or PR diff for legal touchpoints; can set up the GitHub Action |
 | `/eucg-gaps` | Ledger of open review gaps from the latest run |
 | `/eucg-status` | The latest run at a glance |
 | `/eucg-help` | Reference card |
@@ -85,6 +86,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `ground [--input <file>] [--top N] [--json] [--apply <fact>=<path>:<line>]…` | Rank code evidence for each assumed or unknown fact with a local index. `--apply` marks a confirmed technical fact `observed`, pinned to that file's digest |
 | `state-dir [--input <file>]` | Print and create (0700) the private run storage for the declared `project_id` |
 | `next [--run <run dir>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
+| `pr-check [--diff <file>\|-] [--markdown\|--json] [--strict]` | Screen a diff's added lines for legal touchpoints, undeclared concepts and pinned evidence in changed files; `--strict` exits 1 when something needs attention |
 | `view --run <run dir> [--open]` | Verify a run and write `<parent>/views/<run>.html`; optionally open it |
 
 ```sh
@@ -204,6 +206,20 @@ also lists touchpoints that no fact covers. Organisational facts are flagged, be
 code can never show them. `--apply` accepts a line only if it shares terms with the
 fact. It then records the fact as `observed` with the file as evidence, which closes
 that fact's gap until the file changes.
+
+### Pull-request check
+
+`pr-check` reads a unified diff (a file or standard input) and the declarations, if
+present. It lists the legal concepts in added lines with their candidate families, says
+whether the declarations already mention each concept, and flags code evidence or
+requirements that live in a changed file. It is deterministic and offline. To run it on
+every pull request, copy [`examples/github/eu-compliance-guard-pr.yml`](examples/github/eu-compliance-guard-pr.yml)
+into `.github/workflows/`; it keeps one comment updated, and `--strict` can fail the
+check. It is keyword screening: a diff with no touchpoints is not a clean bill.
+
+```bash
+git diff origin/main...HEAD | eu-compliance-guard pr-check --markdown
+```
 
 ## Limits
 

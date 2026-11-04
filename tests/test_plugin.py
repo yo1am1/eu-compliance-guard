@@ -16,7 +16,7 @@ from eu_compliance_guard import revalidation as r
 
 ROOT = Path(__file__).resolve().parents[1]
 HOOK = ROOT / "hooks/eucg_session.py"
-SKILLS = ("eucg", "eucg-review", "eucg-audit", "eucg-next", "eucg-gaps", "eucg-status", "eucg-help")
+SKILLS = ("eucg", "eucg-review", "eucg-audit", "eucg-next", "eucg-pr", "eucg-gaps", "eucg-status", "eucg-help")
 FIXTURE = ROOT / "fixtures/revalidation-synthetic.json"
 
 

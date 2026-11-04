@@ -58,12 +58,22 @@ def main(argv: list[str] | None = None) -> int:
     step.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file naming the project")
     step.add_argument("--top", type=int, default=3, choices=range(1, 11), metavar="1-10", help="Steps to show")
     step.add_argument("--json", action="store_true", help="Print the result as JSON")
+    pr = commands.add_parser("pr-check", help="Screen a unified diff for EU legal touchpoints (for pull requests and CI)",
+                             allow_abbrev=False)
+    pr.add_argument("--diff", default="-", help="Unified diff file, or - for standard input (default)")
+    pr.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file, if present")
+    output = pr.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true", help="Print the result as JSON")
+    output.add_argument("--markdown", action="store_true", help="Print a pull-request comment")
+    pr.add_argument("--strict", action="store_true", help="Exit 1 when any item needs attention")
     arguments = sys.argv[1:] if argv is None else argv
     args = parser.parse_args(arguments)
     if args.command == "view":
         return _view(args.run, args.open)
     if args.command == "next":
         return _next(args)
+    if args.command == "pr-check":
+        return _pr_check(args)
     if args.command == "init":
         return _init(args)
     if args.command == "ground":
@@ -175,6 +185,32 @@ def _next(args) -> int:
         return 2
     print(json.dumps({"run": args.run, "steps": steps}, indent=2) if args.json else nextstep.format_steps(steps))
     return 0
+
+
+def _pr_check(args) -> int:
+    import json
+    import os
+    from . import prcheck
+    from .revalidation import load_input
+    try:
+        if args.diff == "-":
+            diff = sys.stdin.buffer.read(prcheck.MAX_DIFF_BYTES + 1)
+        else:
+            with open(args.diff, "rb") as handle:
+                diff = handle.read(prcheck.MAX_DIFF_BYTES + 1)
+        if len(diff) > prcheck.MAX_DIFF_BYTES:
+            raise prcheck.PRCheckError("capacity-exceeded")
+        declared = load_input(args.input) if os.path.lexists(args.input) else None
+        report = prcheck.pr_check(diff.decode("utf-8", "replace"), declared)
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'pr-check-failed'}: pr check failed", file=sys.stderr)
+        return 2
+    print(json.dumps(report, indent=2) if args.json else prcheck.format_markdown(report) if args.markdown
+          else prcheck.format_text(report))
+    return 1 if args.strict and report["attention"] else 0
 
 
 def _view(run_dir: str, open_browser: bool) -> int:

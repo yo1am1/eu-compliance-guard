@@ -1,0 +1,42 @@
+# Copy to .github/workflows/eu-compliance-guard-pr.yml in your project.
+# Screens each pull request's diff for EU legal touchpoints and keeps one comment updated.
+# Keyword screening against your declarations, not a compliance verdict. No network use
+# beyond installing the tool; nothing from the diff leaves the runner except the comment.
+name: EU Compliance Guard PR check
+on:
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  touchpoints:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - name: Screen the diff
+        id: screen
+        run: |
+          git diff --no-color "origin/${{ github.base_ref }}...HEAD" > "$RUNNER_TEMP/pr.diff"
+          set +e
+          uvx --from "git+https://github.com/yo1am1/eu-compliance-guard@v1.1.0" \
+            eu-compliance-guard pr-check --diff "$RUNNER_TEMP/pr.diff" --markdown --strict > "$RUNNER_TEMP/eucg.md"
+          code=$?
+          set -e
+          [ "$code" -le 1 ] || exit "$code"
+          echo "attention=$code" >> "$GITHUB_OUTPUT"
+      - name: Comment
+        # Fork pull requests get a read-only token; the job summary still shows the result.
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" --edit-last --body-file "$RUNNER_TEMP/eucg.md" \
+            || gh pr comment "${{ github.event.pull_request.number }}" --body-file "$RUNNER_TEMP/eucg.md"
+      - name: Summary
+        run: cat "$RUNNER_TEMP/eucg.md" >> "$GITHUB_STEP_SUMMARY"
+      # Uncomment to fail the check while touchpoints are undeclared or pinned evidence changed:
+      # - if: steps.screen.outputs.attention == '1'
+      #   run: exit 1

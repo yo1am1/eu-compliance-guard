@@ -27,6 +27,7 @@ write files or run the CLI.
 | **eucg-review** | `/eucg-review` | Maps a diff to the eleven candidate families and the facts to declare. |
 | **eucg-audit** | `/eucg-audit` | Prepares declarations, runs the private report and ranks what needs attention. |
 | **eucg-next** | `/eucg-next` | Walks through the step that unblocks the most open requirements. |
+| **eucg-pr** | `/eucg-pr` | Screens a branch or PR diff for legal touchpoints; can set up the GitHub Action. |
 | **eucg-gaps** | `/eucg-gaps` | Ledger of open review gaps from the latest run. |
 | **eucg-status** | `/eucg-status` | The latest run at a glance. |
 | **eucg-help** | `/eucg-help` | This card. |
@@ -50,6 +51,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 - Exit 0: report written, possibly partial. Exit 2: invalid input or output.
 - `ground [--apply <fact>=<path>:<line>]` finds code evidence for assumed facts with a local index and pins confirmed technical facts as observed.
 - `next [--run <run dir>] [--top N] [--json]` ranks the open steps of the newest (or given) run by how many open requirements each unblocks.
+- `pr-check [--diff <file>|-] [--markdown|--json] [--strict]` screens a unified diff's added lines for legal touchpoints and compares them with the declarations.
 - `state-dir` prints (and creates, 0700) the private run storage for this project's `project_id`.
 - `view --run <run dir> [--open]` writes
   `<parent>/views/<run>.html` from a verified run (the run itself is unchanged).
