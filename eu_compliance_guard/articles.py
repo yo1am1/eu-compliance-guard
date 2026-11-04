@@ -147,19 +147,32 @@ def _is_division(classes, text: str, marked: bool) -> bool:
     return not marked and len(words) == 2 and words[0] in DIVISIONS and _numeral(words[1])
 
 
+def _follows(number: str, previous: str | None) -> bool:
+    """'2' follows '1', and '1a' or '1b' follows '1': the next heading of the same enacting terms."""
+    def split(value: str) -> tuple[int, str]:
+        letter = value[-1] if value[-1].isalpha() else ""
+        return int(value[:len(value) - len(letter)]), letter
+
+    if previous is None:
+        return False
+    (count, letter), (last, last_letter) = split(number), split(previous)
+    return count == last + 1 and not letter or count == last and letter > last_letter
+
+
 def _segment(paragraphs) -> dict[str, dict]:
     """Class-marked articles when the page has them, else paragraphs that read exactly "Article N".
 
     Only a paragraph that is just "Article N" opens an article. A marked heading that is not, such as
-    an amendment's quoted "‘Article 6a", stays text of the amending article. The first annex heading
-    or closing formula after article text ends the enacting terms: an "Article N" in a later
-    correlation table opens nothing. A number seen twice (a contents list, then the body) keeps the
+    an amendment's quoted "‘Article 6a", stays text of the amending article. An annex heading or
+    closing formula after article text ends the enacting terms unless the very next article heading
+    continues their numbering: a later correlation table or annexed agreement, which repeats or
+    jumps numbers, opens nothing. A number seen twice (a contents list, then the body) keeps the
     occurrence with the most text, the first one on a tie.
     """
     marked = any(_is_number(classes) for classes, _ in paragraphs)
     found: dict[str, list[dict]] = {}
-    current = None
-    expect_title = wrote = ended = False
+    current = previous = None
+    expect_title = wrote = ended = final = False
     for classes, text in paragraphs:
         if _is_end(classes, text):
             current, expect_title, ended = None, False, ended or wrote  # annexes belong to no article
@@ -171,9 +184,14 @@ def _segment(paragraphs) -> dict[str, dict]:
         if number is not None:
             key = f"Article {number}"
             current = None
-            if not ended and (key in found or len(found) < MAX_ARTICLES):
+            if ended and not final:
+                # The first heading after an end decides: the next number means the end was a stray marker.
+                ended = key in found or not _follows(number, previous)
+                final = ended
+            if not final and (key in found or len(found) < MAX_ARTICLES):
                 current = {"title": "", "text": ""}
                 found.setdefault(key, []).append(current)
+                previous = number
             expect_title = True
             continue
         if current is None:

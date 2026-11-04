@@ -172,6 +172,18 @@ class ArticleTests(unittest.TestCase):
                   b'<p class="oj-doc-ti">ANNEX</p><p>Fictional annexed agreement</p><p class="oj-ti-art">Article 12</p><p>X.</p>')
         self.assertEqual(a.parse(marked, "application/xhtml+xml"), only)
 
+    def test_a_stray_end_marker_inside_an_article_keeps_the_later_articles(self):
+        text = b"Article 1\nT1\n(1) the following Annex is added:\nANNEX IIIa\nList.\nArticle 2\nT2\nB2.\nArticle 3\nT3\nB3.\n"
+        self.assertEqual(list(a.parse(text, "text/plain")), ["Article 1", "Article 2", "Article 3"])
+        page = (b'<p class="oj-ti-art">Article 1</p><p class="oj-sti-art">T1</p><p>B1.</p><p class="oj-doc-ti">ANNEX IIIa'
+                b'</p><p>List.</p><p class="oj-ti-art">Article 1a</p><p class="oj-sti-art">T1a</p><p>B1a.</p>'
+                b'<p class="oj-ti-art">Article 2</p><p class="oj-sti-art">T2</p><p>B2.</p><p>Done at Fictionville.</p>'
+                b'<p class="oj-doc-ti">ANNEX</p><p class="oj-ti-art">Article 1</p><p class="oj-sti-art">Agreement</p><p>A1.</p>'
+                b'<p class="oj-ti-art">Article 3</p><p class="oj-sti-art">Agreement</p><p>A3.</p>')
+        parsed = a.parse(page, "application/xhtml+xml")
+        self.assertEqual({key: item["text"] for key, item in parsed.items()},
+                         {"Article 1": "B1.", "Article 1a": "B1a.", "Article 2": "B2."})
+
     def test_a_contents_list_does_not_empty_the_articles(self):
         text = (b"Contents\nArticle 1\nFictional subject-matter\nArticle 2\nFictional erasure\nANNEX I\n\nArticle 1\n"
                 b"Fictional subject-matter\nThis fictional Regulation lays down rules.\nArticle 2\nFictional erasure\n"
