@@ -101,7 +101,7 @@ class RunViewTests(unittest.TestCase):
 
     def test_unverified_runs_are_refused(self):
         (self.runs / "run-incomplete").mkdir()
-        for target, code in ((self.runs / "missing", "incomplete-run"), (self.runs / "run-incomplete", "incomplete-run")):
+        for target, code in ((self.runs / "missing", "unsafe-path"), (self.runs / "run-incomplete", "incomplete-run")):
             with self.subTest(code=code, target=target.name), self.assertRaises(v.ViewError) as caught:
                 v.write_view(target)
             self.assertEqual(caught.exception.code, code)
@@ -148,7 +148,7 @@ class RunViewTests(unittest.TestCase):
         stdout, stderr = io.StringIO(), io.StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):
             self.assertEqual(main(["view", "--run", str(self.runs / "PRIVATE-SECRET")]), 2)
-        self.assertIn("incomplete-run", stderr.getvalue())
+        self.assertIn("unsafe-path", stderr.getvalue())
         self.assertNotIn("PRIVATE-SECRET", stderr.getvalue() + stdout.getvalue())
 
     def test_open_with_a_relative_run_path_uses_an_absolute_uri(self):

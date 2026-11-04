@@ -500,6 +500,51 @@ class HistoryTests(unittest.TestCase):
             self.successor("wrong-project")
         self.assertEqual(caught.exception.code, "wrong-project")
 
+    def test_missing_or_empty_predecessor_path_is_not_an_incomplete_run(self):
+        # A typo names no run at all; an empty path must not fall back to the working directory.
+        for previous in (self.root / "absent", self.root / "absent/deeper", ""):
+            with self.subTest(previous=str(previous)), self.assertRaises(r.RevalidationError) as caught:
+                h.load_run(previous)
+            self.assertEqual(caught.exception.code, "unsafe-path")
+        with patch("eu_compliance_guard.sources.retrieve") as retrieve, self.assertRaises(r.RevalidationError) as caught:
+            r.run(self.input, self.root / "typo-output", previous=str(self.root / "absent"), fetch_official=True)
+        self.assertEqual(caught.exception.code, "unsafe-path")
+        retrieve.assert_not_called()
+        self.assertFalse((self.root / "typo-output").exists())
+        (self.root / "empty").mkdir()
+        with self.assertRaises(r.RevalidationError) as caught:
+            h.load_run(self.root / "empty")
+        self.assertEqual(caught.exception.code, "incomplete-run")
+
+    def test_unreadable_intact_artifacts_are_unsafe_path_not_corrupt_or_incomplete(self):
+        import os
+        read = r._read_file
+        source = next(path for path in self.snapshot if path.startswith("sources/"))
+        for name in ("complete.json", "bundle.json", source):
+            def blocked(fd, path, **options):
+                return r.FileObservation("blocked") if path == name else read(fd, path, **options)
+            with self.subTest(name=name), patch.object(r, "_read_file", blocked), \
+                    self.assertRaises(r.RevalidationError) as caught:
+                h.load_run(self.prior_path)
+            self.assertEqual(caught.exception.code, "unsafe-path")
+        bundle = self.prior_path / "bundle.json"
+        bundle.rename(self.root / "bundle-copy.json")
+        bundle.symlink_to(self.root / "bundle-copy.json")
+        with self.assertRaises(r.RevalidationError) as caught:
+            h.load_run(self.prior_path)
+        self.assertEqual(caught.exception.code, "unsafe-path")
+        bundle.unlink()
+        (self.root / "bundle-copy.json").rename(bundle)
+        if os.geteuid() != 0:  # Permission bits do not bind the superuser.
+            bundle.chmod(0)
+            try:
+                with self.assertRaises(r.RevalidationError) as caught:
+                    h.load_run(self.prior_path)
+            finally:
+                bundle.chmod(0o600)
+            self.assertEqual(caught.exception.code, "unsafe-path")
+        self.assertEqual(h.load_run(self.prior_path)[0], self.prior)
+
     def test_marker_digest_rewrites_do_not_hide_semantically_mismatched_artifacts(self):
         payload = json.loads((self.prior_path / "input.json").read_bytes())
         payload["requirements"][0]["statement"] = "FICTIONAL inconsistent artifact"

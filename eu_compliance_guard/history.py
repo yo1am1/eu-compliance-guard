@@ -3,6 +3,7 @@
 from datetime import datetime
 from pathlib import Path
 import json
+import os
 
 from . import models as m, revalidation as r
 
@@ -17,11 +18,18 @@ def load_run(path, deadline=None, sources_out=None):
     """Read only marker-listed files, with the workflow's byte and time bounds.
 
     With ``sources_out`` (a dict), digest-verified ``sources/*.bin`` bytes are copied into it.
+    A path that names no directory, or a file that cannot be opened safely (permissions,
+    symbolic links, non-regular files), is ``unsafe-path``: the run may be intact. Only an
+    existing directory without a marker is incomplete, and only failed integrity is corrupt.
     """
     r._primitives()
+    if not os.fspath(path):
+        raise r.RevalidationError("unsafe-path")  # Never fall back to the working directory.
     try:
         with r._parent(Path(path) / "complete.json") as (fd, _):
             marker_file = r._read_file(fd, "complete.json", limit=64 * 1024, retain=True, deadline=deadline)
+            if marker_file.availability == "blocked":
+                raise r.RevalidationError("unsafe-path")
             if marker_file.availability != "available":
                 raise r.RevalidationError("incomplete-run")
             marker = _parse(m.RunCompletion, marker_file.content)
@@ -33,6 +41,8 @@ def load_run(path, deadline=None, sources_out=None):
                     retain=item.path in {"input.json", "manifest.json", "bundle.json", "comparison.json"}
                     or (sources_out is not None and item.path.startswith("sources/")), deadline=deadline)
                 total += observed.size
+                if observed.availability == "blocked":
+                    raise r.RevalidationError("unsafe-path")
                 if observed.availability != "available" or observed.digest != item.digest:
                     raise r.RevalidationError("corrupt-run")
                 files[item.path] = observed
@@ -70,9 +80,8 @@ def load_run(path, deadline=None, sources_out=None):
             if sources_out is not None:
                 sources_out.update((key, item.content) for key, item in files.items() if key.startswith("sources/"))
             return bundle, files["bundle.json"].digest
-    except FileNotFoundError:
-        raise r.RevalidationError("incomplete-run") from None
     except OSError:
+        # Includes a missing run directory: a wrong path is not an incomplete run.
         raise r.RevalidationError("unsafe-path") from None
     except r.RevalidationError as error:
         if error.code in {"invalid-input", "invalid-output"}:

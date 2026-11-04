@@ -332,7 +332,7 @@ class AuthoringTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn(f"error   Fact {fact_id}: content changed but revision is still 0", stdout)
         missing = a.check(self.input, runs / "absent")
-        self.assertIn("predecessor run is unusable (incomplete-run)", missing["errors"][0]["problem"])
+        self.assertIn("predecessor run is unusable (unsafe-path)", missing["errors"][0]["problem"])
         # Another project's run is never a revision baseline: only the wrong-project error remains.
         other = json.loads(json.dumps(self.payload).replace('"project-example"', '"project-other"'))
         self.input.write_text(json.dumps(other))

@@ -186,7 +186,9 @@ Each run holds:
 - `complete.json`, which lists the exact digest of every artifact.
 
 Evidence bodies are never copied or rendered. A directory without a valid completion
-marker is incomplete; retry under a new path.
+marker is incomplete; retry under a new path. A run path that names no directory, or a
+run file that cannot be opened safely (permissions, a symbolic link), is `unsafe-path`
+instead: correct the path or the permissions, because the run itself may be intact.
 
 The report starts with what needs attention. Each reviewed deficiency or open
 question sits beside its project requirement and location, declared legal
