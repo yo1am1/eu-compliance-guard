@@ -16,17 +16,8 @@ permissions:
 
 env:
   BRANCHES: >-
-    claude/audit-fixes
-    claude/bolt-002-official-retrieval
-    claude/bolt-003-plugin-ui
-    claude/bolt-004-grounding
-    claude/ui-friendlier
-    claude/roadmap-docs
-    claude/license-agpl
-    claude/agpl-license
-    claude/roadmap-v1.5-v2
-    claude/great-audit
-    claude/prune-branches
+    claude/audit-round-2
+    claude/release-1.2.0
 
 jobs:
   prune:
