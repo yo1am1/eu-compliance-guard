@@ -225,12 +225,9 @@ class PRCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "notes.txt"
             path.write_text("health consent cookie\n")
-            out, err = io.StringIO(), io.StringIO()
-            with redirect_stdout(out), redirect_stderr(err):
-                code = main(["pr-check", "--diff", str(path), "--input", str(Path(folder) / "none.json"), "--strict"])
-            self.assertEqual(code, 2)
-            self.assertEqual(out.getvalue(), "")
-            self.assertEqual(err.getvalue(), "eu-compliance-guard: invalid-input: pr check failed\n")
+            # No declarations in that folder: a named --input would have to exist.
+            self.assertEqual(self.cli_in(folder, "pr-check", "--diff", str(path), "--strict"),
+                             (2, "", "eu-compliance-guard: invalid-input: pr check failed\n"))
 
     def test_combined_merge_diffs_screen_the_lines_the_merge_adds(self):
         # `git show <merge>`: one prefix column per parent; "+" in any column and no "-" is a result line
@@ -265,9 +262,7 @@ class PRCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "merge.diff"
             path.write_text(diff)
-            with redirect_stdout(io.StringIO()):
-                self.assertEqual(main(["pr-check", "--diff", str(path), "--input", str(Path(folder) / "none.json"),
-                                       "--strict"]), 1)
+            self.assertEqual(self.cli_in(folder, "pr-check", "--diff", str(path), "--strict")[0], 1)
 
     def test_lines_a_hunk_cannot_hold_are_refused(self):
         # Word-diff output and broken hunk headers are not unified diffs; dropping their lines would pass --strict.
@@ -326,7 +321,7 @@ class PRCheckTests(unittest.TestCase):
             code, stdout, stderr = self.cli_in(folder, "pr-check", "--diff", str(diff), "--strict",
                                                "--input", str(Path(folder) / "declaration.json"))
             self.assertEqual((code, stdout), (2, ""))
-            self.assertIn("unsafe-path", stderr)
+            self.assertIn("io-failed", stderr)  # a missing declarations file, as in every command
             # Only a clean "no such file" means absent; a folder that cannot be resolved is refused.
             (Path(folder) / ".eu-compliance-guard").symlink_to(".eu-compliance-guard")
             code, stdout, stderr = self.cli_in(folder, "pr-check", "--diff", str(diff), "--strict")

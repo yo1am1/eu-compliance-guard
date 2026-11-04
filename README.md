@@ -283,7 +283,7 @@ Repeated `--apply` values are all checked first: if one is refused, none is writ
 ### Pull-request check
 
 `pr-check` reads a unified diff (a file or standard input) and the declarations: the
-`--input` file, which must then exist, or `.eu-compliance-guard/declarations.json` if
+`--input` file, which must then exist (`io-failed` if it does not), or `.eu-compliance-guard/declarations.json` if
 present. A declarations folder it cannot read is an `unsafe-path` error, never an
 absent file. It lists the legal concepts in added lines with their candidate families, says
 whether the declarations already mention each concept, and flags code evidence or
