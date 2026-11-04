@@ -9,14 +9,20 @@ export type RunSummary = {
   gaps: number
   requirements: { supported: number; conflicting: number; unresolved: number; total: number }
   attempts: { retrieved: number; total: number }
+  // Open gaps per fixed area, most actionable first.
+  areas: { area: string; count: number }[]
+  // Assumed, unknown or conflicting facts by id; their free-text questions stay in the report.
+  questions: { id: string; basis: string }[]
 }
 
 export type NextStep = {
-  dir: string
   kind: 'retrieve' | 'fact' | 'source' | 'applicability' | 'mapping' | 'family'
   subject: string
   unblocks: number
 }
+
+// The ranked steps of one run directory.
+export type NextSteps = { dir: string; steps: NextStep[] }
 
 export type Band = {
   isActive: boolean
@@ -28,6 +34,6 @@ export type Band = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'eu-compliance-guard': { band: Band; isFolded: boolean; lastView: string | null; next: NextStep | null }
+    'eu-compliance-guard': { band: Shaped<Band>; isFolded: boolean; lastView: string | null; next: Shaped<NextSteps | null> }
   }
 }

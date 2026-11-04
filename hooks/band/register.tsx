@@ -1,16 +1,19 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Band, NextStep } from '../../types'
-import { daysOld, describeStep, parseStep, summarize } from './summary'
+import type { Band, NextSteps } from '../../types'
+import { daysOld, describeStep, parseSteps, summarize } from './summary'
 
 const LEVELS = ['lite', 'full', 'strict', 'off']
 const PROJECT_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/
 const EMPTY: Band = { isActive: false, level: 'full', stateDir: '', run: null, problem: null }
-const band = atom({ plugin: 'eu-compliance-guard', key: 'band' } as const, EMPTY)
+// Shape tags decline values an earlier version stored, which outlive a reload.
+const band = atom({ plugin: 'eu-compliance-guard', key: 'band' } as const, EMPTY, { shape: 'band-2' })
 const isFolded = atom({ plugin: 'eu-compliance-guard', key: 'isFolded' } as const, false)
 const lastView = atom({ plugin: 'eu-compliance-guard', key: 'lastView' } as const, null)
-const nextStep = atom({ plugin: 'eu-compliance-guard', key: 'next' } as const, null as NextStep | null)
+const nextSteps = atom({ plugin: 'eu-compliance-guard', key: 'next' } as const, null as NextSteps | null, { shape: 'next-2' })
+const PANE = 'eucg-panel'
+const PANE_TITLE = 'EU Compliance Guard'
 
 // The same default level the SessionStart hook reads: EUCG_DEFAULT_MODE, then the config file.
 async function readLevel($: EngineInterface, home: string): Promise<string> {
@@ -69,7 +72,7 @@ async function refresh($: EngineInterface): Promise<void> {
   }
   await update($, band, () => ({ isActive, level, stateDir, run, problem }))
   // Ranked once per run, in the background, so a slow interpreter start never holds the session.
-  if (run !== null && (await read($, nextStep))?.dir !== run.dir) void rankNext($, run.dir)
+  if (run !== null && (await read($, nextSteps))?.dir !== run.dir) void rankNext($, run.dir)
 }
 
 // Runs the plugin's own CLI: uv with the locked environment when available, else python3 on PYTHONPATH.
@@ -90,9 +93,9 @@ async function resolve($: EngineInterface, linked: string) {
 }
 
 async function rankNext($: EngineInterface, dir: string) {
-  const result = await cli($, ['next', '--run', await resolve($, dir), '--json', '--top', '1'], 60_000)
-  const step = result?.exitCode === 0 ? parseStep(dir, result.stdout) : null
-  await update($, nextStep, () => step ?? null)
+  const result = await cli($, ['next', '--run', await resolve($, dir), '--json', '--top', '3'], 60_000)
+  const steps = result?.exitCode === 0 ? parseSteps(dir, result.stdout) : null
+  await update($, nextSteps, () => steps)
 }
 
 // Plugin skills may be listed bare or under the plugin's namespace.
@@ -120,11 +123,75 @@ async function openReport($: EngineInterface, linked: string) {
   $.ui.toast(result?.stderr.includes('no-browser') ? `Report written: ${path}` : 'Report opened in your browser')
 }
 
+async function openPanel($: EngineInterface) {
+  const { isPlaced } = await $.ui.open({ id: PANE, title: PANE_TITLE })
+  if (!isPlaced) $.ui.toast('EU Compliance Guard: this surface cannot show the panel now')
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
+    await $.command.register({ name: 'eucg-panel', description: 'Show the latest EU Compliance Guard run in a side panel' })
     await refresh($)
     return started
+  })
+
+  on('command.run', { command: 'eucg-panel' }, async $ => {
+    await refresh($)
+    const { isPlaced } = await $.ui.open({ id: PANE, title: PANE_TITLE })
+    return { text: isPlaced ? 'EU Compliance Guard panel opened.' : 'This surface cannot show the panel now.' }
+  })
+
+  // The panel: the band's run plus ranked steps, owner questions and gaps by area, all fixed-format.
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+    const { Box, Button, Text } = $.ui.resolve(e)
+    const b = { ...EMPTY, ...(await read($, band)) }
+    const run = b.run
+    if (!b.isActive || run === null) {
+      return (
+        <Box flexDirection="column" gap={1}>
+          <Text dimColor>{b.isActive ? b.problem ?? 'No completed run yet.' : 'No .eu-compliance-guard/ declarations in this project.'}</Text>
+          {b.isActive ? <Button key="audit" label="Run an audit" variant="primary" onPress={() => runSkill($, 'eucg-audit')} /> : null}
+        </Box>
+      )
+    }
+    const ranked = await read($, nextSteps)
+    const steps = ranked?.dir === run.dir ? ranked.steps : null
+    const age = daysOld(run.assessmentDate, await $.clock.now())
+    const questions = run.questions ?? []
+    const areas = run.areas ?? []
+    return (
+      <Box flexDirection="column" gap={1}>
+        <Box flexDirection="column">
+          <Text bold>{run.state} · {run.gaps} gaps · {run.requirements.supported}/{run.requirements.total} requirements supported</Text>
+          <Text dimColor>run {run.id} · assessed {run.assessmentDate}{age === null ? '' : ` (${age}d ago)`}</Text>
+          {run.synthetic ? <Text color="yellow">fictional data</Text> : null}
+        </Box>
+        <Box flexDirection="column">
+          <Text bold>Next best steps</Text>
+          {steps === null ? <Text dimColor>ranking…</Text> : steps.length === 0 ? <Text dimColor>No recorded step is open.</Text> : null}
+          {(steps ?? []).map((step, index) => <Text>{`${index + 1}. ${describeStep(step)}`}</Text>)}
+          {steps && steps.length > 0 ? <Button key="next" label="Work on step 1" variant="primary" onPress={() => runSkill($, 'eucg-next')} /> : null}
+        </Box>
+        <Box flexDirection="column">
+          <Text bold>Questions for the owner ({questions.length})</Text>
+          {questions.length === 0 ? <Text dimColor>Every declared fact is declared or observed.</Text> : null}
+          {questions.slice(0, 12).map(item => <Text>{`${item.id} · ${item.basis}`}</Text>)}
+          {questions.length > 12 ? <Text dimColor>{`and ${questions.length - 12} more in the report`}</Text> : null}
+        </Box>
+        <Box flexDirection="column">
+          <Text bold>Open gaps by area</Text>
+          {areas.length === 0 ? <Text dimColor>No open gaps recorded.</Text> : null}
+          {areas.map(item => <Text>{`${item.count} · ${item.area}`}</Text>)}
+        </Box>
+        <Box flexDirection="row" gap={1}>
+          <Button key="report" label="Open report" onPress={() => openReport($, run.dir)} />
+          <Button key="gaps" label="Gaps" onPress={() => runSkill($, 'eucg-gaps')} />
+          <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
+        </Box>
+        <Text dimColor>Workflow guidance from the recorded run; not a compliance verdict.</Text>
+      </Box>
+    )
   })
 
   // A run usually finishes inside a turn (/eucg-audit), so the band rereads after each one.
@@ -156,8 +223,8 @@ export const register: Register = on => {
       )
     }
     const view = await read($, lastView)
-    const step = await read($, nextStep)
-    const stepForRun = run && step?.dir === run.dir ? step : null
+    const ranked = await read($, nextSteps)
+    const stepForRun = run && ranked?.dir === run.dir ? ranked.steps[0] ?? null : null
     // A view written for an older run must not stand for the newest run the band summarizes.
     const runName = run ? run.dir.replace(/\/+$/, '').split('/').pop() : null
     const viewForRun = view && runName && view.endsWith(`/views/${runName}.html`) ? view : null
@@ -174,13 +241,14 @@ export const register: Register = on => {
           {run ? <Text dimColor>{` · assessed ${run.assessmentDate}${age === null ? '' : ` (${age}d ago)`}`}</Text> : null}
           {run && run.attempts.total > 0 ? <Text dimColor>{` · sources ${run.attempts.retrieved}/${run.attempts.total} retrieved`}</Text> : null}
         </Text>
-        {stepForRun ? <Text color="cyan">{describeStep(stepForRun)}</Text> : null}
+        {stepForRun ? <Text color="cyan">Next: {describeStep(stepForRun)}</Text> : null}
         <Box flexDirection="row" gap={1}>
           {stepForRun ? <Button key="next" label="Next step" variant="primary" hotkey="n" onPress={() => runSkill($, 'eucg-next')} /> : null}
           <Button key="audit" label="Audit" variant={stepForRun ? undefined : 'primary'} hotkey="a" onPress={() => runSkill($, 'eucg-audit')} />
           <Button key="review" label="Review diff" hotkey="r" onPress={() => runSkill($, 'eucg-review')} />
           {run ? <Button key="gaps" label="Gaps" hotkey="g" onPress={() => runSkill($, 'eucg-gaps')} /> : null}
           {run ? <Button key="report" label="Open report" hotkey="o" onPress={() => openReport($, run.dir)} /> : null}
+          {run ? <Button key="panel" label="Panel" hotkey="p" onPress={() => openPanel($)} /> : null}
           <Button key="help" label="Help" hotkey="h" onPress={() => runSkill($, 'eucg-help')} />
         </Box>
         {viewForRun ? <Link href={`file://${viewForRun}`} label={`Report view: ${viewForRun}`} /> : null}

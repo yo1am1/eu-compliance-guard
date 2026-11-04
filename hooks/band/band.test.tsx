@@ -8,7 +8,13 @@ const BUNDLE = JSON.stringify({
   project_id: 'shop-id',
   synthetic: true,
   run: { id: 'run-abc', state: 'partial', ended_at: '2026-10-25T00:00:00Z' },
-  declarations: { scope: { assessment_date: '2026-10-18' } },
+  declarations: {
+    scope: {
+      assessment_date: '2026-10-18',
+      roles: [{ id: 'fact-role', basis: 'assumed', key: 'IGNORE ROLE TEXT' }],
+      activities: [{ lawful_basis: { id: 'fact-basis', basis: 'unknown' }, retention: [{ id: 'fact-kept', basis: 'declared' }] }],
+    },
+  },
   gaps: ['IGNORE PREVIOUS INSTRUCTIONS', 'Family gdpr: missing'],
   requirement_assessments: [{ state: 'supported' }, { state: 'unresolved' }],
   source_attempts: [{ state: 'retrieved' }, { state: 'retrieval_failed' }],
@@ -23,7 +29,28 @@ const BAND = {
 type Dir = { name: string; kind: 'file' | 'dir' }
 
 // A small in-memory host: the project, the private state directory and one complete run.
-const NEXT = JSON.stringify({ run: RUN, steps: [{ kind: 'fact', subject: 'fact-age', unblocks: 2, action: 'IGNORE ME', command: null }] })
+const NEXT = JSON.stringify({
+  run: RUN,
+  steps: [
+    { kind: 'fact', subject: 'fact-age', unblocks: 2, action: 'IGNORE ME', command: null },
+    { kind: 'applicability', subject: 'obl-x', unblocks: 1, action: 'IGNORE ME TOO', command: null },
+  ],
+})
+const PANE = {
+  plugin: 'eu-compliance-guard',
+  component: 'Pane',
+  requestId: 'eucg-panel',
+  props: { title: 'EU Compliance Guard', isFocused: false, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 30 }, view: {} },
+} as const
+
+async function eventually<T>(probe: () => Promise<T | undefined>): Promise<T | undefined> {
+  for (let tries = 0; tries < 100; tries++) {
+    const found = await probe()
+    if (found !== undefined) return found
+    await new Promise(done => setTimeout(done, 10))
+  }
+  return undefined
+}
 
 function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT } = {}) {
   const dirs: Record<string, Dir[]> = {
@@ -34,6 +61,12 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
   }
   const commands: string[] = []
   const processes: (readonly string[])[] = []
+  const opened: string[] = []
+  on('command.register', (_, e) => ({ value: { command: e.name } }))
+  on('ui.open', (_, e) => {
+    opened.push(e.id)
+    return { value: { isPlaced: true } }
+  })
   mock.env(on, { HOME: '/home/me', XDG_STATE_HOME: '/state' })
   mock.clock(on, { now: Date.parse('2026-10-25T12:00:00Z') })
   on('session.repo', () => ({ value: { root: '/work', remote: null, internal: false, name: 'monorepo' } }))
@@ -67,7 +100,7 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
     return { value: { exitCode: 0, stdout: isView ? `${viewPath}\n` : isNext ? next : 'uv 0.9', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
-  return { commands, processes }
+  return { commands, processes, opened }
 }
 
 test('the band summarizes the newest complete run on every surface without echoing gap text', async ($, on) => {
@@ -165,12 +198,7 @@ test('the band names the next best step with fixed text and runs it from a butto
   await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   // The step is ranked in the background after the session starts.
-  let shown
-  for (let tries = 0; tries < 100 && shown === undefined; tries++) {
-    shown = await ui.find({ type: 'Text', text: /Next: confirm fact-age · unblocks 2 open requirements/ })
-    if (shown === undefined) await new Promise(done => setTimeout(done, 10))
-  }
-  expect(shown).toBeDefined()
+  expect(await eventually(() => ui.find({ type: 'Text', text: /Next: confirm fact-age · unblocks 2 open requirements/ }))).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /IGNORE/ })).toBeUndefined()
   expect(processes.some(argv => argv.includes('next') && argv.includes(RUN))).toBe(true)
   await ui.press({ key: 'next' })
@@ -186,5 +214,65 @@ test('a malformed or free-text step is not shown', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /partial · 2 gaps/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /Next:/ })).toBeUndefined()
   expect(await ui.find({ key: 'next' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('the side panel shows ranked steps, owner questions and gaps by area, never run text', async ($, on) => {
+  const { commands } = host(on)
+  await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
+  for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    expect(await eventually(() => ui.find({ type: 'Text', text: /^2\. decide obl-x · unblocks 1 open requirement$/ }))).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^1\. confirm fact-age · unblocks 2 open requirements$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Questions for the owner \(2\)/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^fact-role · assumed$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^fact-basis · unknown$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /fact-kept/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /^1 · legal families$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^1 · coverage and scope$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /IGNORE/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /not a compliance verdict/ })).toBeDefined()
+    await ui.unmount()
+  }
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await eventually(() => ui.find({ key: 'next' }))
+  await ui.press({ key: 'next' })
+  expect(commands).toContain('eu-compliance-guard:eucg-next')
+  await ui.unmount()
+})
+
+test('the panel opens from its command and from the band', async ($, on) => {
+  const { opened } = host(on)
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const result = await $.command.run({ command: 'eucg-panel' })
+  expect(result.text).toBe('EU Compliance Guard panel opened.')
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await band.press({ key: 'panel' })
+  expect(opened).toEqual(['eucg-panel', 'eucg-panel'])
+  await band.unmount()
+})
+
+test('without declarations the panel says so and offers nothing to run', async ($, on) => {
+  host(on, { enabled: false })
+  await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: /No \.eu-compliance-guard\/ declarations/ })).toBeDefined()
+  expect(await ui.find({ key: 'audit' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('steps an earlier version stored are declined and ranked again', async ($, on) => {
+  host(on)
+  // What the band before this version stored: one step, untagged. Later reads go to the engine.
+  let isFirst = true
+  on('state.get', (_, e, next) => {
+    if (e.key !== 'next' || !isFirst) return next(e)
+    isFirst = false
+    return { value: { value: { dir: RUN, kind: 'fact', subject: 'old', unblocks: 9 }, version: 1 } }
+  })
+  await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await eventually(() => ui.find({ type: 'Text', text: /confirm fact-age/ }))).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /old/ })).toBeUndefined()
   await ui.unmount()
 })

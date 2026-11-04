@@ -36,7 +36,9 @@ write files or run the CLI.
 
 In Claude Code (terminal or desktop app), a band above the prompt shows the latest
 run: state, gaps, supported requirements, assessment age and the next best step. It
-has buttons for Next step, Audit, Review diff, Gaps, Open report and Help, plus `–` to fold it. Open report
+has buttons for Next step, Audit, Review diff, Gaps, Open report, Panel and Help, plus `–` to fold it.
+Panel (or `/eucg-panel`) opens a side pane with the top three steps, the facts still to
+confirm and open gaps by area. Open report
 writes a static HTML view of the verified run and opens it in your browser.
 
 ## CLI

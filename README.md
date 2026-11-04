@@ -46,15 +46,21 @@ In your project:
 | `/eucg-pr [target]` | Screens a branch or PR diff for legal touchpoints; can set up the GitHub Action |
 | `/eucg-gaps` | Ledger of open review gaps from the latest run |
 | `/eucg-status` | The latest run at a glance |
+| `/eucg-panel` | Opens the side panel with the latest run's next steps, owner questions and gaps by area |
 | `/eucg-help` | Reference card |
 
 **Band above the prompt.** This needs Claude Code 2.1.290 or later, in the terminal or
 the desktop app. In projects with `.eu-compliance-guard/`, it shows the latest run's
 state, open gaps, supported requirements, assessment-date age and source attempts, plus
 the next best step (for example `Next: confirm fact-minimum-age · unblocks 2 open
-requirements`). It has **Next step**, **Audit**, **Review diff**, **Gaps**, **Open report**
-and **Help** buttons, and `–` folds it to one line. It shows counts and fixed-format
-fields only, never gap text.
+requirements`). It has **Next step**, **Audit**, **Review diff**, **Gaps**, **Open report**,
+**Panel** and **Help** buttons, and `–` folds it to one line. It shows counts and
+fixed-format fields only, never gap text.
+
+**Side panel.** **Panel** (or `/eucg-panel`) opens a pane beside the chat, docked in
+the desktop app and in a wide fullscreen terminal. It shows the top three next steps,
+the facts the owner still has to confirm (by id), and open gaps counted by area, with
+buttons to work on step 1, open the report, list gaps or refresh.
 
 **Open report** writes a static HTML view of the verified run and opens it in your
 browser. The page has no scripts, loads nothing and escapes every value. When the run

@@ -1,4 +1,4 @@
-import type { NextStep, RunSummary } from '../../types'
+import type { NextStep, NextSteps, RunSummary } from '../../types'
 
 const SAFE = /^[A-Za-z0-9][A-Za-z0-9_.:+-]{0,127}$/
 
@@ -7,6 +7,46 @@ const safe = (value: unknown) => (typeof value === 'string' && SAFE.test(value) 
 
 const count = (items: unknown, field: string, value: string) =>
   Array.isArray(items) ? items.filter(item => item !== null && typeof item === 'object' && item[field] === value).length : 0
+
+// Gap prefixes the report groups by, in its order; anything else is coverage.
+export const AREAS = [
+  ['Requirement', 'requirements'], ['Obligation', 'obligations'], ['Historical', 'changed since previous run'],
+  ['Source target', 'source targets'], ['Source', 'selected sources'], ['Evidence', 'evidence'], ['Fact', 'facts'],
+  ['Family', 'legal families'],
+] as const
+
+function areas(gaps: unknown): { area: string; count: number }[] {
+  const counts = new Map<string, number>()
+  for (const gap of Array.isArray(gaps) ? gaps : []) {
+    if (typeof gap !== 'string') continue
+    const found = AREAS.find(([prefix]) => gap.startsWith(`${prefix} `))
+    const area = found ? found[1] : 'coverage and scope'
+    counts.set(area, (counts.get(area) ?? 0) + 1)
+  }
+  const order = [...AREAS.map(([, area]) => area as string), 'coverage and scope']
+  return order.filter(area => counts.has(area)).map(area => ({ area, count: counts.get(area)! }))
+}
+
+// The same explicit fact occurrences as models.scope_facts, by id and basis only.
+function questions(scope: any): { id: string; basis: string }[] {
+  const list = (value: unknown) => (Array.isArray(value) ? value : [])
+  const facts = [...list(scope?.roles), ...list(scope?.size_and_sector)]
+  for (const activity of list(scope?.activities)) {
+    facts.push(activity?.lawful_basis, ...list(activity?.roles), ...list(activity?.recipients),
+      ...list(activity?.locations), ...list(activity?.stores), ...list(activity?.retention))
+  }
+  const seen = new Set<string>()
+  const found = []
+  for (const fact of facts) {
+    if (fact === null || typeof fact !== 'object') continue
+    const open = fact.basis === 'assumed' || fact.basis === 'unknown' || (Array.isArray(fact.conflicts) && fact.conflicts.length > 0)
+    const id = safe(fact.id)
+    if (!open || id === 'unrecorded' || seen.has(id)) continue
+    seen.add(id)
+    found.push({ id, basis: fact.basis === 'assumed' || fact.basis === 'unknown' ? fact.basis : 'conflicting' })
+  }
+  return found.slice(0, 50)
+}
 
 // Parses a run's bundle.json text into the band's summary; null when it is not a bundle.
 export function summarize(dir: string, text: string): RunSummary | null {
@@ -35,6 +75,8 @@ export function summarize(dir: string, text: string): RunSummary | null {
       total: requirements.length,
     },
     attempts: { retrieved: count(attempts, 'state', 'retrieved'), total: attempts.length },
+    areas: areas(bundle.gaps),
+    questions: questions(bundle.declarations?.scope),
   }
 }
 
@@ -46,20 +88,23 @@ export function daysOld(date: string, nowMs: number): number | null {
 
 const KINDS = ['retrieve', 'fact', 'source', 'applicability', 'mapping', 'family'] as const
 
-// Parses `next --json` output into a fixed-format step; free-text actions never reach the band.
-export function parseStep(dir: string, text: string): NextStep | null {
+// Parses `next --json` output into fixed-format steps; free-text actions never reach the band.
+export function parseSteps(dir: string, text: string): NextSteps | null {
   let value: any
   try {
     value = JSON.parse(text)
   } catch {
     return null
   }
-  const step = Array.isArray(value?.steps) ? value.steps[0] : undefined
-  if (step === undefined || step === null || typeof step !== 'object') return null
-  if (!KINDS.includes(step.kind)) return null
-  const subject = step.subject === '' ? '' : SAFE.test(step.subject ?? '') ? step.subject : null
-  if (subject === null || !Number.isInteger(step.unblocks) || step.unblocks < 0 || step.unblocks > 100_000) return null
-  return { dir, kind: step.kind, subject, unblocks: step.unblocks }
+  if (!Array.isArray(value?.steps)) return null
+  const steps: NextStep[] = []
+  for (const step of value.steps.slice(0, 5)) {
+    if (step === null || typeof step !== 'object' || !KINDS.includes(step.kind)) return null
+    const subject = step.subject === '' ? '' : SAFE.test(step.subject ?? '') ? step.subject : null
+    if (subject === null || !Number.isInteger(step.unblocks) || step.unblocks < 0 || step.unblocks > 100_000) return null
+    steps.push({ kind: step.kind, subject, unblocks: step.unblocks })
+  }
+  return { dir, steps }
 }
 
 export function describeStep(step: NextStep): string {
@@ -71,5 +116,5 @@ export function describeStep(step: NextStep): string {
     mapping: `map ${step.subject}`,
     family: 'screen legal families',
   }[step.kind]
-  return `Next: ${what} · unblocks ${step.unblocks} open requirement${step.unblocks === 1 ? '' : 's'}`
+  return `${what} · unblocks ${step.unblocks} open requirement${step.unblocks === 1 ? '' : 's'}`
 }
