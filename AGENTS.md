@@ -29,6 +29,8 @@ not an operational compliance audit.
 - Before committing, verify both the effective author and committer are Yehor Trepalin
   (`yo1am1`), using `110065476+yo1am1@users.noreply.github.com`. Configure this locally
   in this repository; do not change the laptop's global Git identity.
+- Commits are unsigned: set `commit.gpgsign false` locally. Never sign with a key that
+  is not registered to the Owner's GitHub account (it shows as Unverified).
 - Do not add `Co-authored-by` or agent session trailers (such as `Claude-Session`)
   to commit messages. The user is the sole author and committer.
 - Preserve unrelated work. Do not amend, force-push, or rewrite published history
