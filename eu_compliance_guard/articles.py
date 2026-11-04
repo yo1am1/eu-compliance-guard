@@ -180,7 +180,7 @@ def _segment(paragraphs) -> dict[str, dict]:
 
 
 def _tidy(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
+    return " ".join(text.split())
 
 
 def parse(content: bytes, media_type: str) -> dict[str, dict]:
