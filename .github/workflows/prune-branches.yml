@@ -1,0 +1,50 @@
+name: Prune branches
+
+# Deletes the listed branches once their work is merged or replaced. Runs when this file
+# changes on main, or by hand. Idempotent: a missing branch is skipped. It never deletes
+# the default branch or a branch with an open pull request. Change BRANCHES for the next
+# clean-up.
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/prune-branches.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+env:
+  BRANCHES: >-
+    claude/audit-fixes
+    claude/bolt-002-official-retrieval
+    claude/bolt-003-plugin-ui
+    claude/bolt-004-grounding
+    claude/ui-friendlier
+    claude/roadmap-docs
+    claude/license-agpl
+    claude/agpl-license
+    claude/roadmap-v1.5-v2
+    claude/great-audit
+    claude/prune-branches
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the listed branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          default=$(gh api "repos/$GH_REPO" --jq .default_branch)
+          for branch in $BRANCHES; do
+            if [ "$branch" = "$default" ]; then echo "refused: $branch is the default branch"; continue; fi
+            open=$(gh pr list --head "$branch" --state open --json number --jq length)
+            if [ "$open" != "0" ]; then echo "kept: $branch has an open pull request"; continue; fi
+            if gh api -X DELETE "repos/$GH_REPO/git/refs/heads/$branch" >/dev/null 2>&1; then
+              echo "deleted: $branch"
+            else
+              echo "skipped: $branch (missing or protected)"
+            fi
+          done
