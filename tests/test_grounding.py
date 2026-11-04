@@ -101,6 +101,30 @@ class GroundingTests(unittest.TestCase):
         code, _, stderr = self.cli("ground", "--input", str(self.declarations), "--apply", "fact-cookie-basis=app/web.py:2")
         self.assertEqual((code, "not-observable" in stderr), (2, True))
 
+    def test_apply_replaces_a_planted_temp_symlink_instead_of_writing_through_it(self):
+        victim = Path(self.temporary.name) / "victim.txt"
+        victim.write_text("untouched")
+        (self.declarations.parent / ".declarations.json.tmp").symlink_to(victim)
+        g.apply(self.declarations, "fact-cookie-lifetime", "app/web.py:2")
+        self.assertEqual(victim.read_text(), "untouched")
+        self.assertFalse(self.declarations.is_symlink())
+        self.assertFalse((self.declarations.parent / ".declarations.json.tmp").exists())
+
+    def test_a_bare_relative_input_still_indexes_the_project(self):
+        import os
+        previous = os.getcwd()
+        os.chdir(self.declarations.parent)
+        self.addCleanup(os.chdir, previous)
+        report = g.ground("declarations.json")
+        self.assertEqual(Path(report["root"]), self.project.resolve())
+        self.assertEqual(report["files"], len(CODE))
+
+    def test_oversized_files_are_skipped_without_reading_them_whole(self):
+        (self.project / "dump.sql").write_bytes(b"cookie " * (g.MAX_FILE_BYTES // 7 + 10))
+        index = g.build_index(self.project)
+        self.assertNotIn("dump.sql", index.digests)
+        self.assertEqual(index.skipped, 1)
+
     def test_grounded_fact_closes_its_gap_until_the_code_changes(self):
         runs = Path(self.temporary.name) / "runs"
         runs.mkdir(mode=0o700)

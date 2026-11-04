@@ -106,8 +106,8 @@ def build_index(root: Path) -> Index:
             if len(index.digests) >= MAX_FILES or total >= MAX_TOTAL_BYTES:
                 index.skipped += 1
                 continue
-            raw = path.read_bytes()
-            if len(raw) > MAX_FILE_BYTES or b"\0" in raw[:4096]:
+            raw = _read_capped(path)
+            if raw is None or b"\0" in raw[:4096]:
                 index.skipped += 1
                 continue
             try:
@@ -158,7 +158,20 @@ def search(index: Index, query: list[str], top: int = 3, k1: float = 1.2, b: flo
              "snippet": line.text, "digest": index.digests[line.path]} for score, line in scored[:top]]
 
 
+def _read_capped(path: Path) -> bytes | None:
+    """At most MAX_FILE_BYTES of a regular file, never followed through a symlink; None when larger."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    except OSError:
+        return None
+    with os.fdopen(fd, "rb") as handle:
+        raw = handle.read(MAX_FILE_BYTES + 1)
+    return None if len(raw) > MAX_FILE_BYTES else raw
+
+
 def _declarations(path: Path) -> tuple[m.RevalidationInput, Path]:
+    # Absolute first: the parent of a bare "declarations.json" is the current directory, not "..".
+    path = Path(os.path.abspath(path))
     declared = r.load_input(path)
     root = path.parent.parent if declared.files_root == "project" else path.parent
     return declared, Path(os.path.realpath(root))
@@ -254,7 +267,9 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
     target = root / relative
     if target.is_symlink() or not target.is_file() or os.path.realpath(target) != str(target):
         raise GroundingError("bad-location")
-    raw = target.read_bytes()
+    raw = _read_capped(target)
+    if raw is None:
+        raise GroundingError("bad-location")
     text_lines = raw.decode("utf-8", errors="replace").splitlines()
     if not 1 <= int(number) <= len(text_lines):
         raise GroundingError("bad-location")
@@ -263,7 +278,11 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
         raise GroundingError("unrelated-line")
     now = now or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     digest = m.content_digest(raw)
-    data = json.loads(path.read_text(encoding="utf-8"))
+    with r._parent(path) as (parent_fd, name):
+        observed = r._read_file(parent_fd, name, limit=m.MAX_REQUEST_BYTES, retain=True)
+    if observed.availability != "available":
+        raise r.RevalidationError("unsafe-path")
+    data = json.loads(observed.content)
     evidence_id = "evidence-code-" + hashlib.sha256(relative.encode()).hexdigest()[:16]
     selected = next((item for item in data.setdefault("evidence", []) if item["evidence"]["id"] == evidence_id), None)
     if selected is None:
@@ -290,9 +309,17 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
                         evidence_ids=sorted(set(copy.get("evidence_ids", [])) | {evidence_id}))
     _bump_pins(data, revisions)
     record = m.RevalidationInput.model_validate(data)
-    temporary = path.with_name("." + path.name + ".tmp")
-    temporary.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
+    content = (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+    with r._parent(path) as (parent_fd, name):
+        # Created exclusively without following links, so a planted temp symlink is replaced, never written through.
+        temporary = "." + name + ".tmp"
+        try:
+            os.unlink(temporary, dir_fd=parent_fd)
+        except FileNotFoundError:
+            pass
+        r._write(parent_fd, temporary, content, float("inf"))
+        os.replace(temporary, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+        os.fsync(parent_fd)
     return record
 
 
