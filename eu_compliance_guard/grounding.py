@@ -343,7 +343,9 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
     if fact.id in not_observable(declared.scope):
         raise GroundingError("not-observable")
     relative, _, number = location.rpartition(":")
-    if not relative or not number.isdigit():
+    # ASCII decimal without leading zeros, as ground prints it: str.isdigit() alone also accepts
+    # other scripts' digits and superscripts, which would store one line under several refs.
+    if not relative or not (number.isascii() and number.isdigit()) or number.startswith("0"):
         raise GroundingError("bad-location")
     try:
         m.SourceFile(path=relative, digest="sha256:" + "0" * 64)

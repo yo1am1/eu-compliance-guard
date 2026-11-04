@@ -187,6 +187,18 @@ class GroundingTests(unittest.TestCase):
         self.assertEqual((code, "io-failed" in stderr), (2, True))
         self.assertEqual((self.declarations.read_bytes(), stat.S_IMODE(self.declarations.stat().st_mode)), (before, 0o444))
 
+    def test_apply_accepts_only_plain_ascii_line_numbers(self):
+        before = self.declarations.read_bytes()
+        for number in ("٢", "２", "²", "02", "+2", " 2", "2 ", "2.0", "0", ""):
+            with self.subTest(number=number):
+                with self.assertRaises(g.GroundingError) as caught:
+                    g.apply(self.declarations, "fact-cookie-lifetime", f"app/web.py:{number}")
+                self.assertEqual(caught.exception.code, "bad-location")
+                code, _, stderr = self.cli("ground", "--input", str(self.declarations),
+                                           "--apply", f"fact-cookie-lifetime=app/web.py:{number}")
+                self.assertEqual((code, "bad-location" in stderr), (2, True))
+        self.assertEqual(self.declarations.read_bytes(), before)
+
     def test_apply_replaces_a_planted_temp_symlink_instead_of_writing_through_it(self):
         victim = Path(self.temporary.name) / "victim.txt"
         victim.write_text("untouched")
