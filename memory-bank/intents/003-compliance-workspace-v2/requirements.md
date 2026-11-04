@@ -182,3 +182,50 @@ Priorities, in order: **security, then determinism, then features.**
 
 Inception continues now: units, stories and bolts follow the specsmd flow, as for
 [1.5](../002-trustworthy-guidance-v1-5/requirements.md).
+
+## F. Project graph (Owner, 2026-11-05; approved for 2.0)
+
+A Graphify-style project graph, built by hand and deterministic. It links code to the
+law, so audits rest on code paths instead of single matching lines. The design takes
+Graphify's flow and leaves out its LLM extraction and its dependencies.
+
+**Layers (one graph, one digest per run):**
+
+1. **Code.** Files, functions, classes, imports, calls, field reads, and data flowing
+   into network, storage or model calls. Parsed with the standard library (`ast`), so
+   Python comes first. Other languages arrive later as an optional, pinned parser.
+   Node ids are a hash of the path and the qualified name, and edges are sorted.
+2. **Meaning.** Nodes are tagged from the fixed concept vocabulary: personal data,
+   special categories, children, tracking, consent, marketing, AI, payments. An
+   optional, consented model pass may only add edges marked as candidates.
+3. **Law.** Facts, obligations, articles (pinned official text) and evidence, linked
+   to the code nodes they pin.
+
+**Edge provenance,** following Graphify: `extracted` (parsed from code), `inferred`
+(a candidate) or `ambiguous`. Only extracted edges can confirm a fact. Inferred edges
+only propose one.
+
+| ID | Requirement | Priority |
+|---|---|---|
+| FR-G1 | **`graph` command.** Builds the project graph from the files root, read-only and without following links, and writes `graph.json` with its digest into the run. The same files always give a byte-identical graph. | Must |
+| FR-G2 | **Path evidence.** `ground` can confirm a fact with a path: a chain of `file:line` hops, such as a health field reaching a model call. Each hop is extracted. | Must |
+| FR-G3 | **Hybrid search.** Candidates are ranked by BM25 plus closeness in the graph, fused by reciprocal rank. The result is deterministic and explained: each candidate names its terms and its path. | Must |
+| FR-G4 | **Graph-aware `pr-check`.** A diff that touches any node on a pinned path reopens exactly the facts and obligations that depend on it. | Must |
+| FR-G5 | **Uncovered flows.** A tagged flow that no fact covers, for example health data reaching a model call, is listed as a review gap. It is never treated as a finding, and an empty graph is never treated as compliant. | Must |
+| FR-G6 | **Graph view.** A self-contained HTML view with no external requests and a fixed layout. Navigation runs from an article to its obligations, facts and code paths. It filters by concept and highlights what a diff touched. The React dashboard reads the same `graph.json`. | Should |
+| FR-G7 | **Review hints.** Clusters and the most-connected nodes, such as "this module handles most personal data", shown as hints to review and never as findings. | Could |
+| FR-G8 | **Graphify import.** An optional import of Graphify's `graph.json` as untrusted evidence. Its edges count as candidates only. | Could |
+| FR-G9 | **Measured.** Graph features ship only with before/after top-1 and top-3 numbers on the 1.5 evaluation set (bolt 005) and a graph corpus of synthetic projects. | Must |
+
+**Non-functional:**
+
+- Standard library plus Pydantic only.
+- Building the graph for 60k lines of Python takes under 10 s, and an unchanged file
+  is never parsed again.
+- The graph contract is generated from `models.py`.
+- No code is executed or imported while parsing.
+- Static analysis misses dynamic calls, so every path is labelled a possible path.
+
+**Pairing with the law lockfile:** the lockfile pins the law and the graph digest pins
+the code. When either moves, only the decisions that depend on the changed articles or
+nodes reopen.
