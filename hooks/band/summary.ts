@@ -5,6 +5,9 @@ const SAFE = /^[A-Za-z0-9][A-Za-z0-9_.:+-]{0,127}$/
 // Fixed-format fields only: run data never reaches the band as free text.
 const safe = (value: unknown) => (typeof value === 'string' && SAFE.test(value) ? value : 'unrecorded')
 
+// A completed run's processing state is one of the terminal states, as in models.TERMINAL_RUN_STATES.
+const RUN_STATES = ['completed', 'partial', 'cancelled', 'interrupted']
+
 const count = (items: unknown, field: string, value: string) =>
   Array.isArray(items) ? items.filter(item => item !== null && typeof item === 'object' && item[field] === value).length : 0
 
@@ -64,7 +67,7 @@ export function summarize(dir: string, text: string): RunSummary | null {
     dir,
     projectId: safe(bundle.project_id),
     id: safe(bundle.run.id),
-    state: safe(bundle.run.state),
+    state: RUN_STATES.includes(bundle.run.state) ? bundle.run.state : 'unrecorded',
     endedAt: safe(bundle.run.ended_at),
     assessmentDate: safe(bundle.declarations?.scope?.assessment_date),
     synthetic: bundle.synthetic === true,

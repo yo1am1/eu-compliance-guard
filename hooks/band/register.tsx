@@ -196,7 +196,7 @@ export const register: Register = on => {
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
           <Text bold>{summaryLine(run, b.previousGaps ?? null)}</Text>
-          <Text dimColor>run {run.id} · assessed {run.assessmentDate}{age === null ? '' : ` (${age}d ago)`}</Text>
+          <Text dimColor>run {run.id} · state {run.state} · assessed {run.assessmentDate}{age === null ? '' : ` (${age}d ago)`}</Text>
           {run.synthetic ? <Text color="yellow">fictional data</Text> : null}
         </Box>
         <Box flexDirection="column">
@@ -269,6 +269,7 @@ export const register: Register = on => {
         </Box>
         <Text>
           {status}
+          {run ? <Text dimColor>{` · state ${run.state}`}</Text> : null}
           {run ? <Text dimColor>{` · assessed ${run.assessmentDate}${age === null ? '' : ` (${age}d ago)`}`}</Text> : null}
           {run && run.attempts.total > 0 ? <Text dimColor>{` · sources ${run.attempts.retrieved}/${run.attempts.total} retrieved`}</Text> : null}
         </Text>

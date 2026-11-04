@@ -123,6 +123,26 @@ test('the band summarizes the newest complete run on every surface without echoi
   }
 })
 
+test('the band and the panel show the run processing state from a fixed set', async ($, on) => {
+  host(on)
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await band.find({ type: 'Text', text: ' · state partial' })).toBeDefined()
+  await band.unmount()
+  const pane = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await pane.find({ type: 'Text', text: 'run run-abc · state partial · assessed 2026-10-18' })).toBeDefined()
+  await pane.unmount()
+})
+
+test('a run state outside the terminal states is shown as unrecorded', async ($, on) => {
+  host(on, { bundle: BUNDLE.replace('"partial"', '"verified-compliant"') })
+  await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await band.find({ type: 'Text', text: ' · state unrecorded' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: 'compliant' })).toBeUndefined()
+  await band.unmount()
+})
+
 test('buttons run the plugin skills and the report view through the plugin CLI', async ($, on) => {
   const { commands, processes } = host(on)
   await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })
