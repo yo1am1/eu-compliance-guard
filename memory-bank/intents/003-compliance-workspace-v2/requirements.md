@@ -124,5 +124,36 @@ per environment.
   or the service later) and one for evidence collection, so new backends do not change
   the records.
 
-Inception continues once the landscape research is folded in: units, stories and bolts
+## Landscape research (2026-11-04)
+
+[Full report](../../../docs/v2-landscape-research.md): five agents surveyed privacy
+scanners, law-as-code, AI Act tools, GRC platforms and agent/PR tools on GitHub.
+Star counts and dates come from the surveys and were not checked again.
+
+**Findings:**
+- No maintained, fully open, offline tool exists in this space.
+- Every code-aware tool gives a verdict or a score.
+- None pins official text, turns a law change into reopened decisions, or checks the
+  citations that agents write.
+
+**Unique bets proposed:**
+
+1. A law lockfile (`eu-law.lock`) that pins act versions and article digests.
+2. Law-change impact: when the lock moves, reopen only the reviews that cite a changed
+   article.
+3. Signed decisions bound to the law version, evidence hashes and commit.
+4. A citation guard for agent-written text, also served as MCP tools.
+5. A cross-regime PR screen with quoted articles.
+6. Import-only evidence (SARIF from code scanners, EDPS Website Evidence Collector).
+7. An application-date timeline quoted from the text.
+
+**Open questions for the Owner.** The research recommends these changes to the decisions
+above:
+- **Packs:** ship only the signed pack *format* in 2.0, with no lawyer-reviewed content
+  yet, because of liability and maintenance cost.
+- **Scanners:** import the EDPS collector's results (the format regulators use) instead
+  of building our own scanner.
+- **Dashboard and review queue:** defer them, and export to existing GRC tools instead.
+
+Inception continues once these are settled: units, stories and bolts
 follow the specsmd flow, as for [1.5](../002-trustworthy-guidance-v1-5/requirements.md).
