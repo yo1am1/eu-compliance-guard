@@ -86,6 +86,15 @@ def _is_title(classes) -> bool:
     return any(name.endswith("sti-art") for name in classes)
 
 
+# Upper-case "ANNEX" headings only: body text such as "Annex III shall apply" stays in its article.
+END = re.compile(r"^(?:ANNEX(?:\s+[IVXLC\d]+)?$|Done at\b)")
+
+
+def _is_end(classes, text: str) -> bool:
+    """An annex heading or "Done at …" closes the last article."""
+    return any(name.endswith("doc-ti") for name in classes) or bool(END.match(text))
+
+
 def _segment(paragraphs) -> dict[str, dict]:
     """Class-marked articles when the page has them, else paragraphs that read exactly "Article N"."""
     marked = any(_is_number(classes) for classes, _ in paragraphs)
@@ -93,6 +102,9 @@ def _segment(paragraphs) -> dict[str, dict]:
     current = None
     expect_title = False
     for classes, text in paragraphs:
+        if _is_end(classes, text):
+            current, expect_title = None, False  # annexes and the closing formula belong to no article
+            continue
         match = ARTICLE_ONLY.match(text)
         if (_is_number(classes) if marked else match is not None):
             match = match or ARTICLE.match(text)
@@ -136,8 +148,12 @@ def parse(content: bytes, media_type: str) -> dict[str, dict]:
         for line in text.splitlines():
             # Only a line that is just "Article N" opens an article; "Article 6(1) applies" is a reference.
             match = ARTICLE_ONLY.match(line.strip())
-            if match and len(articles) < MAX_ARTICLES:
-                current = articles.setdefault(f"Article {match.group(1)}", {"title": "", "text": ""})
+            if _is_end((), line.strip()):
+                current = None
+            elif match:
+                # A repeated number (an annex correlation table) never reopens an article.
+                key = f"Article {match.group(1)}"
+                current = None if key in articles or len(articles) >= MAX_ARTICLES else articles.setdefault(key, {"title": "", "text": ""})
             elif current is not None:
                 if not current["title"] and line.strip():
                     current["title"] = _tidy(line)
@@ -164,6 +180,15 @@ def _terms(text: str) -> list[str]:
     return [_stem(term) for term in tokens(text)]
 
 
+def _inflections(word: str) -> set[str]:
+    stem = word[:-1] if word.endswith("e") else word
+    return {word, word + "s", word + "es", word + "d", word + "ed", stem + "ed", stem + "ing", stem + "ion", stem + "ions"}
+
+
+# The bridge also answers inflected forms: "deleted", "cookies", "providers", "encrypted".
+INFLECTED_TERMS = {form: value for key, value in LEGAL_TERMS.items() for form in _inflections(key)}
+
+
 def _query(statement: str) -> dict[str, float]:
     """Statement terms at 1.0 plus their legal-vocabulary counterparts at 0.8, all stemmed."""
     query = [term for term in tokens(re.sub(r"\(code:[^)]*\)", " ", statement)) if term not in NOISE]
@@ -171,7 +196,7 @@ def _query(statement: str) -> dict[str, float]:
     for term in query:
         weights[_stem(term)] = 1.0
     for term in query:
-        for legal in LEGAL_TERMS.get(term, "").split():
+        for legal in (LEGAL_TERMS.get(term) or INFLECTED_TERMS.get(term, "")).split():
             weights[_stem(legal)] = max(weights.get(_stem(legal), 0.0), 0.8)
     return weights
 
