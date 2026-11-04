@@ -93,7 +93,7 @@ def _is_text(path: Path) -> bool:
     return path.name in TEXT_NAMES or "".join(path.suffixes[-2:]) in TEXT_SUFFIXES or path.suffix in TEXT_SUFFIXES
 
 
-def build_index(root: Path) -> Index:
+def build_index(root: Path, exclude: frozenset[str] = frozenset()) -> Index:
     """Read text files below root without following symlinks; bounded by file count and bytes."""
     index = Index(root=root)
     total = 0
@@ -101,7 +101,7 @@ def build_index(root: Path) -> Index:
         folders[:] = sorted(name for name in folders if name not in SKIP_DIRS and not name.startswith("."))
         for name in sorted(files):
             path = Path(directory) / name
-            if path.is_symlink() or not path.is_file() or not _is_text(path):
+            if path.is_symlink() or not path.is_file() or not _is_text(path) or path.relative_to(root).as_posix() in exclude:
                 continue
             if len(index.digests) >= MAX_FILES or total >= MAX_TOTAL_BYTES:
                 index.skipped += 1
@@ -118,7 +118,7 @@ def build_index(root: Path) -> Index:
             total += len(raw)
             relative = path.relative_to(root).as_posix()
             index.digests[relative] = m.content_digest(raw)
-            for number, content in enumerate(text.splitlines(), 1):
+            for number, content in enumerate(_lines(text), 1):
                 terms = Counter(tokens(content))
                 if terms:
                     index.lines.append(Line(relative, number, content.strip()[:200], terms))
@@ -177,8 +177,23 @@ def _declarations(path: Path) -> tuple[m.RevalidationInput, Path]:
     return declared, Path(os.path.realpath(root))
 
 
+def _own_files(path, root: Path) -> frozenset[str]:
+    """The declarations file, relative to the files root, when it lies inside it."""
+    try:
+        return frozenset({Path(os.path.realpath(path)).relative_to(root).as_posix()})
+    except ValueError:
+        return frozenset()
+
+
+def _lines(text: str) -> list[str]:
+    """Split on newlines only, so numbers match editors and git; form feeds stay inside a line."""
+    lines = [line[:-1] if line.endswith("\r") else line for line in text.split("\n")]
+    return lines[:-1] if lines and lines[-1] == "" else lines
+
+
 def _fact_query(fact: m.Fact) -> list[str]:
-    value = fact.value if isinstance(fact.value, str) else json.dumps(fact.value)
+    # An unknown value (None) adds no "null" term to the query.
+    value = "" if fact.value is None else fact.value if isinstance(fact.value, str) else json.dumps(fact.value)
     return tokens(f"{fact.key} {value}")
 
 
@@ -186,7 +201,7 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
     """Candidate code evidence for each assumed/unknown fact, and touchpoints no fact covers."""
     path = Path(path)
     declared, root = _declarations(path)
-    index = build_index(root)
+    index = build_index(root, _own_files(path, root))
     facts = {fact.id: fact for fact in m.scope_facts(declared.scope)}
     cited = {ref.split(":")[0] for item in declared.evidence for ref in item.evidence.source_refs}
     results, covered = [], set()
@@ -230,16 +245,41 @@ def format_ground(report: dict) -> str:
     return "\n".join(lines)
 
 
+def _rewrite_pins(node, changes: dict[str, tuple[int, int]], top: bool = True) -> bool:
+    """Move {id, revision} pins inside a record (not the record itself) to the new revisions."""
+    changed = False
+    if isinstance(node, dict):
+        if not top and set(node) == {"id", "revision"} and node["id"] in changes and node["revision"] == changes[node["id"]][0]:
+            node["revision"] = changes[node["id"]][1]
+            return True
+        for value in node.values():
+            changed |= _rewrite_pins(value, changes, False)
+    elif isinstance(node, list):
+        for value in node:
+            changed |= _rewrite_pins(value, changes, False)
+    return changed
+
+
 def _bump_pins(data, kinds: dict[str, tuple[int, int]]) -> None:
-    """Update {id, revision} pins of the given ids in the fact/scope pin fields only."""
-    for name in ("requirements", "applicability_decisions", "family_screenings"):
-        for item in data.get(name, []):
-            for pin in item.get("fact_refs", []):
-                if pin["id"] in kinds and pin["revision"] == kinds[pin["id"]][0]:
-                    pin["revision"] = kinds[pin["id"]][1]
-            scope = item.get("scope")
-            if isinstance(scope, dict) and scope.get("id") in kinds and scope.get("revision") == kinds[scope["id"]][0]:
-                scope["revision"] = kinds[scope["id"]][1]
+    """Move every pin to the new revisions and raise the revision of each record whose pins moved.
+
+    A record that pins a changed record has changed too, so its own revision rises and the
+    records pinning it follow, until nothing moves (`check --previous` then accepts the file).
+    """
+    changes = dict(kinds)
+    while True:
+        moved = {}
+        for name, items in data.items():
+            if name == "scope" or not isinstance(items, list):
+                continue
+            for item in items:
+                if isinstance(item, dict) and _rewrite_pins(item, changes) and isinstance(item.get("revision"), int) \
+                        and isinstance(item.get("id"), str) and item["id"] not in changes:
+                    moved[item["id"]] = (item["revision"], item["revision"] + 1)
+                    item["revision"] += 1
+        if not moved:
+            return
+        changes.update(moved)
 
 
 def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None = None) -> m.RevalidationInput:
@@ -264,13 +304,15 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
         m.SourceFile(path=relative, digest="sha256:" + "0" * 64)
     except ValueError:
         raise GroundingError("bad-location") from None
+    if relative in _own_files(path, root):
+        raise GroundingError("bad-location")  # the declarations can never be evidence for themselves
     target = root / relative
     if target.is_symlink() or not target.is_file() or os.path.realpath(target) != str(target):
         raise GroundingError("bad-location")
     raw = _read_capped(target)
     if raw is None:
         raise GroundingError("bad-location")
-    text_lines = raw.decode("utf-8", errors="replace").splitlines()
+    text_lines = _lines(raw.decode("utf-8", errors="replace"))
     if not 1 <= int(number) <= len(text_lines):
         raise GroundingError("bad-location")
     line_terms = set(tokens(text_lines[int(number) - 1]))
@@ -292,9 +334,10 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
             "manifest_id": data["declaration_manifest_id"], "media_type": "text/plain", "redaction": "safe",
             "availability": "available", "retention_until": None, "source_refs": [], "browser_context": None}}
         data["evidence"].append(selected)
+    # One record per file (one digest per path). When the file changed, the other facts pinned to
+    # it were confirmed against bytes that no longer exist: they go back to assumed, to be grounded again.
+    renewed = selected["evidence"]["digest"] != digest
     selected["evidence"].update(digest=digest, captured_at=now)
-    if location not in selected["evidence"]["source_refs"]:
-        selected["evidence"]["source_refs"].append(location)
     revisions = {fact.id: (fact.revision, fact.revision + 1),
                  declared.scope.id: (declared.scope.revision, declared.scope.revision + 1)}
     scope = data["scope"]
@@ -303,6 +346,16 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
     for activity in scope.get("activities", []):
         copies += [activity["lawful_basis"], *(item for key in ("roles", "recipients", "locations", "stores", "retention")
                                                for item in activity.get(key, []))]
+    if renewed:
+        selected["evidence"]["source_refs"] = []
+        for copy in copies:
+            if copy["id"] != fact.id and evidence_id in copy.get("evidence_ids", []):
+                old = facts[copy["id"]].revision
+                revisions[copy["id"]] = (old, old + 1)
+                copy.update(revision=old + 1, basis="assumed",
+                            evidence_ids=[item for item in copy["evidence_ids"] if item != evidence_id])
+    if location not in selected["evidence"]["source_refs"]:
+        selected["evidence"]["source_refs"].append(location)
     for copy in copies:
         if copy["id"] == fact.id:
             copy.update(revision=fact.revision + 1, basis="observed", observed_at=now,

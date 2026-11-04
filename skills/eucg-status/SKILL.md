@@ -19,7 +19,7 @@ Show where the project's legal revalidation stands, in one short card.
   `declarations.scope.assessment_date`, `requirement_assessments[].state`,
   `obligation_dispositions[].applicability`, `len(gaps)`, and
   `source_attempts[].state` with `retrieval.comparison`.
-- Count sources: `retrieved` and `failed` from `source_attempts`; `same bytes` and `changed`
+- Count sources: `retrieved`, `retrieval_failed` (failed) and `translation_unverified` (unverified) from `source_attempts`; `same bytes` and `changed`
   from their `retrieval.comparison`; `offline only` is each declared source
   (`declarations.sources`) whose `target_id` has no attempt in this run.
 - Declarations changed since the run when `sha256sum .eu-compliance-guard/declarations.json`
@@ -33,7 +33,7 @@ EU Compliance Guard · run <id> · <ended_at>
 state <partial|completed> · assessment date <date> (<N> days old)
 requirements: <s> supported · <c> conflicting · <u> unresolved
 obligations: <a> applicable · <n> not applicable · <u> unresolved
-sources: <r> retrieved (<same> same bytes, <changed> changed) · <f> failed · <o> offline only
+sources: <r> retrieved (<same> same bytes, <changed> changed) · <f> failed · <u> unverified · <o> offline only
 gaps: <N> · declarations changed since run: <yes|no>
 ```
 

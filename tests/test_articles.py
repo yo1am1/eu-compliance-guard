@@ -37,6 +37,21 @@ class ArticleTests(unittest.TestCase):
         self.assertEqual(parsed["Article 5"]["text"], "Article 6(1) applies here too. More text.")
         self.assertEqual(parsed["Article 6"], {"title": "Fictional lawfulness", "text": "Body."})
 
+    def test_annexes_and_repeated_numbers_stay_out_of_articles(self):
+        page = (b'<html><body><p class="oj-ti-art">Article 113</p><p class="oj-sti-art">Entry into force</p>'
+                b'<p>It enters into force.</p><p>Done at Brussels.</p><p class="oj-doc-ti">ANNEX III</p>'
+                b'<p>Biometric categorisation systems.</p></body></html>')
+        self.assertEqual(a.parse(page, "text/html")["Article 113"]["text"], "It enters into force.")
+        text = (b"Article 1\nSubject\nText. Annex III shall apply.\nArticle 2\nScope\nText2.\nANNEX I\n"
+                b"Correlation table\nArticle 1\nArticle 1 of Directive 95/46\n")
+        parsed = a.parse(text, "text/plain")
+        self.assertEqual(parsed["Article 1"]["text"], "Text. Annex III shall apply.")
+        self.assertEqual(parsed["Article 2"]["text"], "Text2.")
+
+    def test_inflected_words_reach_the_legal_vocabulary(self):
+        catalogue = {"fixture": a.parse(XHTML, "application/xhtml+xml")}
+        self.assertEqual(a.suggest("Accounts are deleted on request", catalogue)[0]["article"], "Article 17")
+
     def test_an_index_searches_many_statements_quickly(self):
         import time
         words = " ".join(f"word{n}" for n in range(1500))

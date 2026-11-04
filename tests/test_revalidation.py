@@ -303,6 +303,11 @@ class WorkflowTests(unittest.TestCase):
             (b"not pdf", "application/pdf", None, "needs_review"),
             (b"%PDF-1.7\n", "text/plain", None, "needs_review"),
             (b"plain", "application/octet-stream", None, "needs_review"),
+            # Legal text that merely contains error-like words is not an error page.
+            (b"<html><head><title>FICTIONAL Regulation 9999/2403 on terrorist content</title></head>"
+             b"<body><p>Article 1</p></body></html>", "text/html", None, "accepted"),
+            (b"Article 1\nFictional\n" + b"Where access denied, the fictional controller informs. " * 400,
+             "text/plain", None, "accepted"),
         ]
         for content, media_type, charset, state in cases:
             with self.subTest(content=content, media_type=media_type, charset=charset):

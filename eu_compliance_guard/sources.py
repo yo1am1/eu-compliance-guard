@@ -291,6 +291,8 @@ def fetch(request: TargetRequest, transport, *, limit: int, deadline: float,
             if response is None:
                 raise RetrievalFailure("connect-failed")
             try:
+                if type(response.status) is not int or not 100 <= response.status <= 599:
+                    raise RetrievalFailure("invalid-response")
                 state["status"] = response.status
                 headers = list(response.headers)
                 lines = [len(name) + len(value) + 4 for name, value in headers]
@@ -324,7 +326,8 @@ def fetch(request: TargetRequest, transport, *, limit: int, deadline: float,
                     raise RetrievalFailure("compressed-response")
                 state["media_type"], state["charset"] = _media_type(headers)
                 lengths = [value.strip() for name, value in headers if name.lower() == "content-length"]
-                if len(set(lengths)) > 1 or (lengths and not lengths[0].isdigit()):
+                # ASCII digits only: str.isdigit() also accepts other scripts' digits.
+                if len(set(lengths)) > 1 or (lengths and not re.fullmatch(r"[0-9]{1,20}", lengths[0])):
                     raise RetrievalFailure("invalid-response")
                 if lengths and int(lengths[0]) > limit:
                     raise RetrievalFailure("response-too-large")
@@ -338,6 +341,9 @@ def fetch(request: TargetRequest, transport, *, limit: int, deadline: float,
                     if state["bytes_read"] > limit:
                         raise RetrievalFailure("response-too-large")
                     chunks.append(chunk)
+                # A body shorter than its declared length is a cut-off transfer, never a complete text.
+                if lengths and state["bytes_read"] != int(lengths[0]):
+                    raise RetrievalFailure("invalid-response")
                 return result(final_url=url, content=b"".join(chunks))
             finally:
                 response.close()

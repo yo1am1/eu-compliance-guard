@@ -188,6 +188,20 @@ class FetchTests(unittest.TestCase):
                 result = s.fetch(s.TargetRequest("t", URL, language=language), odd, limit=1000, deadline=time.monotonic() + 30)
                 self.assertEqual((result.failure, getattr(odd, "languages", [])), ("invalid-language", []))
 
+    def test_short_bodies_odd_lengths_and_impossible_statuses_fail_safely(self):
+        cases = [
+            (FakeResponse(headers=[*HTML, ("Content-Length", str(len(PAGE) + 50))], body=PAGE), "invalid-response"),
+            (FakeResponse(headers=[*HTML, ("Content-Length", "٣٠")], body=PAGE), "invalid-response"),
+            (FakeResponse(status=999, body=PAGE), "invalid-response"),
+            (FakeResponse(headers=[*HTML, ("Content-Length", str(len(PAGE)))], body=PAGE), None),
+        ]
+        for response, failure in cases:
+            transport = FakeTransport(responses={(HOST, target_of(URL)): response})
+            with self.subTest(failure=failure):
+                result = s.fetch(s.TargetRequest("t", URL), transport, limit=s.MAX_RESPONSE_BYTES,
+                                 deadline=time.monotonic() + 30)
+                self.assertEqual(result.failure, failure)
+
     def test_public_to_private_redirect_is_refused_after_fresh_resolution(self):
         other = "https://curia.europa.eu/case"
         transport = FakeTransport(dns={"curia.europa.eu": ["192.168.0.10"]},

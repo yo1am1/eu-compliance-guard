@@ -322,12 +322,17 @@ def compare(previous, current, previous_digest):
             reasons.append("The predecessor already withdrew this support; it stays withdrawn until the applicability "
                            "decision and every evidence review are reviewed after the predecessor run.")
             invalidated.add(identity)
+        # Only support the predecessor gave (or withdrew) can be withdrawn. An obligation it never
+        # decided is decided for the first time here, like a new obligation: only stale attestations count.
+        supported = disposition.applicability != "unresolved" or identity in carried
         if relevant:
             reasons.append("Recorded dependencies changed; renew dependent reviews.")
-            invalidated.add(identity)
+            if supported:
+                invalidated.add(identity)
         if not complete:
             reasons.append("Dependency attribution is incomplete; historical support cannot be renewed.")
-            invalidated.add(identity)
+            if supported:
+                invalidated.add(identity)
         if any(key not in evidence or evidence[key].availability != "available" for key in evidence_ids):
             reasons.append("Dependent evidence is unavailable; current observation is unknown.")
         if any(key not in sources or not sources[key].file

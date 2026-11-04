@@ -97,6 +97,38 @@ class PRCheckTests(unittest.TestCase):
         [ai] = [item for item in report["touchpoints"] if item["concept"] == "ai"]
         self.assertFalse(ai["declared"])
 
+    def test_hunk_lines_that_look_like_headers_stay_hunk_lines(self):
+        diff = ("diff --git a/db/m.sql b/db/m.sql\n--- a/db/m.sql\n+++ b/db/m.sql\n@@ -1,2 +1,3 @@\n"
+                "--- keep consent records 30 days\n+++ counter\n+the user must give consent via the cookie banner\n"
+                " select 1;\n")
+        added, touched = p.parse_diff(diff)
+        self.assertEqual(touched, {"db/m.sql"})
+        self.assertEqual(added["db/m.sql"], [(1, "++ counter"), (2, "the user must give consent via the cookie banner")])
+
+    def test_quoted_paths_and_form_feeds(self):
+        diff = ('--- /dev/null\n+++ "b/src/gr\\303\\266\\303\\237e.py"\n@@ -0,0 +1,3 @@\n'
+                "+x = 1\x0c y = 2\n+z = 3\n+store_health_consent_cookie()\n")
+        added, touched = p.parse_diff(diff)
+        self.assertEqual(touched, {"src/größe.py"})
+        self.assertEqual(added["src/größe.py"][2][0], 3)
+        self.assertTrue(p.pr_check(diff)["touchpoints"])
+
+    def test_two_ordinary_terms_count_as_mentioned_even_with_strong_terms_defined(self):
+        payload = json.loads(FIXTURE.read_bytes())
+        payload["requirements"][0]["statement"] = "FICTIONAL: we store the customer email and birth year."
+        report = p.pr_check("--- /dev/null\n+++ b/a.py\n@@ -0,0 +1 @@\n+def join(email, birth_date): pass\n",
+                            m.RevalidationInput.model_validate(payload))
+        [personal] = [item for item in report["touchpoints"] if item["concept"] == "personal_data"]
+        self.assertTrue(personal["declared"])
+
+    def test_renames_binaries_and_mode_changes_count_as_touched(self):
+        diff = ("diff --git a/src/old name.py b/src/old name.py\nold mode 100644\nnew mode 100755\n"
+                "diff --git a/ev.txt b/ev2.txt\nsimilarity index 100%\nrename from ev.txt\nrename to ev2.txt\n"
+                "diff --git a/logo.png b/logo.png\nBinary files a/logo.png and b/logo.png differ\n"
+                'diff --git "a/gr\\303\\266\\303\\237e.py" "b/gr\\303\\266\\303\\237e.py"\nold mode 100644\nnew mode 100755\n')
+        _, touched = p.parse_diff(diff)
+        self.assertEqual(touched, {"src/old name.py", "ev.txt", "ev2.txt", "logo.png", "größe.py"})
+
     def test_empty_diff_is_not_a_clean_bill(self):
         report = p.pr_check("")
         self.assertEqual(report["attention"], 0)

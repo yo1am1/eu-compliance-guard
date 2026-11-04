@@ -29,7 +29,7 @@ STRONG = {"health", "medical", "diagnosis", "biometric", "pregnancy", "religion"
           "bmi", "minor", "parental", "child", "children", "consent", "cookie", "cookies", "llm", "openai", "anthropic",
           "gpt", "newsletter", "unsubscribe", "subscription", "cancellation", "refund", "withdrawal", "retention",
           "geolocation", "fingerprint", "analytics", "tracking", "gtag", "mixpanel", "hotjar", "aria", "a11y", "dob"}
-HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+HUNK = re.compile(r"^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 
 
 class PRCheckError(ValueError):
@@ -38,11 +38,55 @@ class PRCheckError(ValueError):
         super().__init__(code)
 
 
+def _unquote(value: str) -> str:
+    """git's C-style quoted path ("src/gr\\303\\266e.py") as text; octal escapes are UTF-8 bytes."""
+    if len(value) < 2 or value[0] != '"' or value[-1] != '"':
+        return value
+    raw, body, index = bytearray(), value[1:-1], 0
+    simple = {"n": 10, "t": 9, "r": 13, '"': 34, "\\": 92, "a": 7, "b": 8, "f": 12, "v": 11}
+    while index < len(body):
+        char = body[index]
+        if char == "\\" and index + 1 < len(body):
+            following = body[index + 1]
+            octal = body[index + 1:index + 4]
+            if len(octal) == 3 and all(digit in "01234567" for digit in octal):
+                raw.append(int(octal, 8) & 0xFF)
+                index += 4
+                continue
+            raw.append(simple.get(following, ord(following)))
+            index += 2
+            continue
+        raw.extend(char.encode("utf-8"))
+        index += 1
+    return raw.decode("utf-8", "replace")
+
+
 def _path(header: str) -> str | None:
-    value = header[4:].split("\t", 1)[0].strip()
+    value = header[4:].strip()
+    value = _unquote(value) if value.startswith('"') else value.split("\t", 1)[0].strip()
     if value == "/dev/null":
         return None
     return value[2:] if value[:2] in ("a/", "b/") else value
+
+
+def _header_paths(rest: str) -> set[str]:
+    """Both paths of a `diff --git a/X b/Y` header, quoted or not; spaces are allowed when X == Y."""
+    if rest.startswith('"'):
+        quoted = re.findall(r'"(?:[^"\\]|\\.)*"|\S+', rest)
+        names = [_unquote(item) for item in quoted]
+    else:
+        half = (len(rest) - 1) // 2
+        if rest[half] == " " and rest[:half].removeprefix("a/") == rest[half + 1:].removeprefix("b/"):
+            names = [rest[:half], rest[half + 1:]]
+        else:
+            names = rest.split(" b/", 1)
+            names = [names[0], "b/" + names[1]] if len(names) == 2 else []
+    return {name[2:] if name[:2] in ("a/", "b/") else name for name in names if name and name != "/dev/null"}
+
+
+def _lines(text: str) -> list[str]:
+    """Split on newlines only, like git and editors; form feeds and other separators stay in the line."""
+    return [line[:-1] if line.endswith("\r") else line for line in text.split("\n")]
 
 
 def _text_file(path: str) -> bool:
@@ -56,9 +100,32 @@ def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str]]:
     """Added lines per new path, and every path the diff touches (old or new side)."""
     added: dict[str, list[tuple[int, str]]] = {}
     touched: set[str] = set()
-    current, number, old = None, 0, None
-    for line in text.splitlines():
-        if line.startswith("--- "):
+    current, number = None, 0
+    old_left = new_left = 0  # lines still owed to the current hunk: inside it, "--- x" is a removed line
+    for line in _lines(text):
+        if line.startswith("diff --git "):
+            old_left = new_left = 0  # a new file always ends the hunk, even one whose counts were short
+            # Renames, copies, binary and mode-only changes have no ---/+++ lines; the header names them.
+            touched.update(_header_paths(line[len("diff --git "):]))
+            current = None
+            continue
+        if old_left > 0 or new_left > 0:
+            if line.startswith("+"):
+                if current is not None:
+                    added.setdefault(current, []).append((number, line[1:]))
+                number += 1
+                new_left -= 1
+            elif line.startswith("-"):
+                old_left -= 1
+            elif line.startswith(" ") or line == "":
+                number += 1
+                old_left -= 1
+                new_left -= 1
+            continue  # "\\ No newline at end of file" and the like
+        if line.startswith(("rename from ", "rename to ", "copy from ", "copy to ")):
+            value = line.split(" ", 2)[2]
+            touched.add(_unquote(value) if value.startswith('"') else value)
+        elif line.startswith("--- "):
             old = _path(line)
             if old:
                 touched.add(old)
@@ -67,12 +134,9 @@ def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str]]:
             if current:
                 touched.add(current)
         elif (match := HUNK.match(line)):
-            number = int(match.group(1))
-        elif current is not None and line.startswith("+"):
-            added.setdefault(current, []).append((number, line[1:]))
-            number += 1
-        elif current is not None and line.startswith(" "):
-            number += 1
+            number = int(match.group(2))
+            old_left = int(match.group(1)) if match.group(1) is not None else 1
+            new_left = int(match.group(3)) if match.group(3) is not None else 1
     return added, touched
 
 
@@ -88,10 +152,9 @@ def _code(text: str) -> str:
 
 
 def _mentioned(concept: str, declared_terms: set[str]) -> bool:
-    """Strong terms count alone; a concept without them needs two of its terms in the declarations."""
+    """A strong term counts alone; otherwise two of the concept's terms must appear in the declarations."""
     vocabulary = CONCEPTS[concept][1]
-    strong = vocabulary & STRONG
-    return bool(strong & declared_terms) if strong else len(vocabulary & declared_terms) >= 2
+    return bool(vocabulary & STRONG & declared_terms) or len(vocabulary & declared_terms) >= 2
 
 
 def _snippet(text: str) -> str:
