@@ -257,6 +257,24 @@ class GroundingTests(unittest.TestCase):
         self.assertEqual((report["files"], report["skipped"]), (0, 1))
         self.assertIn("(1 skipped)", g.format_ground(report))
 
+    def test_a_file_that_cannot_be_examined_counts_as_skipped(self):
+        # A folder that can be listed but not entered (mode r--): every lstat in it fails.
+        # Simulated for both stat calls, so the test also holds as root.
+        blocked, lstat, stat_ = os.path.join(os.path.realpath(self.project), "app") + os.sep, os.lstat, os.stat
+
+        def refusing(call):
+            def refuse(path, *args, **kwargs):
+                if isinstance(path, (str, os.PathLike)) and os.fspath(path).startswith(blocked):
+                    raise PermissionError(13, "Permission denied")
+                return call(path, *args, **kwargs)
+            return refuse
+
+        with mock.patch("os.lstat", refusing(lstat)), mock.patch("os.stat", refusing(stat_)):
+            report = g.ground(self.declarations)
+            code, stdout, _ = self.cli("ground", "--input", str(self.declarations))
+        self.assertEqual((report["files"], report["skipped"]), (0, len(CODE)))
+        self.assertEqual((code, f"({len(CODE)} skipped)" in stdout), (0, True))
+
     def test_oversized_files_are_skipped_without_reading_them_whole(self):
         (self.project / "dump.sql").write_bytes(b"cookie " * (g.MAX_FILE_BYTES // 7 + 10))
         index = g.build_index(self.project)

@@ -101,7 +101,7 @@ class Index:
     lines: list[Line] = field(default_factory=list)
     digests: dict[str, str] = field(default_factory=dict)
     document_frequency: Counter = field(default_factory=Counter)
-    skipped: int = 0  # unreadable, binary or over-limit files, and folders that could not be listed
+    skipped: int = 0  # unreadable, unexaminable, binary or over-limit files, and folders that could not be listed
 
     @property
     def average_length(self) -> float:
@@ -125,7 +125,14 @@ def build_index(root: Path, exclude: frozenset[str] = frozenset()) -> Index:
         folders[:] = sorted(name for name in folders if name not in SKIP_DIRS and not name.startswith("."))
         for name in sorted(files):
             path = Path(directory) / name
-            if path.is_symlink() or not path.is_file() or not _is_text(path) or path.relative_to(root).as_posix() in exclude:
+            if not _is_text(path) or path.relative_to(root).as_posix() in exclude:
+                continue
+            try:
+                info = os.lstat(path)
+            except OSError:
+                index.skipped += 1  # listed but not examinable, e.g. in a folder without search permission
+                continue
+            if not stat.S_ISREG(info.st_mode):  # symlinks, devices and sockets are never read
                 continue
             if len(index.digests) >= MAX_FILES or total >= MAX_TOTAL_BYTES:
                 index.skipped += 1
