@@ -7,6 +7,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import errno
 import hashlib
 from html.parser import HTMLParser
 import json
@@ -37,6 +38,11 @@ ERRORS = {
     "privacy-unavailable": "Required private file primitives or parent permissions are unavailable.",
     "budget-exceeded": "The cooperative processing budget was exceeded.",
     "invalid-output": "The assembled output could not be validated.",
+    "retrieval-failed": "The official-source retrieval helper could not be stopped safely.",
+    "incomplete-run": "The selected predecessor is incomplete.",
+    "corrupt-run": "The retained run failed integrity validation.",
+    "wrong-project": "The predecessor belongs to another project or provenance class.",
+    "invalid-revision": "Changed semantic records need a new revision.",
 }
 FAMILY_DESCRIPTIONS = dict(zip(m.LEGAL_FAMILIES, (
     "GDPR: processing roles, lawful bases, transparency, minimization, rights, retention, security, vendors, transfers, accountability and risk assessments.",
@@ -53,6 +59,7 @@ FAMILY_DESCRIPTIONS = dict(zip(m.LEGAL_FAMILIES, (
 )))
 POLICY = {"workflow": "offline-declared-review-v1", "tool_version": __version__,
           "budget": "cooperative-only", "network": False, "technical_execution": False}
+LANGUAGE = re.compile(rb"<html\b[^>]{0,2048}?\blang\s*=\s*[\"']?([A-Za-z]{1,8})", re.I)
 
 
 class RevalidationError(ValueError):
@@ -84,6 +91,11 @@ class FileObservation:
 class ContentAdmission:
     state: str
     reason: str
+
+
+def _after_run(value: str | None, timestamp: str) -> bool:
+    """An attestation dated after the run that reads it cannot be an accountable review."""
+    return bool(value) and datetime.fromisoformat(value) > datetime.fromisoformat(timestamp)
 
 
 def _check_budget(deadline: float | None) -> None:
@@ -317,15 +329,30 @@ def _selected_files(declared: m.RevalidationInput) -> dict[str, str]:
     return files
 
 
+@contextmanager
+def files_root(declared: m.RevalidationInput, declarations_fd: int):
+    """The descriptor selected paths resolve against: the declarations folder or, for
+    files_root "project", its parent. Opened without following symlinks."""
+    if declared.files_root == "project":
+        fd = os.open("..", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=declarations_fd)
+    else:
+        fd = os.dup(declarations_fd)
+    try:
+        yield fd
+    finally:
+        os.close(fd)
+
+
 def _observe(declared: m.RevalidationInput, parent_fd: int, deadline: float) -> dict[str, FileObservation]:
     source_paths = {item.file.path for item in declared.sources if item.file}
     observations = {}
     total = 0
-    for path in _selected_files(declared):
-        observation = _read_file(parent_fd, path, limit=min(MAX_FILE_BYTES, MAX_TOTAL_BYTES - total),
-                                 retain=path in source_paths, deadline=deadline)
-        total += observation.size
-        observations[path] = observation
+    with files_root(declared, parent_fd) as root_fd:
+        for path in _selected_files(declared):
+            observation = _read_file(root_fd, path, limit=min(MAX_FILE_BYTES, MAX_TOTAL_BYTES - total),
+                                     retain=path in source_paths, deadline=deadline)
+            total += observation.size
+            observations[path] = observation
     return observations
 
 
@@ -333,9 +360,30 @@ def _json_bytes(value) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
+def fetch_policy() -> dict:
+    from .sources import OFFICIAL_HOSTS
+    return {**POLICY, "workflow": "official-retrieval-declared-review-v1", "network": "selected-official-sources",
+            "official_hosts": sorted(OFFICIAL_HOSTS)}
+
+
+def _retrieval_review(content: bytes, media_type: str, target: m.SourceTarget) -> list[str]:
+    """Conservative identity/language signals; their absence never proves document identity."""
+    if media_type == "application/pdf":
+        return []
+    reasons = []
+    if target.intended_identifier and target.intended_identifier.lower().encode("utf-8") not in content.lower():
+        reasons.append("intended-identifier-not-found")
+    declared = LANGUAGE.search(content[:CHUNK_BYTES]) if media_type != "text/plain" else None
+    if declared and declared.group(1).decode("ascii").lower() != target.language.split("-")[0].lower():
+        reasons.append("declared-language-unverified")
+    return reasons
+
+
 def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObservation], *,
-             input_digest: str, timestamp: str, run_id: str, manifest_id: str) -> m.RevalidationBundle:
-    """Pure recorded-review assembly; observations/time/IDs are explicit testable inputs."""
+             input_digest: str, timestamp: str, run_id: str, manifest_id: str,
+             retrievals: list | None = None) -> m.RevalidationBundle:
+    """Pure recorded-review assembly; observations/time/IDs/retrieval results are explicit testable inputs."""
+    from .sources import FAILURES
     declared = m.RevalidationInput.model_validate(declarations)
     gaps = []
     actions = []
@@ -351,6 +399,66 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
         if message not in gaps:
             gaps.append(message)
             actions.append("Resolve recorded gap: " + message)
+
+    attempts, candidates, outcomes = [], [], {}
+    prior_by_target = {}
+    for item in declared.sources:
+        prior_by_target.setdefault(item.target_id, item.source)
+    for result in retrievals or []:
+        target = targets[result.target_id]
+        if result.requested_url != target.intended_url:
+            raise RevalidationError("invalid-output")
+        prior = prior_by_target.get(target.id)
+        failure, admission, reasons = result.failure, None, []
+        digest = m.content_digest(result.content) if result.content is not None else None
+        if failure is None:
+            admission = admit_source_content(result.content, result.media_type, result.charset)
+            reasons = _retrieval_review(result.content, result.media_type, target)
+            if admission.state == "rejected":
+                failure = "content-rejected"
+        retained = failure is None
+        candidate = None
+        if retained:
+            candidate = m.LegalSource(id=_derived_id("retrieved", f"{target.id}:{digest}"), revision=0,
+                type=target.intended_type, publisher=target.publisher, identifier=target.intended_identifier,
+                url=result.final_url, language=target.language, jurisdiction=target.jurisdiction,
+                retrieved_at=result.ended_at, content_digest=digest, provisions=[], related_source_ids=[],
+                synthetic=target.intended_type == "synthetic_fixture")
+            candidates.append(candidate)
+        comparison = ("not_compared" if not retained else "no_prior_source" if prior is None
+                      else "same_bytes" if prior.content_digest == digest else "different_bytes")
+        translation = "declared-language-unverified" in reasons
+        state = "retrieval_failed" if not retained else "translation_unverified" if translation else "retrieved"
+        safe = None
+        if failure is not None:
+            safe = m.SafeError(code=failure, safe_message=FAILURES.get(failure, "Retrieved content looks like a login, challenge or error page."))
+        elif translation:
+            safe = m.SafeError(code="language-unverified", safe_message="Retrieved page language differs from the target; translation is unverified.")
+        provenance = m.RetrievalProvenance(requested_url=result.requested_url,
+            final_url=result.final_url if result.content is not None else None, redirects=list(result.redirects),
+            started_at=result.started_at, ended_at=result.ended_at, status=result.status,
+            media_type=result.media_type, charset=result.charset, bytes_read=result.bytes_read, digest=digest,
+            artifact_path="sources/" + digest.removeprefix("sha256:") + ".bin" if retained else None,
+            admission=admission.state if admission else None, admission_reason=admission.reason if admission else None,
+            comparison=comparison)
+        attempts.append(m.SourceAttempt(id=_derived_id("attempt", f"{run_id}:{target.id}"), source_target_id=target.id,
+            intended_url=target.intended_url, intended_identifier=target.intended_identifier, publisher=target.publisher,
+            intended_type=target.intended_type, language=target.language, attempted_at=result.started_at, state=state,
+            retrieved_source=m.SourceRef(id=candidate.id, revision=0) if candidate else None,
+            last_successful_source=m.SourceRef(id=prior.id, revision=prior.revision) if prior else None,
+            failure=safe, retrieval=provenance))
+        if not retained:
+            record_gap(f"Source target {target.id}: official retrieval failed ({failure}); no fresh content was recorded.")
+            outcomes[target.id] = (None, False)
+            continue
+        record_gap(f"Source target {target.id}: retrieved candidate {candidate.id} requires accountable source review; "
+                   "official hosting establishes neither binding status, completeness, applicability nor currency.")
+        if admission.state != "accepted":
+            record_gap(f"Source target {target.id}: retrieved content needs review ({admission.reason}).")
+        for reason in reasons:
+            record_gap(f"Source target {target.id}: retrieved content needs review ({reason}).")
+        # Fetched digest and whether it was admitted as text; each declared source compares its own bytes.
+        outcomes[target.id] = (digest, state == "retrieved" and admission.state == "accepted" and not reasons)
 
     for selected in declared.evidence:
         item = selected.evidence
@@ -404,13 +512,21 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
         review = source_reviews.get((source.id, declared.scope.assessment_date))
         if not review or review.state != "reviewed_for_assessment" or not review.reviewer or not review.reviewer.strip() or not review.last_successful_verification:
             problems.append("accountable source review missing for assessment date")
+        if review and _after_run(review.last_successful_verification, timestamp):
+            problems.append("source review dated after this run")
         if review:
             problems.extend("source review gap: " + gap for gap in review.gaps)
         for topic in get_args(m.SourceReviewTopic):
             if not review or not review.review_notes.get(topic, "").strip():
                 problems.append("source note missing: " + topic)
-        if not source.synthetic:
-            problems.append("offline real-source freshness is unverified")
+        fetched = outcomes.get(selected.target_id)
+        outcome = (None if fetched is None else "unconfirmed" if fetched[0] is None
+                   else "changed" if fetched[0] != source.content_digest else "confirmed" if fetched[1] else "unconfirmed")
+        if outcome == "changed":
+            problems.append("official retrieval returned different bytes; review the new candidate revision")
+        if not source.synthetic and outcome != "confirmed":
+            problems.append("offline real-source freshness is unverified" if retrievals is None
+                            else "official retrieval did not confirm the declared bytes; current freshness is unknown")
         source_gaps[source.id] = problems
         for problem in problems:
             record_gap(f"Source {source.id}: {problem}")
@@ -476,6 +592,8 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
                 problems.append("declared applicability remains unresolved")
             if not original.reviewer or not original.reviewer.strip() or not original.reviewed_at or not original.rationale.strip():
                 problems.append("accountable applicability reasoning missing")
+            if _after_run(original.reviewed_at, timestamp):
+                problems.append("applicability review dated after this run")
             if original.assessment_date != declared.scope.assessment_date:
                 problems.append("applicability assessment date mismatch")
             if not original.jurisdictions or any(j not in declared.scope.jurisdictions for j in original.jurisdictions):
@@ -526,7 +644,8 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
                 missing.append("Accountable evidence review missing.")
                 manual_states.append("pending")
             else:
-                accountable = bool(review.reviewer and review.reviewer.strip() and review.reviewed_at and review.rationale.strip())
+                accountable = bool(review.reviewer and review.reviewer.strip() and review.reviewed_at and review.rationale.strip()
+                                   and not _after_run(review.reviewed_at, timestamp))
                 if review.state == "insufficient" and accountable:
                     outcome = "observed_failure"
                     manual_states.append("unsupported")
@@ -590,6 +709,8 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
             if (not original.reviewer or not original.reviewer.strip() or not original.reviewed_at
                     or not original.rationale.strip() or original.assessment_date != declared.scope.assessment_date):
                 problems.append("Accountable family reasoning/date missing.")
+            if _after_run(original.reviewed_at, timestamp):
+                problems.append("Family screening dated after this run.")
             problems.extend(fact_problems(original.fact_refs))
             if not original.source_refs or any(source_gaps[pin.id] for pin in original.source_refs):
                 problems.append("Reviewed family sources unresolved.")
@@ -620,8 +741,9 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
         registry_digest=m.content_digest(_json_bytes({"targets": [item.model_dump(mode="json") for item in declared.source_targets],
             "obligations": [item.model_dump(mode="json") for item in declared.obligations],
             "controls": [item.model_dump(mode="json") for item in declared.controls]})),
-        source_versions=[f"{item.source.id}:{item.source.revision}:{item.source.content_digest}" for item in declared.sources],
-        fixture_digest=input_digest, tool_versions=["eu-compliance-guard:" + __version__], config_digest=m.content_digest(_json_bytes(POLICY)),
+        source_versions=[f"{item.id}:{item.revision}:{item.content_digest}" for item in [*(selected.source for selected in declared.sources), *candidates]],
+        fixture_digest=input_digest, tool_versions=["eu-compliance-guard:" + __version__],
+        config_digest=m.content_digest(_json_bytes(POLICY if retrievals is None else fetch_policy())),
         environment_identity=declared.scope.environment, browser_state=None, graph_digest=None)
     manifest = m.InputManifest.model_validate({**manifest_data, "digest": m.content_digest(_json_bytes(manifest_data))})
     run_record = m.AuditRun(id=run_id, project_id=declared.project_id, revision=0, state="partial" if gaps else "completed",
@@ -631,7 +753,8 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
         return m.RevalidationBundle(schema_version=1, project_id=declared.project_id, synthetic=declared.synthetic,
             input_digest=input_digest, run=run_record, manifest=manifest, declarations=declared, evidence=list(evidence.values()),
             obligation_dispositions=dispositions, requirement_assessments=assessments,
-            effective_applicability_decisions=decisions, family_screenings=screenings, gaps=gaps, next_actions=actions)
+            effective_applicability_decisions=decisions, family_screenings=screenings, gaps=gaps, next_actions=actions,
+            source_attempts=attempts, retrieved_sources=candidates)
     except ValidationError as error:
         raise _output_validation_error(error) from None
 
@@ -653,11 +776,30 @@ def _write(fd: int, name: str, content: bytes, deadline: float) -> None:
         os.close(file_fd)
 
 
+def _private_parent(parent_fd: int) -> None:
+    info = os.fstat(parent_fd)
+    if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077:
+        raise RevalidationError("privacy-unavailable")
+
+
+def _preflight_output(output_path) -> None:
+    """Refuse unusable output before any network operation; publication re-checks exclusively."""
+    with _parent(output_path) as (parent_fd, name):
+        _private_parent(parent_fd)
+        try:
+            os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return
+        raise RevalidationError("output-exists")
+
+
 def _publish(output_path, bundle: m.RevalidationBundle, observations: dict[str, FileObservation],
-             report: str, deadline: float) -> None:
+             report: str, deadline: float, retrieved: dict[str, bytes] | None = None) -> None:
     artifacts = {"input.json": m.canonical_json(bundle.declarations), "manifest.json": m.canonical_json(bundle.manifest),
                  "bundle.json": m.canonical_json(bundle), "report.md": report.encode("utf-8")}
-    if len(artifacts["bundle.json"]) > m.MAX_REQUEST_BYTES or len(artifacts["report.md"]) > MAX_REPORT_BYTES:
+    if bundle.comparison is not None:
+        artifacts["comparison.json"] = m.canonical_json(bundle.comparison)
+    if len(artifacts["bundle.json"]) > m.MAX_BUNDLE_BYTES or len(artifacts["report.md"]) > MAX_REPORT_BYTES:
         raise RevalidationError("capacity-exceeded")
     retained = {}
     for selected in bundle.declarations.sources:
@@ -669,13 +811,18 @@ def _publish(output_path, bundle: m.RevalidationBundle, observations: dict[str, 
             if m.content_digest(observation.content) != selected.source.content_digest:
                 raise RevalidationError("invalid-output")
             retained["sources/" + observation.digest.removeprefix("sha256:") + ".bin"] = observation.content
+    for attempt in bundle.source_attempts:
+        path = attempt.retrieval.artifact_path
+        if path is not None:
+            content = (retrieved or {}).get(attempt.retrieval.digest)
+            if content is None or m.content_digest(content) != attempt.retrieval.digest:
+                raise RevalidationError("invalid-output")
+            retained[path] = content
     marker = m.RunCompletion(schema_version=1, run_id=bundle.run.id,
         files=[m.SourceFile(path=path, digest=m.content_digest(content)) for path, content in {**retained, **artifacts}.items()])
     marker_bytes = m.canonical_json(marker)
     with _parent(output_path) as (parent_fd, name):
-        info = os.fstat(parent_fd)
-        if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077:
-            raise RevalidationError("privacy-unavailable")
+        _private_parent(parent_fd)
         try:
             os.mkdir(name, 0o700, dir_fd=parent_fd)
         except FileExistsError:
@@ -710,19 +857,44 @@ def _publish(output_path, bundle: m.RevalidationBundle, observations: dict[str, 
             os.close(run_fd)
 
 
-def run(input_path: str | os.PathLike, output_path: str | os.PathLike) -> m.RevalidationBundle:
-    """Assemble and publish a new private run; existing output is never overwritten."""
+def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_official: bool = False,
+        transport_factory=None, previous: str | os.PathLike | None = None) -> m.RevalidationBundle:
+    """Assemble and publish a new private run; existing output is never overwritten.
+
+    Only with fetch_official are the declared targets requested, under the fixed network policy.
+    """
     from .report import render_report
     _primitives()
     deadline = time.monotonic() + BUDGET_SECONDS
     try:
+        from . import history
+        prior = history.load_run(previous, deadline) if previous is not None else None
         with _parent(input_path) as (fd, name):
             declared, input_digest = _load(fd, name, deadline)
+            if prior is not None:
+                if (prior[0].project_id, prior[0].synthetic) != (declared.project_id, declared.synthetic):
+                    raise RevalidationError("wrong-project")
+                history.validate_revisions(prior[0], declared)
             observations = _observe(declared, fd, deadline)
         _check_budget(deadline)
+        retrievals = None
+        if fetch_official:
+            from . import sources
+            _preflight_output(output_path)
+            requests = [sources.TargetRequest(item.id, item.intended_url, tuple(item.redirect_hosts),
+                                              item.intended_type == "synthetic_fixture", item.language)
+                        for item in declared.source_targets]
+            try:
+                retrievals = sources.retrieve(requests, **({"transport_factory": transport_factory} if transport_factory else {}))
+            except sources.RetrievalHelperError:
+                raise RevalidationError("retrieval-failed") from None
+            # The network has its own fixed budget; local assembly keeps its cooperative budget.
+            deadline = time.monotonic() + BUDGET_SECONDS
         timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         bundle = assemble(declared, observations, input_digest=input_digest, timestamp=timestamp,
-                          run_id="run-" + uuid4().hex, manifest_id="manifest-" + uuid4().hex)
+                          run_id="run-" + uuid4().hex, manifest_id="manifest-" + uuid4().hex, retrievals=retrievals)
+        if prior is not None:
+            bundle = history.compare(prior[0], bundle, prior[1])
         try:
             report = render_report(bundle)
         except ValueError as error:
@@ -730,12 +902,14 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike) -> m.Reva
                 raise RevalidationError("capacity-exceeded") from None
             raise
         _check_budget(deadline)
-        _publish(output_path, bundle, observations, report, deadline)
+        _publish(output_path, bundle, observations, report, deadline,
+                 {m.content_digest(item.content): item.content for item in retrievals or [] if item.content is not None})
         return bundle
     except RevalidationError:
         raise
-    except OSError:
-        raise RevalidationError("io-failed") from None
+    except OSError as error:
+        # O_NOFOLLOW reports a symlinked path component as ELOOP or ENOTDIR.
+        raise RevalidationError("unsafe-path" if error.errno in (errno.ELOOP, errno.ENOTDIR) else "io-failed") from None
     except ValidationError as error:
         raise _output_validation_error(error) from None
     except (ValueError, RecursionError):

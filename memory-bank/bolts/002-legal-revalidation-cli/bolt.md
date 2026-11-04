@@ -3,12 +3,12 @@ id: 002-legal-revalidation-cli
 unit: 001-legal-revalidation-cli
 intent: 001-read-only-legal-revalidation
 type: simple-construction-bolt
-status: planned
+status: in-progress
 stories: [003-official-source-retrieval]
 created: 2026-10-18T19:01:39Z
-started: null
+started: 2026-10-25T01:30:00Z
 completed: null
-current_stage: null
+current_stage: test
 stages_completed: []
 requires_bolts: [001-legal-revalidation-cli]
 enables_bolts: [003-legal-revalidation-cli]
@@ -25,7 +25,7 @@ complexity:
 
 ## Objective
 
-Official-source retrieval. Planned only; included stories remain unimplemented.
+Official-source retrieval. Plan, Implement and Test are recorded in [implementation-plan.md](implementation-plan.md), [implementation-walkthrough.md](implementation-walkthrough.md) and [test-walkthrough.md](test-walkthrough.md). All three await Owner validation; story 003 is not marked complete.
 
 ## Stories Included
 
@@ -41,9 +41,9 @@ Simple Construction; installed definition: `/home/user/.specsmd/aidlc/templates/
 
 ## Stages
 
-- [ ] **1. Plan**: Pending → implementation-plan.md; confirm changes, bounds, fixtures and acceptance checks.
-- [ ] **2. Implement**: Pending → source/docs + implementation-walkthrough.md.
-- [ ] **3. Test**: Pending → tests + test-walkthrough.md, including make check.
+- [ ] **1. Plan**: Recorded 2026-10-25, awaiting Owner validation → implementation-plan.md; confirm changes, bounds, fixtures and acceptance checks.
+- [ ] **2. Implement**: Recorded 2026-10-25, awaiting Owner validation → source/docs + implementation-walkthrough.md.
+- [ ] **3. Test**: Recorded 2026-10-25, awaiting Owner validation → tests + test-walkthrough.md, including make check.
 
 Execute in this order, stopping for human validation after each stage before advancing/completing. These stage artifacts are created during construction; none exist or are claimed complete now.
 

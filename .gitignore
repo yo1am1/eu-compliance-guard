@@ -26,3 +26,7 @@ token.json
 .claude/
 .cursor/
 .DS_Store
+
+# Editor types Claude Code writes while it loads the plugin from this folder
+/.claude-plugin/types/
+/tsconfig.json

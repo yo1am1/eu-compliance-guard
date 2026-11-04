@@ -1,0 +1,62 @@
+# Copy to .github/workflows/eu-compliance-guard-pr.yml in your project.
+# Screens each pull request's diff for EU legal touchpoints and keeps one comment updated.
+# Keyword screening against your declarations, not a compliance verdict. No network use
+# beyond installing the tool; nothing from the diff leaves the runner except the comment.
+# The tool is pinned to a commit; for a stricter supply chain, pin the actions to SHAs too.
+name: EU Compliance Guard PR check
+on:
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  touchpoints:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+      - name: Screen the diff
+        id: screen
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git diff --no-color "origin/$BASE_REF...HEAD" > "$RUNNER_TEMP/pr.diff"
+          set +e
+          # 1.1.0, pinned to its commit so the install cannot change under you.
+          uvx --from "git+https://github.com/yo1am1/eu-compliance-guard@a31c4df795a2b066b8b25612f8fe09ce6e4c4a76" \
+            eu-compliance-guard pr-check --diff "$RUNNER_TEMP/pr.diff" --markdown --strict > "$RUNNER_TEMP/eucg.md"
+          code=$?
+          set -e
+          # 0: nothing needs attention, 1: something does. Anything else, or output without
+          # the report marker (a crash also exits 1), fails the step.
+          if [ "$code" -gt 1 ] || ! head -n 1 "$RUNNER_TEMP/eucg.md" | grep -qx '<!-- eu-compliance-guard-pr-check -->'; then
+            echo "pr-check failed (exit $code)" >&2
+            exit 2
+          fi
+          echo "attention=$code" >> "$GITHUB_OUTPUT"
+      - name: Comment
+        # Updates only the comment that carries the report marker. Fork pull requests get a
+        # read-only token; the job summary still shows the result.
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          id=$(gh api --paginate "repos/$REPOSITORY/issues/$NUMBER/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- eu-compliance-guard-pr-check -->"))) | .id' | tail -n 1)
+          if [ -n "$id" ]; then
+            gh api --method PATCH "repos/$REPOSITORY/issues/comments/$id" -F "body=@$RUNNER_TEMP/eucg.md" > /dev/null
+          else
+            gh api --method POST "repos/$REPOSITORY/issues/$NUMBER/comments" -F "body=@$RUNNER_TEMP/eucg.md" > /dev/null
+          fi
+      - name: Summary
+        if: always() && steps.screen.outcome != 'skipped'
+        run: |
+          if [ -s "$RUNNER_TEMP/eucg.md" ]; then cat "$RUNNER_TEMP/eucg.md" >> "$GITHUB_STEP_SUMMARY"; fi
+      # Uncomment to fail the check while touchpoints are unmentioned or pinned evidence changed:
+      # - if: steps.screen.outputs.attention == '1'
+      #   run: exit 1

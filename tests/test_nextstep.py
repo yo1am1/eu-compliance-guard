@@ -1,0 +1,85 @@
+"""Next-step ranking on synthetic runs."""
+
+from contextlib import redirect_stderr, redirect_stdout
+import io
+import json
+import os
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from eu_compliance_guard import nextstep as n, revalidation as r, view as v
+from eu_compliance_guard.__main__ import main
+
+FIXTURE = Path(__file__).resolve().parents[1] / "fixtures/revalidation-synthetic.json"
+
+
+class NextStepTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="eucg-next-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.root.chmod(0o700)
+        (self.root / "revalidation-synthetic").mkdir()
+        for name in ("source.txt", "evidence.txt"):
+            (self.root / "revalidation-synthetic" / name).write_bytes((FIXTURE.parent / "revalidation-synthetic" / name).read_bytes())
+        self.payload = json.loads(FIXTURE.read_bytes())
+
+    def run_bundle(self, name="run-20261025T000000Z"):
+        path = self.root / "input.json"
+        path.write_text(json.dumps(self.payload))
+        runs = self.root / "state"
+        runs.mkdir(mode=0o700, exist_ok=True)
+        r.run(path, runs / name)
+        return runs / name
+
+    def test_steps_rank_by_unblocked_requirements_and_name_no_verdict(self):
+        steps = n.next_steps(v.verify_run(self.run_bundle()), top=10)
+        self.assertTrue(steps)
+        counts = [step["unblocks"] for step in steps]
+        self.assertEqual(counts, sorted(counts, reverse=True))
+        kinds = {step["kind"] for step in steps}
+        self.assertLessEqual(kinds, set(n.KINDS))
+        self.assertIn("mapping", kinds)  # requirement-unmapped has no obligation
+        self.assertIn("fact", kinds)
+        for step in steps:
+            self.assertEqual(step["unblocks"], len(step["requirements"]))
+        self.assertIn("not a compliance verdict", n.format_steps(steps))
+        self.assertIn("not a compliance conclusion", n.format_steps([]))
+
+    def test_facts_relied_on_by_more_requirements_come_first(self):
+        fact = next(item for item in self.payload["scope"]["roles"] if item["basis"] == "unknown")
+        for requirement in self.payload["requirements"]:
+            requirement["fact_refs"] = [{"id": fact["id"], "revision": fact["revision"]}]
+        steps = n.next_steps(v.verify_run(self.run_bundle()), top=10)
+        facts = [step for step in steps if step["kind"] == "fact"]
+        self.assertEqual(facts[0]["subject"], fact["id"])
+        self.assertEqual(facts[0]["unblocks"], 2)
+
+    def test_cli_uses_the_newest_completed_run_and_reports_missing_runs(self):
+        older = self.run_bundle("run-20261025T000000Z")
+        newer = self.run_bundle("run-20261026T000000Z")
+        (older.parent / "run-20261027T000000Z").mkdir()  # incomplete: no marker
+        out, err = io.StringIO(), io.StringIO()
+        with patch("eu_compliance_guard.authoring.state_dir", return_value=older.parent), \
+                redirect_stdout(out), redirect_stderr(err):
+            self.assertEqual(main(["next", "--json", "--top", "1"]), 0)
+        result = json.loads(out.getvalue())
+        self.assertEqual(result["run"], str(newer))
+        self.assertEqual(len(result["steps"]), 1)
+        empty = self.root / "empty"
+        empty.mkdir()
+        out, err = io.StringIO(), io.StringIO()
+        with patch("eu_compliance_guard.authoring.state_dir", return_value=empty), redirect_stdout(out), redirect_stderr(err):
+            self.assertEqual(main(["next"]), 2)
+        self.assertEqual(err.getvalue(), "eu-compliance-guard: no-run: next step failed\n")
+
+    def test_report_leads_with_next_steps(self):
+        html = v.write_view(self.run_bundle()).read_text()
+        self.assertLess(html.index("<h2>Next best steps</h2>"), html.index("<h2>Questions for the project owner</h2>"))
+        self.assertIn('<ol class="next">', html)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -170,3 +170,139 @@ script errors. Unit and intent remain open because two bolts are unfinished.
 The final Test stage was recorded in bolt metadata after verifying the cascade.
 The 130-test acceptance evidence remains unchanged; no new application code or
 live-source operation was run for this lifecycle update.
+
+## Bolt 002 official-source retrieval — 2026-10-25
+
+On the Owner's direction to proceed, Bolt 002 Plan, Implement and Test were recorded
+on branch `claude/bolt-002-official-retrieval`. All three await Owner validation.
+`--fetch-official` now performs bounded opt-in retrieval through `sources.py`,
+which applies the fixed host registry, pinned DNS/TLS, validated redirects and
+the design bounds, using a disposable spawned helper. Attempts and unreviewed
+candidate sources are retained in the bundle and run directory, and the report
+lists them. See the [plan](../memory-bank/bolts/002-legal-revalidation-cli/implementation-plan.md),
+[implementation walkthrough](../memory-bank/bolts/002-legal-revalidation-cli/implementation-walkthrough.md)
+and [test report](../memory-bank/bolts/002-legal-revalidation-cli/test-walkthrough.md).
+
+151 tests pass outside `test_execution.py`, and the contract drift and TypeScript
+checks pass. In this container the existing executor tests fail or hang because
+their sandbox binary is unavailable, so `make check` could not complete here.
+That module is unchanged. No live official-source request, real legal assessment
+or OS-policy change occurred. Predecessor revalidation and the portable skill
+(Bolt 003) remain pending.
+
+## Commit attribution — 2026-10-25
+
+Owner correction: commits carry no `Co-authored-by` or agent session trailers.
+Commits not yet merged into `main` were rewritten to remove those lines; their trees
+and author/committer are unchanged. `main` history was deliberately left unchanged.
+AGENTS.md, the coding standards and story 006 AC-5 now state the rule.
+
+## Claude Code plugin interface — 2026-10-25
+
+Owner direction: package the project more like a Claude Code plugin, with an
+interface inspired by ponytail 5.3.2 (DietrichGebert/ponytail, reviewed at its
+2026-10-18 head) and adapted for this workflow. The repository now carries
+`.claude-plugin/plugin.json` and `marketplace.json`. It ships six skills (`eucg`
+mode with lite/full/strict/off levels, `eucg-review`, `eucg-audit`, `eucg-gaps`,
+`eucg-status`, `eucg-help`) and a standard-library SessionStart hook. The skills
+drive the existing CLI and keep its limits: no invented reviews, no network
+without consent, private runs outside the repository and no verdicts. These
+plugin skills take the place of the single `skills/legal-revalidation/SKILL.md`
+planned for Bolt 003. Predecessor comparison and release checks remain in Bolt 003.
+`claude plugin validate .` passed, and 10 synthetic plugin/hook tests pass. No
+real project was audited and the plugin was not installed globally.
+
+The Owner then asked for real UI inside Claude Code and a button to open results in
+the browser, following ponytail's band. The plugin now has a hooks module
+(`hooks/band/register.tsx`, contract `types/index.d.ts`) that draws a band above the
+prompt. It shows the latest run summary and has Audit / Review diff / Gaps / Open
+report / Help buttons. A new `view` CLI command verifies a run and writes an
+escaped, script-free HTML page beside it, then opens it in the browser. Checks:
+`claude plugin validate .` passes, `claude plugin test .` passes 4 band tests on
+all four surfaces, the band type-checks against Claude Code 2.1.310's API, and
+165 Python tests pass outside `test_execution.py`. The band has not been seen in
+an interactive local session yet.
+
+## Predecessor comparison and release checks — 2026-10-27
+
+On the Owner's direction, the latest plugin/UI branch was pulled and predecessor
+comparison implemented in `ed11d8f`. `--previous` verifies one explicitly selected
+retained run and creates a linked successor with `comparison.json`, observed
+comparison evidence and historical freshness overlays. Relevant dependency changes
+withdraw effective review support; original declarations and every predecessor
+byte are retained. Missing observations remain unknown; matching bytes renew
+neither legal currency nor reviewer approval. Incomplete dependency attribution
+withdraws support conservatively. Family screenings renew after any known change.
+
+All 197 tests pass with schema/type drift checks and TypeScript compilation.
+Claude plugin validation and all four band tests pass. Wheel/sdist builds,
+archive inspection and the isolated installed-wheel first-run/successor/static-view
+workflow pass outside the checkout with packaged fictional data, valid marker
+digests and private modes. See the [Test walkthrough](../memory-bank/bolts/003-legal-revalidation-cli/test-walkthrough.md).
+Technical implementation and release checks are recorded; formal stage and MVP
+acceptance remain pending. No current-law or real-project audit was performed.
+
+No live source/provider/scanner, interactive UI, global installation or host-policy
+work ran. Historical `specs/**` remain unchanged. The plugin validator warns about
+the missing marketplace icon. Native Herdr is unavailable in this session; work
+used one writer, without hidden teammates. Two pre-existing local planning edits
+remain in Git stash. The next authorized work is the separate recommender audit,
+system improvements and Streamlit MVP.
+
+## Version 1.0.0 — 2026-11-03
+
+The Owner asked to review the latest commits and continue to a stable 1.0 MVP plugin.
+The Owner's 2026-10-27 predecessor revalidation (`ed11d8f`, `c392935`) was reviewed
+and kept. Those two commits carry `Co-authored-by: Codex` trailers, which the newer
+commit rule excludes; they were left as published.
+
+1.0.0 adds `init` and `check`. `check` gives located, value-free diagnostics, observed
+file digests, target fetchability, and with `--previous` the records needing a new
+revision. Cross-reference errors in the models now name their JSON location. 1.0.0
+also adds the `eu-compliance-guard` console command and keeps only Pydantic as a
+runtime dependency (FastAPI and Uvicorn are the optional `api` extra). The plugin
+audit flow now runs `init` → `check` → `revalidate` and covers manually downloaded
+official documents. Other changes:
+
+- the plugin CLI runs with `uv run --no-dev`, and the hook warns when uv is missing;
+- the plugin has an icon, and `make plugin-check` exists;
+- the README was rewritten and a changelog added;
+- the fake executor tests are hermetic.
+
+`make check` passes 205 tests, and the plugin validates with no icon warning and its
+4 band tests pass. A fresh end-to-end check installed the wheel and the plugin from
+GitHub through the marketplace, then ran every skill on a fictional project with the
+Owner's GDPR PDF. See the [1.0 end-to-end report](../memory-bank/bolts/003-legal-revalidation-cli/v1-e2e-report.md).
+The interactive band was not seen, and no live legal assessment was made. Owner
+acceptance of the MVP remains pending.
+
+## Release team audit — 2026-11-03/04
+
+On the Owner's request, a read-only agentic team audit ran as workflows, since
+native Herdr is unavailable here; all changes had one writer. Five lenses with
+adversarial verification were followed by a confirmation round and a focused recheck.
+It verified one blocker (withdrawn support restored by a plain rerun) and several
+majors: runs shared by same-named folders, freshness confirmed by another source's
+bytes, the documented maxima failing to revalidate, the band using the git root, and,
+from the confirmation round, future-dated renewals and family screenings not carried
+forward. It also found minor diagnostic, labelling and documentation issues. All are
+fixed with regression tests; details are in the
+[team audit report](../memory-bank/bolts/003-legal-revalidation-cli/v1-team-audit-report.md).
+`make check` passes 217 tests, and the plugin validates and passes its 6 band tests.
+A final recheck found a renewal deadlock and rename/re-add bypasses, which are now
+fixed, and one documented limit: a run compares only against the predecessor it names.
+Owner MVP acceptance remains pending.
+
+
+## Version 1.1.0 — 2026-11-04
+
+The Owner asked for a more meaningful basis for assumed facts, article text next to
+each gap, the next best action, a PR check and a side panel, then to publish 1.1.0.
+1.1.0 adds `ground` (a local BM25 index of the project's code with a legal-concept
+lexicon; confirmed technical facts become `observed` with the file digest as
+evidence), the Publications Office as the sixth official host, article text and
+article suggestions in the report, `next` with `/eucg-next` and the band's Next step,
+`pr-check` with `/eucg-pr` and a GitHub Actions example, and the `/eucg-panel` side
+panel. A two-reviewer release review found eleven defects; all were fixed with
+regression tests. `make check` passes 248 tests and the plugin's 14 band and panel
+tests pass. See the [1.1 release record](../memory-bank/bolts/004-grounding-and-guidance/v1.1-release-report.md).

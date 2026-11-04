@@ -421,7 +421,7 @@
             "maxLength": 8192,
             "type": "string"
           },
-          "maxItems": 1000,
+          "maxItems": 5000,
           "title": "Gaps",
           "type": "array"
         },
@@ -1730,6 +1730,106 @@
         "evidence_ids"
       ],
       "title": "DeclaredRequirement",
+      "type": "object"
+    },
+    "DependencyChange": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "After"
+        },
+        "before": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Before"
+        },
+        "identity": {
+          "maxLength": 8192,
+          "title": "Identity",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "identity",
+        "before",
+        "after"
+      ],
+      "title": "DependencyChange",
+      "type": "object"
+    },
+    "DependencyComparison": {
+      "additionalProperties": false,
+      "properties": {
+        "changes": {
+          "items": {
+            "$ref": "#/$defs/DependencyChange"
+          },
+          "maxItems": 1000,
+          "title": "Changes",
+          "type": "array"
+        },
+        "historical_disposition_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+            "type": "string"
+          },
+          "maxItems": 200,
+          "title": "Historical Disposition Ids",
+          "type": "array"
+        },
+        "previous_bundle_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Previous Bundle Digest",
+          "type": "string"
+        },
+        "previous_manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Previous Manifest Id",
+          "type": "string"
+        },
+        "previous_run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Previous Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "previous_run_id",
+        "previous_manifest_id",
+        "previous_bundle_digest",
+        "historical_disposition_ids",
+        "changes"
+      ],
+      "title": "DependencyComparison",
       "type": "object"
     },
     "DetailPage": {
@@ -4872,9 +4972,200 @@
       "title": "ResultsImportCommand",
       "type": "object"
     },
+    "RetrievalProvenance": {
+      "additionalProperties": false,
+      "description": "Safe per-attempt metadata; response headers, cookies and bodies are never retained here.",
+      "properties": {
+        "admission": {
+          "anyOf": [
+            {
+              "enum": [
+                "accepted",
+                "needs_review",
+                "rejected"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Admission"
+        },
+        "admission_reason": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Admission Reason"
+        },
+        "artifact_path": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Path"
+        },
+        "bytes_read": {
+          "maximum": 16777216,
+          "minimum": 0,
+          "title": "Bytes Read",
+          "type": "integer"
+        },
+        "charset": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Charset"
+        },
+        "comparison": {
+          "enum": [
+            "same_bytes",
+            "different_bytes",
+            "no_prior_source",
+            "not_compared"
+          ],
+          "title": "Comparison",
+          "type": "string"
+        },
+        "digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Digest"
+        },
+        "ended_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "title": "Ended At",
+          "type": "string"
+        },
+        "final_url": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Final Url"
+        },
+        "media_type": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Media Type"
+        },
+        "redirects": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 3,
+          "title": "Redirects",
+          "type": "array"
+        },
+        "requested_url": {
+          "maxLength": 4096,
+          "title": "Requested Url",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "title": "Started At",
+          "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "maximum": 599,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        }
+      },
+      "required": [
+        "requested_url",
+        "redirects",
+        "started_at",
+        "ended_at",
+        "bytes_read",
+        "comparison"
+      ],
+      "title": "RetrievalProvenance",
+      "type": "object"
+    },
     "RevalidationBundle": {
       "additionalProperties": false,
       "properties": {
+        "comparison": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DependencyComparison"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "current_assessments": {
+          "items": {
+            "$ref": "#/$defs/CurrentAssessment"
+          },
+          "maxItems": 200,
+          "title": "Current Assessments",
+          "type": "array"
+        },
         "declarations": {
           "$ref": "#/$defs/RevalidationInput"
         },
@@ -4890,7 +5181,7 @@
           "items": {
             "$ref": "#/$defs/Evidence"
           },
-          "maxItems": 200,
+          "maxItems": 201,
           "title": "Evidence",
           "type": "array"
         },
@@ -4908,7 +5199,7 @@
             "maxLength": 8192,
             "type": "string"
           },
-          "maxItems": 1000,
+          "maxItems": 5000,
           "title": "Gaps",
           "type": "array"
         },
@@ -4925,7 +5216,7 @@
             "maxLength": 8192,
             "type": "string"
           },
-          "maxItems": 1000,
+          "maxItems": 5000,
           "title": "Next Actions",
           "type": "array"
         },
@@ -4952,6 +5243,14 @@
           "title": "Requirement Assessments",
           "type": "array"
         },
+        "retrieved_sources": {
+          "items": {
+            "$ref": "#/$defs/LegalSource"
+          },
+          "maxItems": 16,
+          "title": "Retrieved Sources",
+          "type": "array"
+        },
         "run": {
           "$ref": "#/$defs/AuditRun"
         },
@@ -4959,6 +5258,14 @@
           "const": 1,
           "title": "Schema Version",
           "type": "integer"
+        },
+        "source_attempts": {
+          "items": {
+            "$ref": "#/$defs/SourceAttempt"
+          },
+          "maxItems": 16,
+          "title": "Source Attempts",
+          "type": "array"
         },
         "synthetic": {
           "title": "Synthetic",
@@ -5041,6 +5348,15 @@
           "title": "Family Screenings",
           "type": "array"
         },
+        "files_root": {
+          "default": "declarations_dir",
+          "enum": [
+            "declarations_dir",
+            "project"
+          ],
+          "title": "Files Root",
+          "type": "string"
+        },
         "obligations": {
           "items": {
             "$ref": "#/$defs/Obligation"
@@ -5119,7 +5435,7 @@
           "items": {
             "$ref": "#/$defs/SourceFile"
           },
-          "maxItems": 20,
+          "maxItems": 37,
           "minItems": 4,
           "title": "Files",
           "type": "array"
@@ -5753,6 +6069,17 @@
           "title": "Publisher",
           "type": "string"
         },
+        "retrieval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetrievalProvenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "retrieved_source": {
           "anyOf": [
             {
@@ -6077,6 +6404,17 @@
           "minLength": 1,
           "title": "Publisher",
           "type": "string"
+        },
+        "redirect_hosts": {
+          "items": {
+            "maxLength": 253,
+            "minLength": 1,
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$",
+            "type": "string"
+          },
+          "maxItems": 4,
+          "title": "Redirect Hosts",
+          "type": "array"
         },
         "revision": {
           "maximum": 9007199254740991,

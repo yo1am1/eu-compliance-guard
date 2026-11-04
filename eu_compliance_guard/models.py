@@ -14,17 +14,27 @@ from pydantic import (
 )
 
 MAX_REQUEST_BYTES = 4 * 1024 * 1024
+# A bundle repeats the declarations and adds one output per requirement and obligation.
+MAX_BUNDLE_BYTES = 16 * 1024 * 1024
 MAX_SEQUENCE = 2**53 - 1
 
 
+# Fixed messages: the standard library's errors quote the rejected value.
 def _date(value: str) -> str:
-    if date.fromisoformat(value).isoformat() != value:
+    try:
+        valid = date.fromisoformat(value).isoformat() == value
+    except ValueError:
+        valid = False
+    if not valid:
         raise ValueError("expected an ISO calendar date")
     return value
 
 
 def _timestamp(value: str) -> str:
-    parsed = datetime.fromisoformat(value)
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        raise ValueError("expected a UTC timestamp") from None
     if "T" not in value or parsed.utcoffset() != timedelta(0):
         raise ValueError("expected a UTC timestamp")
     return value
@@ -41,10 +51,13 @@ def _relative_path(value: str) -> str:
 def _http_url(value: str) -> str:
     if any(c.isspace() or ord(c) < 32 for c in value):
         raise ValueError("whitespace in URL")
-    parsed = urlsplit(value)
+    try:
+        parsed = urlsplit(value)
+        parsed.port  # Reject malformed ports, without resolving or accessing a destination.
+    except ValueError:
+        raise ValueError("expected an HTTP(S) URL with a valid host and port") from None
     if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username is not None or parsed.password is not None:
         raise ValueError("expected an HTTP(S) URL without credentials")
-    parsed.port  # Reject malformed ports, without resolving or accessing a destination.
     return value
 
 
@@ -83,9 +96,12 @@ ISODate = Annotated[str, Field(json_schema_extra={"format": "date"}), AfterValid
 Timestamp = Annotated[str, Field(max_length=40, json_schema_extra={"format": "date-time"}), AfterValidator(_timestamp)]
 RelativePath = Annotated[str, Field(min_length=1, max_length=1024), AfterValidator(_relative_path)]
 HttpURL = Annotated[str, Field(max_length=4096), AfterValidator(_http_url)]
+HostName = Annotated[str, Field(min_length=1, max_length=253, pattern=r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$")]
+MediaType = Annotated[str, Field(min_length=3, max_length=256, pattern=r"^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")]
 Value = Annotated[JsonValue, AfterValidator(_json_value)]
 Ids = Annotated[list[Id], Field(max_length=1000)]
 Texts = Annotated[list[Text], Field(max_length=1000)]
+GapTexts = Annotated[list[Text], Field(max_length=5000)]
 
 Applicability = Literal["applicable", "not_applicable", "unresolved"]
 Outcome = Literal["passed", "observed_failure", "unresolved_review", "blocked", "not_tested", "lead"]
@@ -180,6 +196,38 @@ class LegalSource(Record):
         return self
 
 
+class RetrievalProvenance(Record):
+    """Safe per-attempt metadata; response headers, cookies and bodies are never retained here."""
+    requested_url: HttpURL
+    final_url: HttpURL | None = None
+    redirects: Annotated[list[HttpURL], Field(max_length=3)]
+    started_at: Timestamp
+    ended_at: Timestamp
+    status: Annotated[int, Field(ge=100, le=599)] | None = None
+    media_type: MediaType | None = None
+    charset: Name | None = None
+    bytes_read: Annotated[int, Field(ge=0, le=16 * 1024 * 1024)]
+    digest: Digest | None = None
+    artifact_path: RelativePath | None = None
+    admission: Literal["accepted", "needs_review", "rejected"] | None = None
+    admission_reason: Name | None = None
+    comparison: Literal["same_bytes", "different_bytes", "no_prior_source", "not_compared"]
+
+    @model_validator(mode="after")
+    def consistent(self) -> RetrievalProvenance:
+        if datetime.fromisoformat(self.ended_at) < datetime.fromisoformat(self.started_at):
+            raise ValueError("retrieval ends before it starts")
+        if self.final_url is not None and self.final_url != (self.redirects[-1] if self.redirects else self.requested_url):
+            raise ValueError("final URL must end the recorded redirect chain")
+        if (self.admission is None) != (self.admission_reason is None):
+            raise ValueError("content admission and reason must be supplied together")
+        if self.artifact_path is not None and (self.digest is None or self.artifact_path != "sources/" + self.digest.removeprefix("sha256:") + ".bin"):
+            raise ValueError("retained retrieval artifact must be named by its digest")
+        if self.comparison in ("same_bytes", "different_bytes") and self.digest is None:
+            raise ValueError("byte comparison requires a retrieved digest")
+        return self
+
+
 class SourceAttempt(Record):
     id: Id
     source_target_id: Id
@@ -193,6 +241,7 @@ class SourceAttempt(Record):
     retrieved_source: SourceRef | None = None
     last_successful_source: SourceRef | None = None
     failure: SafeError | None = None
+    retrieval: RetrievalProvenance | None = None
 
     @model_validator(mode="after")
     def retrieval_state(self) -> SourceAttempt:
@@ -202,6 +251,16 @@ class SourceAttempt(Record):
             raise ValueError("unsuccessful attempt requires a safe failure reason")
         if self.state == "retrieval_failed" and self.retrieved_source is not None:
             raise ValueError("failed retrieval cannot invent a retrieved source")
+        if self.retrieval is not None:
+            retrieval = self.retrieval
+            if retrieval.requested_url != self.intended_url:
+                raise ValueError("retrieval provenance must start at the intended URL")
+            retained = (retrieval.final_url is not None and retrieval.status == 200 and retrieval.digest is not None
+                        and retrieval.artifact_path is not None and retrieval.admission in ("accepted", "needs_review"))
+            if (self.retrieved_source is not None) != retained:
+                raise ValueError("retrieved source requires retained accepted or reviewable bytes")
+            if self.state == "retrieval_failed" and retrieval.comparison in ("same_bytes", "different_bytes"):
+                raise ValueError("failed retrieval cannot be compared as fresh bytes")
         return self
 
 
@@ -321,7 +380,7 @@ class AuditRun(Record):
     started_at: Timestamp | None = None
     ended_at: Timestamp | None = None
     terminal_sequence: Revision | None = None
-    gaps: Texts
+    gaps: GapTexts
     budgets: Budgets
 
     @model_validator(mode="after")
@@ -930,9 +989,9 @@ COMMAND_ADAPTER = TypeAdapter(Command)
 TRecord = TypeVar("TRecord", bound=Record)
 
 
-def parse_record(model: type[TRecord], payload: bytes | str) -> TRecord:
+def parse_record(model: type[TRecord], payload: bytes | str, limit: int = MAX_REQUEST_BYTES) -> TRecord:
     raw = payload.encode("utf-8") if isinstance(payload, str) else payload
-    if len(raw) > MAX_REQUEST_BYTES:
+    if len(raw) > limit:
         raise ValueError("record exceeds byte limit")
     return model.model_validate_json(raw)
 
@@ -1001,12 +1060,14 @@ class SourceTarget(Record):
     intended_type: SourceType
     language: Name
     jurisdiction: Name
+    # Explicitly approved redirect destinations; retrieval also requires the code registry.
+    redirect_hosts: Annotated[list[HostName], Field(max_length=4)] = Field(default_factory=list)
 
 
 class SelectedSource(Record):
     target_id: Id
     source: LegalSource
-    media_type: Annotated[str, Field(min_length=3, max_length=256, pattern=r"^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")]
+    media_type: MediaType
     charset: Name | None = None
     file: SourceFile | None = None
 
@@ -1086,24 +1147,32 @@ class RequirementAssessment(Record):
     next_actions: Texts
 
 
-def _unique_records(records: list, key=lambda item: item.id) -> dict:
+def _unique_records(records: list, key=lambda item: item.id, where: str = "") -> dict:
     indexed = {}
     for record in records:
         identity = key(record)
         if identity in indexed:
-            raise ValueError("duplicate record identity")
+            raise ValueError(f"{where}: duplicate record identity {identity}" if where else "duplicate record identity")
         indexed[identity] = record
     return indexed
 
 
-def _require_ids(ids: list[str], records: dict) -> None:
+# Optional `where` locations name JSON paths and declared identifiers, never values.
+def _require_ids(ids: list[str], records: dict, where: str = "") -> None:
     if len(ids) != len(set(ids)) or any(identity not in records for identity in ids):
-        raise ValueError("duplicate or dangling reference")
+        if not where:
+            raise ValueError("duplicate or dangling reference")
+        unknown = [identity for identity in ids if identity not in records]
+        raise ValueError(f"{where}: unknown reference {unknown[0]}" if unknown else f"{where}: duplicate reference")
 
 
-def _require_pin(pin: SourceRef, records: dict) -> None:
+def _require_pin(pin: SourceRef, records: dict, where: str = "") -> None:
     if pin.id not in records or pin.revision != records[pin.id].revision:
-        raise ValueError("missing or mismatched record revision")
+        if not where:
+            raise ValueError("missing or mismatched record revision")
+        if pin.id not in records:
+            raise ValueError(f"{where}: unknown reference {pin.id}")
+        raise ValueError(f"{where}: {pin.id} is pinned at revision {pin.revision} but declared at revision {records[pin.id].revision}")
 
 
 def scope_facts(scope: Scope) -> list[Fact]:
@@ -1115,8 +1184,12 @@ def scope_facts(scope: Scope) -> list[Fact]:
     return facts
 
 
-def _collection_bounds(record: Record) -> None:
-    """Bound nested collections without counting model field names as data items."""
+def _collection_bounds(record: Record, *, list_limit: int = 1000, aggregate: int = 5000) -> None:
+    """Bound nested collections without counting model field names as data items.
+
+    The root's own lists are bounded by their declared max_length; the per-record limit
+    applies to nested records, where one entry could otherwise carry unbounded children.
+    """
     total = 0
     stack = [(record, 0)]
     while stack:
@@ -1126,12 +1199,12 @@ def _collection_bounds(record: Record) -> None:
         if isinstance(item, Record):
             values = [getattr(item, name) for name in type(item).model_fields]
             own_items = sum(len(value) for value in values if isinstance(value, (list, dict)))
-            if own_items > 1000:
+            if depth and own_items > 1000:
                 raise ValueError("record exceeds nested collection limit")
             stack.extend((value, depth + 1) for value in values)
         elif isinstance(item, (list, dict)):
             total += len(item)
-            if len(item) > 1000 or total > 5000:
+            if len(item) > list_limit or total > aggregate:
                 raise ValueError("record exceeds aggregate collection limit")
             values = item.values() if isinstance(item, dict) else item
             stack.extend((value, depth + 1) for value in values)
@@ -1143,6 +1216,8 @@ class RevalidationInput(Record):
     synthetic: bool
     declaration_run_id: Id
     declaration_manifest_id: Id
+    # Where selected paths resolve: the declarations file's folder, or its parent (the project).
+    files_root: Literal["declarations_dir", "project"] = "declarations_dir"
     scope: Scope
     requirements: Annotated[list[DeclaredRequirement], Field(max_length=200)] = Field(default_factory=list)
     source_targets: Annotated[list[SourceTarget], Field(max_length=16)] = Field(default_factory=list)
@@ -1155,17 +1230,18 @@ class RevalidationInput(Record):
     evidence: Annotated[list[SelectedEvidence], Field(max_length=200)] = Field(default_factory=list)
     evidence_reviews: Annotated[list[EvidenceReview], Field(max_length=200)] = Field(default_factory=list)
 
-    def validate_provisions(self, provisions: list[ProvisionRef]) -> None:
+    def validate_provisions(self, provisions: list[ProvisionRef], where: str = "") -> None:
         targets = {item.id for item in self.source_targets}
         sources = {item.source.id: item for item in self.sources}
-        for provision in provisions:
+        prefix = where + ": " if where else ""
+        for index, provision in enumerate(provisions):
             if provision.source_target_id not in targets:
-                raise ValueError("provision references missing source target")
+                raise ValueError(f"{prefix}provision {index} references missing source target")
             if provision.source_id is not None:
                 selected = sources.get(provision.source_id)
                 if (selected is None or selected.source.revision != provision.revision
                         or selected.target_id != provision.source_target_id):
-                    raise ValueError("provision source/target/revision mismatch")
+                    raise ValueError(f"{prefix}provision {index} source/target/revision mismatch")
 
     @model_validator(mode="after")
     def membership(self) -> RevalidationInput:
@@ -1180,65 +1256,76 @@ class RevalidationInput(Record):
             if fact.id in facts and canonical_json(fact) != canonical_json(facts[fact.id]):
                 raise ValueError("conflicting copies of fact identity")
             facts[fact.id] = fact
-        activities = _unique_records(self.scope.activities)
-        _unique_records(self.requirements)
-        targets = _unique_records(self.source_targets)
-        sources = _unique_records([item.source for item in self.sources])
-        obligations = _unique_records(self.obligations)
-        controls = _unique_records(self.controls)
-        evidence = _unique_records([item.evidence for item in self.evidence])
-        _unique_records(self.applicability_decisions)
-        _unique_records(self.applicability_decisions, lambda item: item.obligation.id)
-        _unique_records(self.evidence_reviews)
-        _unique_records(self.evidence_reviews, lambda item: (item.obligation.id, item.method))
-        _unique_records(self.source_reviews, lambda item: (item.source_id, item.source_revision, item.assessment_date))
-        _unique_records(self.family_screenings, lambda item: item.family)
-        records = [*self.requirements, *self.applicability_decisions, *self.evidence_reviews, *evidence.values()]
-        if any(item.project_id != self.project_id for item in records):
-            raise ValueError("cross-project declaration")
-        if any(item.run_id != self.declaration_run_id or item.manifest_id != self.declaration_manifest_id
-               for item in evidence.values()):
-            raise ValueError("evidence declaration namespace mismatch")
-        for selected in self.sources:
+        activities = _unique_records(self.scope.activities, where="scope.activities")
+        _unique_records(self.requirements, where="requirements")
+        targets = _unique_records(self.source_targets, where="source_targets")
+        sources = _unique_records([item.source for item in self.sources], where="sources[].source")
+        obligations = _unique_records(self.obligations, where="obligations")
+        controls = _unique_records(self.controls, where="controls")
+        evidence = _unique_records([item.evidence for item in self.evidence], where="evidence[].evidence")
+        _unique_records(self.applicability_decisions, where="applicability_decisions")
+        _unique_records(self.applicability_decisions, lambda item: item.obligation.id,
+                        where="applicability_decisions (one per obligation)")
+        _unique_records(self.evidence_reviews, where="evidence_reviews")
+        _unique_records(self.evidence_reviews, lambda item: (item.obligation.id, item.method),
+                        where="evidence_reviews (one per obligation and method)")
+        _unique_records(self.source_reviews, lambda item: (item.source_id, item.source_revision, item.assessment_date),
+                        where="source_reviews (one per source revision and date)")
+        _unique_records(self.family_screenings, lambda item: item.family, where="family_screenings (one per family)")
+        for name, items in (("requirements", self.requirements), ("applicability_decisions", self.applicability_decisions),
+                            ("evidence_reviews", self.evidence_reviews), ("evidence", [item.evidence for item in self.evidence])):
+            for index, item in enumerate(items):
+                if item.project_id != self.project_id:
+                    raise ValueError(f"{name}[{index}]: cross-project declaration (project_id differs from the envelope)")
+        for index, item in enumerate(self.evidence):
+            if (item.evidence.run_id != self.declaration_run_id
+                    or item.evidence.manifest_id != self.declaration_manifest_id):
+                raise ValueError(f"evidence[{index}].evidence: run_id/manifest_id must equal "
+                                 "declaration_run_id/declaration_manifest_id")
+        for index, selected in enumerate(self.sources):
             if selected.target_id not in targets:
-                raise ValueError("source references missing target")
-            _require_ids(selected.source.related_source_ids, sources)
-        for review in self.source_reviews:
-            _require_pin(SourceRef(id=review.source_id, revision=review.source_revision), sources)
-            for refs in (review.act_chain, review.case_law_refs, review.national_overlay_ids):
-                _require_ids(refs, sources)
+                raise ValueError(f"sources[{index}].target_id: unknown reference {selected.target_id}")
+            _require_ids(selected.source.related_source_ids, sources, f"sources[{index}].source.related_source_ids")
+        for index, review in enumerate(self.source_reviews):
+            _require_pin(SourceRef(id=review.source_id, revision=review.source_revision), sources,
+                         f"source_reviews[{index}].source_id/source_revision")
+            for field in ("act_chain", "case_law_refs", "national_overlay_ids"):
+                _require_ids(getattr(review, field), sources, f"source_reviews[{index}].{field}")
         for fact in facts.values():
-            _require_ids(fact.evidence_ids, evidence)
-            _require_ids(fact.conflicts, facts)
-        for requirement in self.requirements:
-            _require_ids(requirement.activity_ids, activities)
-            _require_ids(requirement.evidence_ids, evidence)
-            for pin in requirement.fact_refs:
-                _require_pin(pin, facts)
-            for pin in requirement.obligation_refs:
-                _require_pin(pin, obligations)
-        for obligation in self.obligations:
-            self.validate_provisions(obligation.source_provisions)
-            _require_ids(obligation.overlay_ids, sources)
-            _require_ids(obligation.control_ids, controls)
-        for control in self.controls:
-            _require_ids(control.obligation_ids, obligations)
-        for decision in self.applicability_decisions:
-            _require_pin(decision.obligation, obligations)
-            self.validate_provisions(decision.provisions)
-            _require_ids(decision.evidence_ids, evidence)
-        for item in [*self.applicability_decisions, *self.family_screenings]:
-            _require_pin(item.scope, {self.scope.id: self.scope})
-            for pin in item.fact_refs:
-                _require_pin(pin, facts)
-        for screening in self.family_screenings:
-            for pin in screening.source_refs:
-                _require_pin(pin, sources)
-        for review in self.evidence_reviews:
-            _require_pin(review.obligation, obligations)
-            _require_ids(review.evidence_ids, evidence)
+            _require_ids(fact.evidence_ids, evidence, f"scope fact {fact.id}.evidence_ids")
+            _require_ids(fact.conflicts, facts, f"scope fact {fact.id}.conflicts")
+        for index, requirement in enumerate(self.requirements):
+            where = f"requirements[{index}]"
+            _require_ids(requirement.activity_ids, activities, where + ".activity_ids")
+            _require_ids(requirement.evidence_ids, evidence, where + ".evidence_ids")
+            for number, pin in enumerate(requirement.fact_refs):
+                _require_pin(pin, facts, f"{where}.fact_refs[{number}]")
+            for number, pin in enumerate(requirement.obligation_refs):
+                _require_pin(pin, obligations, f"{where}.obligation_refs[{number}]")
+        for index, obligation in enumerate(self.obligations):
+            self.validate_provisions(obligation.source_provisions, f"obligations[{index}].source_provisions")
+            _require_ids(obligation.overlay_ids, sources, f"obligations[{index}].overlay_ids")
+            _require_ids(obligation.control_ids, controls, f"obligations[{index}].control_ids")
+        for index, control in enumerate(self.controls):
+            _require_ids(control.obligation_ids, obligations, f"controls[{index}].obligation_ids")
+        for index, decision in enumerate(self.applicability_decisions):
+            where = f"applicability_decisions[{index}]"
+            _require_pin(decision.obligation, obligations, where + ".obligation")
+            self.validate_provisions(decision.provisions, where + ".provisions")
+            _require_ids(decision.evidence_ids, evidence, where + ".evidence_ids")
+        for name, items in (("applicability_decisions", self.applicability_decisions), ("family_screenings", self.family_screenings)):
+            for index, item in enumerate(items):
+                _require_pin(item.scope, {self.scope.id: self.scope}, f"{name}[{index}].scope")
+                for number, pin in enumerate(item.fact_refs):
+                    _require_pin(pin, facts, f"{name}[{index}].fact_refs[{number}]")
+        for index, screening in enumerate(self.family_screenings):
+            for number, pin in enumerate(screening.source_refs):
+                _require_pin(pin, sources, f"family_screenings[{index}].source_refs[{number}]")
+        for index, review in enumerate(self.evidence_reviews):
+            _require_pin(review.obligation, obligations, f"evidence_reviews[{index}].obligation")
+            _require_ids(review.evidence_ids, evidence, f"evidence_reviews[{index}].evidence_ids")
             if review.method not in obligations[review.obligation.id].required_methods:
-                raise ValueError("review method not required by obligation")
+                raise ValueError(f"evidence_reviews[{index}].method: not among the obligation's required_methods")
         synthetic_records = [*self.requirements, *sources.values(), *self.source_reviews,
                              *self.applicability_decisions, *self.evidence_reviews, *self.family_screenings]
         if not self.synthetic and (any(item.synthetic for item in synthetic_records)
@@ -1258,6 +1345,33 @@ class RevalidationInput(Record):
         return self
 
 
+class DependencyChange(Record):
+    kind: Name
+    identity: Text
+    before: Digest | None
+    after: Digest | None
+
+    @model_validator(mode="after")
+    def different(self) -> DependencyChange:
+        if self.before == self.after:
+            raise ValueError("dependency change needs different digests")
+        return self
+
+
+class DependencyComparison(Record):
+    previous_run_id: Id
+    previous_manifest_id: Id
+    previous_bundle_digest: Digest
+    historical_disposition_ids: Annotated[list[Id], Field(max_length=200)]
+    changes: Annotated[list[DependencyChange], Field(max_length=1000)]
+
+    @model_validator(mode="after")
+    def unique_dependencies(self) -> DependencyComparison:
+        _require_ids(self.historical_disposition_ids, dict.fromkeys(self.historical_disposition_ids))
+        _unique_records(self.changes, lambda item: (item.kind, item.identity))
+        return self
+
+
 class RevalidationBundle(Record):
     schema_version: SchemaVersion
     project_id: Id
@@ -1266,17 +1380,22 @@ class RevalidationBundle(Record):
     run: AuditRun
     manifest: InputManifest
     declarations: RevalidationInput
-    evidence: Annotated[list[Evidence], Field(max_length=200)]
+    evidence: Annotated[list[Evidence], Field(max_length=201)]
     obligation_dispositions: Annotated[list[ObligationDisposition], Field(max_length=200)]
     requirement_assessments: Annotated[list[RequirementAssessment], Field(max_length=200)]
     effective_applicability_decisions: Annotated[list[ApplicabilityDecision], Field(max_length=200)]
     family_screenings: Annotated[list[FamilyScreening], Field(min_length=11, max_length=11)]
-    gaps: Texts
-    next_actions: Texts
+    gaps: GapTexts
+    next_actions: GapTexts
+    # One attempt per fetched target; retrieved bytes are unreviewed candidates, never declared sources.
+    source_attempts: Annotated[list[SourceAttempt], Field(max_length=16)] = Field(default_factory=list)
+    retrieved_sources: Annotated[list[LegalSource], Field(max_length=16)] = Field(default_factory=list)
+    comparison: DependencyComparison | None = None
+    current_assessments: Annotated[list[CurrentAssessment], Field(max_length=200)] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def membership(self) -> RevalidationBundle:
-        _collection_bounds(self)
+        _collection_bounds(self, list_limit=5000, aggregate=50000)
         declared = self.declarations
         if (self.project_id != declared.project_id or self.run.project_id != self.project_id
                 or self.synthetic != declared.synthetic or self.run.manifest_id != self.manifest.id
@@ -1284,13 +1403,46 @@ class RevalidationBundle(Record):
                 or self.manifest.scope_revision != declared.scope.revision
                 or self.manifest.fixture_digest != self.input_digest):
             raise ValueError("bundle project/synthetic/run/manifest mismatch")
-        if self.run.state not in ("partial", "completed") or self.run.parent_run_id is not None:
-            raise ValueError("offline bundle requires a finished first run")
+        if self.run.state not in ("partial", "completed"):
+            raise ValueError("bundle requires a finished run")
         evidence = _unique_records(self.evidence)
         expected_evidence = {item.evidence.id: item.evidence for item in declared.evidence}
-        if set(evidence) != set(expected_evidence):
+        proof_ids = set(evidence) - set(expected_evidence)
+        if self.comparison is None:
+            if self.run.parent_run_id is not None or self.current_assessments or proof_ids:
+                raise ValueError("first run cannot contain predecessor claims")
+        else:
+            comparison = self.comparison
+            if (self.run.parent_run_id != comparison.previous_run_id or self.run.id == comparison.previous_run_id
+                    or self.manifest.id == comparison.previous_manifest_id or len(proof_ids) != 1):
+                raise ValueError("comparison predecessor/proof mismatch")
+            proof = evidence[next(iter(proof_ids))]
+            if (proof.project_id != self.project_id or proof.run_id != self.run.id
+                    or proof.manifest_id != self.manifest.id or proof.kind != "dependency_comparison"
+                    or proof.digest != content_digest(canonical_json(comparison))
+                    or proof.provenance != "observed" or proof.availability != "available"
+                    or proof.redaction != "safe" or proof.media_type != "application/json"
+                    or proof.attempt_id is not None or proof.source_refs != ["comparison.json"]
+                    or proof.browser_context is not None):
+                raise ValueError("comparison proof must describe retained comparison metadata")
+            overlays = _unique_records(self.current_assessments, lambda item: item.obligation_disposition_id)
+            _unique_records(self.current_assessments)
+            changed_keys = {f"{item.kind}:{item.identity}" for item in comparison.changes}
+            if set(overlays) != set(comparison.historical_disposition_ids):
+                raise ValueError("comparison must cover every historical disposition")
+            for overlay in overlays.values():
+                if (overlay.project_id != self.project_id or overlay.historical_run_id != comparison.previous_run_id
+                        or overlay.expected_manifest_id != comparison.previous_manifest_id
+                        or overlay.observed_manifest_id != self.manifest.id
+                        or overlay.comparison_evidence_ids != [proof.id] or not overlay.reasons):
+                    raise ValueError("historical freshness overlay membership mismatch")
+                if (bool(overlay.changed_dependencies) != (overlay.freshness == "stale")
+                        or not set(overlay.changed_dependencies) <= changed_keys):
+                    raise ValueError("stale overlay needs retained changed dependencies")
+        if not set(expected_evidence) <= set(evidence):
             raise ValueError("bundle must retain every declared evidence record")
-        for item in evidence.values():
+        for identity in expected_evidence:
+            item = evidence[identity]
             if (item.project_id != self.project_id or item.run_id != self.run.id
                     or item.manifest_id != self.manifest.id):
                 raise ValueError("output evidence membership mismatch")
@@ -1318,6 +1470,42 @@ class RevalidationBundle(Record):
         selected_evidence = {item.evidence.id: item for item in declared.evidence}
         targets = {item.id: item for item in declared.source_targets}
         source_reviews = {(item.source_id, item.assessment_date): item for item in declared.source_reviews}
+        attempts = _unique_records(self.source_attempts)
+        _unique_records(self.source_attempts, lambda item: item.source_target_id)
+        retrieved = _unique_records(self.retrieved_sources)
+        if set(retrieved) & set(source_by_id):
+            raise ValueError("retrieved candidate identity collides with a declared source")
+        referenced = set()
+        for attempt in attempts.values():
+            target = targets.get(attempt.source_target_id)
+            retrieval = attempt.retrieval
+            if target is None or retrieval is None or (
+                    attempt.intended_url, attempt.intended_identifier, attempt.publisher, attempt.intended_type, attempt.language
+                    ) != (target.intended_url, target.intended_identifier, target.publisher, target.intended_type, target.language):
+                raise ValueError("source attempt must record provenance for its declared target")
+            prior = None
+            if attempt.last_successful_source is not None:
+                _require_pin(attempt.last_successful_source, source_by_id)
+                if selected_sources[attempt.last_successful_source.id].target_id != target.id:
+                    raise ValueError("last successful source belongs to another target")
+                prior = source_by_id[attempt.last_successful_source.id]
+            expected = ("not_compared" if attempt.retrieved_source is None else "no_prior_source" if prior is None
+                        else "same_bytes" if retrieval.digest == prior.content_digest else "different_bytes")
+            if retrieval.comparison != expected:
+                raise ValueError("retrieval comparison disagrees with the declared source")
+            if attempt.retrieved_source is not None:
+                _require_pin(attempt.retrieved_source, retrieved)
+                source = retrieved[attempt.retrieved_source.id]
+                if ((source.type, source.publisher, source.identifier, source.language, source.jurisdiction)
+                        != (target.intended_type, target.publisher, target.intended_identifier, target.language, target.jurisdiction)
+                        or source.url != retrieval.final_url or source.content_digest != retrieval.digest
+                        or source.retrieved_at != retrieval.ended_at or source.provisions or source.related_source_ids):
+                    raise ValueError("retrieved candidate must mirror its target and provenance without reviewed provisions")
+                referenced.add(source.id)
+        if referenced != set(retrieved):
+            raise ValueError("every retrieved candidate needs exactly one attempt")
+        # Retrieved bytes per target; a declared source is withdrawn when the host served other bytes than its own.
+        fetched_digests = {item.source_target_id: item.retrieval.digest for item in attempts.values() if item.retrieved_source}
 
         def admitted_source(source_id: str) -> bool:
             pending = [source_id]
@@ -1332,7 +1520,8 @@ class RevalidationBundle(Record):
                 target = targets[selected.target_id]
                 review = source_reviews.get((identity, declared.scope.assessment_date))
                 if not (
-                        selected.file and observed_files.get(selected.file.path) == source.content_digest
+                        fetched_digests.get(selected.target_id, source.content_digest) == source.content_digest
+                        and selected.file and observed_files.get(selected.file.path) == source.content_digest
                         and selected.media_type.lower() in ("text/plain", "text/html", "application/xhtml+xml")
                         and (selected.charset is None or selected.charset.lower() == "utf-8")
                         and source.type == target.intended_type and source.url == target.intended_url
@@ -1506,6 +1695,7 @@ class RevalidationBundle(Record):
                     or not all(admitted_source(pin.id) for pin in item.source_refs)):
                 raise ValueError("resolved screening lacks accountable admitted review")
         if self.run.state == "completed" and (self.gaps or self.run.gaps or not requirements or not obligations
+                or self.source_attempts or self.retrieved_sources
                 or any(item.gaps or item.state in ("unresolved", "conflicting") for item in self.requirement_assessments)
                 or any(item.gaps or item.applicability == "unresolved" for item in decisions.values())
                 or any(item.manual_review in ("pending", "unresolved")
@@ -1513,7 +1703,8 @@ class RevalidationBundle(Record):
                               or method.missing_evidence for method in item.required_method_dispositions)
                        for item in dispositions.values())
                 or any(not admitted_source(identity) or not source.synthetic for identity, source in source_by_id.items())
-                or any(not admitted_evidence(identity) for identity in evidence)
+                or any(not admitted_evidence(identity) for identity in expected_evidence)
+                or any(item.freshness != "current_for_recorded_inputs" for item in self.current_assessments)
                 or any(item.gaps or item.applicability == "unresolved" for item in self.family_screenings)):
             raise ValueError("completed processing cannot hide open gaps")
         if len(self.manifest.source_files) > 32 or self.manifest.browser_state is not None or self.manifest.graph_digest is not None:
@@ -1524,7 +1715,7 @@ class RevalidationBundle(Record):
 class RunCompletion(Record):
     schema_version: SchemaVersion
     run_id: Id
-    files: Annotated[list[SourceFile], Field(min_length=4, max_length=20)]
+    files: Annotated[list[SourceFile], Field(min_length=4, max_length=37)]
 
     @model_validator(mode="after")
     def artifact_paths(self) -> RunCompletion:
@@ -1533,6 +1724,6 @@ class RunCompletion(Record):
         if not required <= files.keys():
             raise ValueError("completion marker is missing required artifacts")
         for path, file in files.items():
-            if path not in required and path != "sources/" + file.digest.removeprefix("sha256:") + ".bin":
+            if path not in required | {"comparison.json"} and path != "sources/" + file.digest.removeprefix("sha256:") + ".bin":
                 raise ValueError("completion marker contains a nongenerated artifact path")
         return self

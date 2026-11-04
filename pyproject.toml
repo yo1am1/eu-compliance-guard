@@ -1,15 +1,24 @@
 [project]
 name = "eu-compliance-guard"
-version = "0.1.0"
-description = "Local EU audit evidence, executable checks, and agent integrations"
+version = "1.1.0"
+description = "Read-only EU requirements-to-law revalidation CLI and Claude Code plugin"
+readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "licenses/*"]
 dependencies = [
-    "fastapi==0.143.1",
     "pydantic==2.14.1",
+]
+
+[project.optional-dependencies]
+# The planned local API; the CLI and Claude Code plugin need only Pydantic.
+api = [
+    "fastapi==0.143.1",
     "uvicorn==0.54.0",
 ]
+
+[project.scripts]
+eu-compliance-guard = "eu_compliance_guard.__main__:main"
 
 [build-system]
 requires = ["hatchling==1.32.4"]
@@ -20,6 +29,7 @@ packages = ["eu_compliance_guard"]
 
 [tool.hatch.build.targets.sdist]
 include = [
+    "/README.md",
     "/eu_compliance_guard",
     "/frontend/src",
     "/frontend/scripts",
@@ -29,14 +39,19 @@ include = [
     "/frontend/.gitignore",
     "/fixtures",
     "/tests",
+    "/.claude-plugin",
+    "/skills",
+    "/hooks",
+    "/types",
     "/licenses",
     "/pyproject.toml",
     "/uv.lock",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",
     "/Makefile",
+    "/CHANGELOG.md",
 ]
 exclude = ["**/__pycache__", "**/*.pyc"]
 
 [dependency-groups]
-dev = ["httpx==0.28.1"]
+dev = ["fastapi==0.143.1", "httpx==0.28.1"]

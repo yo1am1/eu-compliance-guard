@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "eu-compliance-guard",
+  "description": "Read-only EU requirements-to-law revalidation for coding agents.",
+  "owner": {
+    "name": "Yehor Trepalin",
+    "url": "https://github.com/yo1am1"
+  },
+  "plugins": [
+    {
+      "name": "eu-compliance-guard",
+      "description": "Flags legal touchpoints, keeps declarations and review gaps explicit, and runs the private offline revalidation report.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+"""HTML run view checks on synthetic runs; nothing is opened or fetched."""
+
+from contextlib import redirect_stderr, redirect_stdout
+import io
+import json
+from pathlib import Path
+import re
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from eu_compliance_guard import models as m, revalidation as r, view as v
+from eu_compliance_guard.__main__ import main
+
+FIXTURE = Path(__file__).resolve().parents[1] / "fixtures/revalidation-synthetic.json"
+
+
+class RunViewTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="eucg-view-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.root.chmod(0o700)
+        (self.root / "revalidation-synthetic").mkdir()
+        for name in ("source.txt", "evidence.txt"):
+            (self.root / "revalidation-synthetic" / name).write_bytes((FIXTURE.parent / "revalidation-synthetic" / name).read_bytes())
+        payload = json.loads(FIXTURE.read_bytes())
+        payload["requirements"][1]["statement"] = "<script>alert(1)</script> & <img src=x onerror=y>"
+        self.input = self.root / "input.json"
+        self.input.write_text(json.dumps(payload))
+        self.runs = self.root / "state"
+        self.runs.mkdir(mode=0o700)
+        self.run = self.runs / "run-20261025T000000Z"
+        self.bundle = r.run(self.input, self.run)
+
+    def snapshot(self):
+        return {path.relative_to(self.run): path.read_bytes() for path in self.run.rglob("*") if path.is_file()}
+
+    def test_view_is_private_escaped_static_and_outside_the_run(self):
+        before = self.snapshot()
+        path = v.write_view(self.run)
+        self.assertEqual(path, self.runs / "views" / "run-20261025T000000Z.html")
+        self.assertEqual((path.stat().st_mode & 0o777, path.parent.stat().st_mode & 0o777), (0o600, 0o700))
+        self.assertEqual(self.snapshot(), before)
+        html = path.read_text()
+        self.assertIn(self.bundle.run.id, html)
+        self.assertIn("FICTIONAL / SYNTHETIC DATA", html)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt; &amp; &lt;img src=x", html)
+        self.assertNotRegex(html, r"(?i)<script|<img|<link|<iframe|https?://")
+        self.assertIn("default-src 'none'", html)
+        self.assertIn("no compliance verdict", html)
+        for family in m.LEGAL_FAMILIES:
+            self.assertIn(f"<td>{family}</td>", html)
+        self.assertEqual(len(re.findall(r'<span class="tag [a-z]*">family</span>', html)), 11)
+        v.write_view(self.run)  # A later view replaces the derived file.
+        self.assertEqual(sorted(item.name for item in path.parent.iterdir()), [path.name])
+
+    def test_article_text_and_suggestions_come_from_retained_source_bytes(self):
+        text = ("FICTIONAL SOURCE — SYNTHETIC EXAMPLE ONLY\nArticle 1\nFictional review records\n"
+                "The fictional controller shall retain a declared review record & 1 < 2.\n"
+                "Article 2\nFictional erasure\nThe fictional controller shall erase an account on request.\n").encode()
+        folder = self.root / "revalidation-synthetic"
+        (folder / "source.txt").write_bytes(text)
+        raw = FIXTURE.read_text().replace("Fictional section 1", "Article 1").replace(
+            "sha256:b89f4bb123cc3732e9560553b419757350e5bdab12f0f1f4a8bdc53dfd89f5a0", m.content_digest(text))
+        payload = json.loads(raw)
+        payload["requirements"][1]["statement"] = "FICTIONAL: users can delete their account."
+        self.input.write_text(json.dumps(payload))
+        run = self.runs / "run-20261025T000001Z"
+        r.run(self.input, run)
+        html = v.write_view(run).read_text()
+        self.assertIn("<summary>Article 1 — Fictional review records</summary>", html)
+        self.assertIn("retain a declared review record &amp; 1 &lt; 2.", html)
+        self.assertIn("Unreviewed candidate text", html)
+        self.assertRegex(html, r"Articles to read: Article 2 <span class=\"muted\">Fictional erasure")
+        self.assertIn("not a mapping", html)
+        self.assertNotRegex(html, r"(?i)<script")
+
+    def test_unverified_runs_are_refused(self):
+        (self.runs / "run-incomplete").mkdir()
+        for target, code in ((self.runs / "missing", "incomplete-run"), (self.runs / "run-incomplete", "incomplete-run")):
+            with self.subTest(code=code, target=target.name), self.assertRaises(v.ViewError) as caught:
+                v.write_view(target)
+            self.assertEqual(caught.exception.code, code)
+        (self.run / "report.md").chmod(0o600)
+        with open(self.run / "report.md", "ab") as handle:
+            handle.write(b"tampered")
+        with self.assertRaises(v.ViewError) as caught:
+            v.write_view(self.run)
+        self.assertEqual(caught.exception.code, "corrupt-run")
+        self.assertFalse((self.runs / "views").exists())
+
+    def test_public_parent_is_refused(self):
+        self.runs.chmod(0o755)
+        try:
+            with self.assertRaises(v.ViewError) as caught:
+                v.write_view(self.run)
+        finally:
+            self.runs.chmod(0o700)
+        self.assertEqual(caught.exception.code, "privacy-unavailable")
+
+    def test_cli_prints_path_opens_file_uri_and_keeps_errors_safe(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch("webbrowser.open", return_value=True) as opened, redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(main(["view", "--run", str(self.run), "--open"]), 0)
+        path = self.runs / "views" / "run-20261025T000000Z.html"
+        self.assertEqual(stdout.getvalue().strip(), str(path))
+        opened.assert_called_once_with(path.as_uri())
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch("webbrowser.open", return_value=False), redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(main(["view", "--run", str(self.run), "--open"]), 0)
+        self.assertIn("no-browser", stderr.getvalue())
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(main(["view", "--run", str(self.runs / "PRIVATE-SECRET")]), 2)
+        self.assertIn("incomplete-run", stderr.getvalue())
+        self.assertNotIn("PRIVATE-SECRET", stderr.getvalue() + stdout.getvalue())
+
+    def test_view_leads_with_owner_questions_and_groups_attention_by_area(self):
+        html = v.write_view(self.run).read_text()
+        questions = html.index("Questions for the project owner")
+        self.assertLess(questions, html.index("What needs attention"))
+        unknown = next(fact for fact in m.scope_facts(self.bundle.declarations.scope) if fact.basis == "unknown")
+        self.assertIn(f"<td>{unknown.key}</td>", html)
+        self.assertIn("<details open><summary>Requirements <span class=\"count\">", html)
+        self.assertIn("<details><summary>Legal families to screen <span class=\"count\">11</span>", html)
+        self.assertNotRegex(html, r"(?i)<script|https?://")
+
+    def test_comparison_names_change_types_and_obligations_not_raw_digests(self):
+        payload = json.loads(self.input.read_text())
+        payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        self.input.write_text(json.dumps(payload))
+        from eu_compliance_guard import revalidation as rv
+        successor = rv.run(self.input, self.runs / "run-20261025T000100Z", previous=self.run)
+        html = v.render_html(successor)
+        self.assertIn('<span class="tag ">changed</span></td><td>requirement</td><td>requirement-example</td>', html)
+        self.assertIn("<code>obligation-example</code>", html)
+        full = next(item.after for item in successor.comparison.changes if item.after)
+        self.assertIn(f'title="{full}"', html)
+        self.assertNotIn(f">{full}<", html)
+
+
+if __name__ == "__main__":
+    unittest.main()
