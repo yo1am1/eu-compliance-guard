@@ -112,11 +112,17 @@ def _article_number(text: str) -> str | None:
     return number if digits.isascii() and digits.isdigit() else None
 
 
+# An amending act quotes the text it inserts: "‘ANNEX IIIa" or "‘CHAPTER IIa" stays in the amending article.
+OPENING_QUOTES = ("‘", "“", "\"", "'", "«", "„")
+
+
 def _is_end(classes, text: str) -> bool:
     """An annex heading or "Done at …" closes the last article.
 
     Upper-case "ANNEX" headings only: body text such as "Annex III shall apply" stays in its article.
     """
+    if text.startswith(OPENING_QUOTES):
+        return False
     if any(name.endswith("doc-ti") for name in classes) or text[:7] == "Done at" and not text[7:8].isalnum():
         return True
     words = text.split()
@@ -133,6 +139,8 @@ def _is_division(classes, text: str, marked: bool) -> bool:
     Marked pages say so by class (`oj-ti-section-1`, consolidated `title-division-1`); elsewhere the
     paragraph must read just like "CHAPTER III". The division's own name then falls outside any article.
     """
+    if text.startswith(OPENING_QUOTES):
+        return False
     if any("ti-section-" in name or name.startswith("title-division") for name in classes):
         return True
     words = text.split()

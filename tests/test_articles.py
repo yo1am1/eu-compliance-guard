@@ -147,6 +147,19 @@ class ArticleTests(unittest.TestCase):
                     "Fictional inserted requirements Inserted text.’; (2) fictional third amendment on erasure."})
         self.assertEqual(parsed["Article 5"], {"title": "Fictional transposition", "text": "Transpose."})
 
+    def test_a_quoted_annex_or_chapter_stays_in_the_amending_article(self):
+        page = ('<p class="oj-ti-art">Article 1</p><p class="oj-sti-art">Fictional amendments</p><p>(1) the following'
+                ' Annex is added:</p><p class="oj-doc-ti">‘ANNEX IIIa</p><p>Fictional list.’;</p><p class="oj-ti-section-1">'
+                '‘CHAPTER IIIa</p><p>Fictional chapter.’;</p><p>(2) Article 9 is deleted.</p><p class="oj-ti-art">Article 2'
+                '</p><p class="oj-sti-art">Fictional transposition</p><p>Transpose.</p><p class="oj-ti-art">Article 3</p>'
+                '<p class="oj-sti-art">Fictional entry into force</p><p>Enter.</p>').encode()
+        parsed = a.parse(page, "application/xhtml+xml")
+        self.assertEqual(list(parsed), ["Article 1", "Article 2", "Article 3"])
+        self.assertEqual(parsed["Article 1"]["text"], "(1) the following Annex is added: ‘ANNEX IIIa Fictional list.’; "
+                                                      "‘CHAPTER IIIa Fictional chapter.’; (2) Article 9 is deleted.")
+        text = "Article 1\nT\n(1) inserted:\n‘CHAPTER IIa\nX.’;\n“ANNEX IIIa\nY.”;\n(2) Z.\n".encode()
+        self.assertEqual(a.parse(text, "text/plain")["Article 1"]["text"], "(1) inserted: ‘CHAPTER IIa X.’; “ANNEX IIIa Y.”; (2) Z.")
+
     def test_correlation_tables_after_the_enacting_terms_open_no_articles(self):
         only = {"Article 1": {"title": "Fictional subject", "text": "Body."}}
         page = (b"<p>Article 1</p><p>Fictional subject</p><p>Body.</p><p>Done at Fictionville.</p><p>ANNEX II</p>"
