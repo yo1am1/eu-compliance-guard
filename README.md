@@ -75,6 +75,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `init --project-id <id> [--path <file>] [--assessment-date <date>] [--jurisdiction <j>]… [--synthetic]` | Write a valid starter declarations file; never overwrites |
 | `check [--input <file>] [--previous <run dir>] [--json]` | Validate declarations: each problem with its JSON location, the observed digest of every selected file, whether each source target can be fetched, and (with `--previous`) every record that needs a higher revision |
 | `revalidate --input <file> --output <new run dir> [--offline \| --fetch-official] [--previous <run dir>]` | Assemble and publish a private run |
+| `ground [--input <file>] [--top N] [--json] [--apply <fact>=<path>:<line>]…` | Rank code evidence for each assumed or unknown fact with a local index. `--apply` marks a confirmed technical fact `observed`, pinned to that file's digest |
 | `state-dir [--input <file>]` | Print and create (0700) the private run storage for the declared `project_id` |
 | `view --run <run dir> [--open]` | Verify a run and write `<parent>/views/<run>.html`; optionally open it |
 
@@ -103,7 +104,8 @@ A complete fictional example is [`fixtures/revalidation-synthetic.json`](fixture
 It holds the scope and facts, requirements, source targets, selected sources,
 candidate obligations, applicability decisions, evidence references and reviews.
 
-File paths resolve relative to the declarations file. Only explicitly selected
+File paths resolve relative to the declarations file, or to the project folder (its
+parent) when `"files_root": "project"`, which `init` sets. Only explicitly selected
 regular files are read; nothing is discovered, crawled or executed. Facts keep their
 basis (`declared`, `observed`, `assumed`, `unknown`). Changing a versioned record
 requires a higher `revision`; `check` names the exact location of a stale pin.
@@ -179,6 +181,18 @@ Missing evidence or an offline or failed refresh makes freshness unknown. Matchi
 bytes establish only matching recorded inputs, never current law or renewed
 approval. Incomplete dependency attribution and any known change to family
 screenings withdraw support conservatively.
+
+### Grounding assumptions in the code
+
+`ground` builds a local index of the project's text files: no network, model or
+embeddings, a bounded number of files, and no symlinks or dependency folders. It uses
+Okapi BM25 over identifier-split tokens, and a lexicon of legal concepts expands each
+query (tracking, special-category data, children, AI, subscriptions, retention and
+more). For every assumed or unknown fact it lists ranked `file:line` candidates, and it
+also lists touchpoints that no fact covers. Organisational facts are flagged, because
+code can never show them. `--apply` accepts a line only if it shares terms with the
+fact. It then records the fact as `observed` with the file as evidence, which closes
+that fact's gap until the file changes.
 
 ## Limits
 

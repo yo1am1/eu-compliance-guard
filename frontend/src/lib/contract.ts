@@ -1099,6 +1099,7 @@ export type FamilyScreenings =
       FamilyScreening,
       FamilyScreening
     ];
+export type FilesRoot = "declarations_dir" | "project";
 /**
  * @maxItems 200
  */
@@ -2951,6 +2952,7 @@ export interface RevalidationInput {
   evidence?: Evidence1;
   evidence_reviews?: EvidenceReviews;
   family_screenings?: FamilyScreenings;
+  files_root?: FilesRoot;
   obligations?: Obligations;
   project_id: ProjectId35;
   requirements?: Requirements;

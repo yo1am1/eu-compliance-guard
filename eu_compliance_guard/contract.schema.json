@@ -5348,6 +5348,15 @@
           "title": "Family Screenings",
           "type": "array"
         },
+        "files_root": {
+          "default": "declarations_dir",
+          "enum": [
+            "declarations_dir",
+            "project"
+          ],
+          "title": "Files Root",
+          "type": "string"
+        },
         "obligations": {
           "items": {
             "$ref": "#/$defs/Obligation"

@@ -41,12 +41,31 @@ Use the CLI command from the SessionStart context, written `<cli>` below, or
   review gaps the report will carry, not blockers.
 - Show the user the draft diff before the first run.
 
+## Ground the assumptions in the code
+
+`init` sets `"files_root": "project"`, so selected paths resolve from the project folder.
+Run `<cli> ground`. For each assumed or unknown fact it lists ranked `file:line`
+candidates from a local index (no network, no model), flags organisational facts that
+code can never show, and lists possible touchpoints that no fact covers.
+
+- Read each candidate line. Only when it genuinely shows the technical fact (for example
+  `set_cookie(..., max_age=…)` for a cookie lifetime), pin it:
+  `<cli> ground --apply <fact-id>=<path>:<line>`. The fact becomes `observed`, with that
+  file's digest as evidence. Later edits to the file make the evidence unavailable, and
+  the gap returns until it is grounded again.
+- Never apply a candidate that only mentions a related word. Organisational facts
+  (lawful basis, establishment, roles, size, sector) stay owner questions; the CLI
+  refuses them.
+- Offer to declare uncovered touchpoints as new `assumed` facts or requirements.
+- Run `<cli> check` after applying, then a new run.
+
 ## Manually downloaded official documents
 
 EUR-Lex answers scripted requests with a bot challenge, so `--fetch-official` records
 a safe failure for it. When the user has downloaded the act (PDF or saved HTML):
 
 1. Put the file under `.eu-compliance-guard/sources/` and keep a source target for it.
+   With `"files_root": "project"`, its path is `.eu-compliance-guard/sources/<file>`.
 2. Add a `sources[]` entry: `target_id`, `media_type` (`application/pdf`, `text/html`
    or `text/plain`), `charset` (`null` for PDF, else `utf-8`), `file.path` relative
    to the declarations file, and a `source` with a stable `id`, `revision: 0`, and

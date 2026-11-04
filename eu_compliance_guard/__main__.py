@@ -7,7 +7,7 @@ _ERROR_CODES = {
     "invalid-input", "unsafe-path", "capacity-exceeded", "io-failed",
     "output-exists", "privacy-unavailable", "budget-exceeded", "invalid-output", "retrieval-failed",
     "incomplete-run", "corrupt-run",
-    "wrong-project", "invalid-revision",
+    "wrong-project", "invalid-revision", "not-observable", "bad-location", "unrelated-line",
 }
 
 
@@ -42,6 +42,13 @@ def main(argv: list[str] | None = None) -> int:
     state = commands.add_parser("state-dir", help="Print (and create) the private run directory for a project",
                                 allow_abbrev=False)
     state.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file naming the project")
+    ground = commands.add_parser("ground", help="Find code evidence for assumed facts; --apply pins one as observed",
+                                 allow_abbrev=False)
+    ground.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    ground.add_argument("--top", type=int, default=3, choices=range(1, 11), metavar="1-10", help="Candidates per fact")
+    ground.add_argument("--json", action="store_true", help="Print the result as JSON")
+    ground.add_argument("--apply", action="append", metavar="FACT=PATH:LINE",
+                        help="Mark a technical fact observed, pinned to this file line; repeat for several")
     view = commands.add_parser("view", help="Write and optionally open a static HTML view of a verified run", allow_abbrev=False)
     view.add_argument("--run", required=True, help="Existing run directory with a valid completion marker")
     view.add_argument("--open", action="store_true", help="Open the view in the default browser")
@@ -51,6 +58,8 @@ def main(argv: list[str] | None = None) -> int:
         return _view(args.run, args.open)
     if args.command == "init":
         return _init(args)
+    if args.command == "ground":
+        return _ground(args)
     if args.command == "state-dir":
         try:
             from .authoring import state_dir
@@ -112,6 +121,30 @@ def _check(path: str, as_json: bool, previous: str | None = None) -> int:
         return 2
     print(json.dumps(report, indent=2) if as_json else format_check(report))
     return 0 if report["valid"] else 2
+
+
+def _ground(args) -> int:
+    import json
+    from . import grounding
+    try:
+        if args.apply:
+            for item in args.apply:
+                fact, separator, location = item.partition("=")
+                if not separator:
+                    raise grounding.GroundingError("bad-location")
+                grounding.apply(args.input, fact, location)
+                print(f"{fact}: observed, pinned to {location}")
+            print("Run check, then a new revalidate run; a later change to the file makes this evidence unavailable.")
+            return 0
+        report = grounding.ground(args.input, args.top)
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'ground-failed'}: grounding failed", file=sys.stderr)
+        return 2
+    print(json.dumps(report, indent=2) if args.json else grounding.format_ground(report))
+    return 0
 
 
 def _view(run_dir: str, open_browser: bool) -> int:

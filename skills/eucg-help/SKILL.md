@@ -47,6 +47,7 @@ writes a static HTML view of the verified run and opens it in your browser.
   official hosts, and only with your consent for that run.
 - Runs are private (0700/0600) and immutable. Use a new directory per run.
 - Exit 0: report written, possibly partial. Exit 2: invalid input or output.
+- `ground [--apply <fact>=<path>:<line>]` finds code evidence for assumed facts with a local index and pins confirmed technical facts as observed.
 - `state-dir` prints (and creates, 0700) the private run storage for this project's `project_id`.
 - `view --run <run dir> [--open]` writes
   `<parent>/views/<run>.html` from a verified run (the run itself is unchanged).

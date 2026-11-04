@@ -28,6 +28,7 @@ def starter(project_id: str, assessment_date: str | None = None, jurisdictions: 
     return m.RevalidationInput.model_validate({
         "schema_version": 1, "project_id": project_id, "synthetic": synthetic,
         "declaration_run_id": "declarations", "declaration_manifest_id": "declarations",
+        "files_root": "project",
         "scope": {"id": "scope", "revision": 0, "project_id": project_id,
                   "assessment_date": assessment_date or date.today().isoformat(), "environment": "production",
                   "activities": [], "establishment": [], "markets": [], "customer_types": [], "roles": [],
@@ -148,28 +149,30 @@ def check(path: str | os.PathLike, previous: str | os.PathLike | None = None) ->
             selected += [(f"evidence[{index}].path", item.path, item.evidence.digest)
                          for index, item in enumerate(declared.evidence) if item.path]
             total = 0
-            for at, relative, digest in selected:
-                try:
-                    seen = r._read_file(fd, relative, limit=min(r.MAX_FILE_BYTES, r.MAX_TOTAL_BYTES - total),
-                                        retain=relative in sources)
-                except r.RevalidationError as error:
-                    errors.append({"at": at, "problem": "selected file exceeds the 8 MiB per-file or 64 MiB total limit"
-                                   if error.code == "capacity-exceeded" else "selected file could not be read safely"})
-                    continue
-                total += seen.size
-                entry = {"at": at, "availability": seen.availability, "observed_digest": seen.digest,
-                         "matches_declared": seen.digest == digest}
-                files.append(entry)
-                if seen.availability != "available":
-                    errors.append({"at": at, "problem": f"selected file is {seen.availability} (paths resolve "
-                                   "relative to the declarations file)"})
-                elif seen.digest != digest:
-                    errors.append({"at": at, "problem": "declared digest differs from the file; observed " + seen.digest})
-                elif seen.content is not None:
-                    media = next(item for item in declared.sources if item.file and item.file.path == relative)
-                    admission = r.admit_source_content(seen.content, media.media_type, media.charset)
-                    if admission.state != "accepted":
-                        warnings.append({"at": at, "problem": f"source content needs review ({admission.reason})"})
+            with r.files_root(declared, fd) as root_fd:
+                for at, relative, digest in selected:
+                    try:
+                        seen = r._read_file(root_fd, relative, limit=min(r.MAX_FILE_BYTES, r.MAX_TOTAL_BYTES - total),
+                                            retain=relative in sources)
+                    except r.RevalidationError as error:
+                        errors.append({"at": at, "problem": "selected file exceeds the 8 MiB per-file or 64 MiB total limit"
+                                       if error.code == "capacity-exceeded" else "selected file could not be read safely"})
+                        continue
+                    total += seen.size
+                    entry = {"at": at, "availability": seen.availability, "observed_digest": seen.digest,
+                             "matches_declared": seen.digest == digest}
+                    files.append(entry)
+                    if seen.availability != "available":
+                        base = "project folder" if declared.files_root == "project" else "declarations file's folder"
+                        errors.append({"at": at, "problem": f"selected file is {seen.availability} (paths resolve "
+                                       f"relative to the {base})"})
+                    elif seen.digest != digest:
+                        errors.append({"at": at, "problem": "declared digest differs from the file; observed " + seen.digest})
+                    elif seen.content is not None:
+                        media = next(item for item in declared.sources if item.file and item.file.path == relative)
+                        admission = r.admit_source_content(seen.content, media.media_type, media.charset)
+                        if admission.state != "accepted":
+                            warnings.append({"at": at, "problem": f"source content needs review ({admission.reason})"})
     except FileNotFoundError:
         errors.append({"at": "(file)", "problem": "declarations file or its folder was not found"})
         return report

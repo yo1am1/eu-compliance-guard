@@ -329,15 +329,30 @@ def _selected_files(declared: m.RevalidationInput) -> dict[str, str]:
     return files
 
 
+@contextmanager
+def files_root(declared: m.RevalidationInput, declarations_fd: int):
+    """The descriptor selected paths resolve against: the declarations folder or, for
+    files_root "project", its parent. Opened without following symlinks."""
+    if declared.files_root == "project":
+        fd = os.open("..", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=declarations_fd)
+    else:
+        fd = os.dup(declarations_fd)
+    try:
+        yield fd
+    finally:
+        os.close(fd)
+
+
 def _observe(declared: m.RevalidationInput, parent_fd: int, deadline: float) -> dict[str, FileObservation]:
     source_paths = {item.file.path for item in declared.sources if item.file}
     observations = {}
     total = 0
-    for path in _selected_files(declared):
-        observation = _read_file(parent_fd, path, limit=min(MAX_FILE_BYTES, MAX_TOTAL_BYTES - total),
-                                 retain=path in source_paths, deadline=deadline)
-        total += observation.size
-        observations[path] = observation
+    with files_root(declared, parent_fd) as root_fd:
+        for path in _selected_files(declared):
+            observation = _read_file(root_fd, path, limit=min(MAX_FILE_BYTES, MAX_TOTAL_BYTES - total),
+                                     retain=path in source_paths, deadline=deadline)
+            total += observation.size
+            observations[path] = observation
     return observations
 
 

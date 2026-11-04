@@ -1216,6 +1216,8 @@ class RevalidationInput(Record):
     synthetic: bool
     declaration_run_id: Id
     declaration_manifest_id: Id
+    # Where selected paths resolve: the declarations file's folder, or its parent (the project).
+    files_root: Literal["declarations_dir", "project"] = "declarations_dir"
     scope: Scope
     requirements: Annotated[list[DeclaredRequirement], Field(max_length=200)] = Field(default_factory=list)
     source_targets: Annotated[list[SourceTarget], Field(max_length=16)] = Field(default_factory=list)
