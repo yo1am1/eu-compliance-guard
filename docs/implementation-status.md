@@ -293,3 +293,16 @@ A final recheck found a renewal deadlock and rename/re-add bypasses, which are n
 fixed, and one documented limit: a run compares only against the predecessor it names.
 Owner MVP acceptance remains pending.
 
+
+## Version 1.1.0 — 2026-11-04
+
+The Owner asked for a more meaningful basis for assumed facts, article text next to
+each gap, the next best action, a PR check and a side panel, then to publish 1.1.0.
+1.1.0 adds `ground` (a local BM25 index of the project's code with a legal-concept
+lexicon; confirmed technical facts become `observed` with the file digest as
+evidence), the Publications Office as the sixth official host, article text and
+article suggestions in the report, `next` with `/eucg-next` and the band's Next step,
+`pr-check` with `/eucg-pr` and a GitHub Actions example, and the `/eucg-panel` side
+panel. A two-reviewer release review found eleven defects; all were fixed with
+regression tests. `make check` passes 248 tests and the plugin's 14 band and panel
+tests pass. See the [1.1 release record](../memory-bank/bolts/004-grounding-and-guidance/v1.1-release-report.md).
