@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import codecs
 from datetime import date
+from functools import cache
 import json
 import os
 from pathlib import Path
@@ -19,7 +20,6 @@ from . import models as m, revalidation as r
 DEFAULT_PATH = ".eu-compliance-guard/declarations.json"
 MAX_PROBLEMS = 50
 ENCODING = "declarations must be UTF-8 JSON without a byte-order mark"
-FIELD = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 LOCATED = re.compile(r"^[a-z_]+(?:\[\d+\]|\[\])?[^:]{0,200}: ")
 
@@ -97,12 +97,27 @@ def state_dir(path: str | os.PathLike = DEFAULT_PATH, create: bool = True) -> Pa
     return directory
 
 
-def _location(loc) -> str:
+@cache
+def _field_names() -> frozenset[str]:
+    """Every field name the record models define: the only key text a diagnostic may print."""
+    names, pending = set(), [m.Record]
+    while pending:
+        model = pending.pop()
+        names.update(model.model_fields)
+        pending.extend(model.__subclasses__())
+    return frozenset(names)
+
+
+def _location(loc, kind: str = "") -> str:
     text = ""
-    for part in loc:
-        # Model field names are plain identifiers; anything else is a key from the input, never printed.
-        name = str(part) if isinstance(part, str) and FIELD.match(part) else "(unknown field)"
-        text += f"[{part}]" if isinstance(part, int) else ("." if text else "") + name
+    for index, part in enumerate(loc):
+        if isinstance(part, int):
+            text += f"[{part}]"
+            continue
+        # Any other key comes from the input and is never printed, even when it looks like a field
+        # name: an extra key is unknown where it stands.
+        known = part in _field_names() and not (kind == "extra_forbidden" and index == len(loc) - 1)
+        text += ("." if text else "") + (part if known else "(unknown field)")
     return text or "(document)"
 
 
@@ -150,7 +165,7 @@ def check(path: str | os.PathLike, previous: str | os.PathLike | None = None) ->
                 declared = m.parse_record(m.RevalidationInput, raw)
             except ValidationError as error:
                 for detail in error.errors(include_input=False, include_url=False)[:MAX_PROBLEMS]:
-                    at, problem = _location(detail["loc"]), detail["msg"].removeprefix("Value error, ")
+                    at, problem = _location(detail["loc"], detail["type"]), detail["msg"].removeprefix("Value error, ")
                     # Cross-reference checks carry their own location: "<path>: <problem>".
                     if at == "(document)" and LOCATED.match(problem):
                         at, problem = problem.split(": ", 1)

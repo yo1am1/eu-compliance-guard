@@ -236,6 +236,21 @@ class AuthoringTests(unittest.TestCase):
         self.assertNotIn(SECRET, text)
         self.assertNotIn("\x1b", text)
 
+    def test_identifier_shaped_unknown_keys_are_never_printed(self):
+        payload = deepcopy(self.payload)
+        payload["scope"]["ghp_FAKE0000TOKEN1111"] = "x"
+        payload["SECRETKEY_zzz"] = 1
+        payload["requirements"][0]["value"] = 1  # A field name of another record is still unknown here.
+        report = self.check(payload)
+        self.assertEqual(sorted(item["at"] for item in report["errors"]),
+                         ["(unknown field)", "requirements[0].(unknown field)", "scope.(unknown field)"])
+        text = a.format_check(report)
+        for key in ("ghp_FAKE0000TOKEN1111", "SECRETKEY_zzz", "value"):
+            self.assertNotIn(key, text)
+        payload = deepcopy(self.payload)
+        payload["scope"]["roles"][0]["value"] = {"ghp_FAKE0000TOKEN1111": "x" * 70000}
+        self.assertEqual([item["at"] for item in self.check(payload)["errors"]], ["scope.roles[0].value"])
+
 
 if __name__ == "__main__":
     unittest.main()
