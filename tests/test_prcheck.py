@@ -60,10 +60,11 @@ def _coloured(diff: str) -> str:
 
 class PRCheckTests(unittest.TestCase):
     def test_diff_parsing_tracks_new_line_numbers_and_every_touched_path(self):
-        added, touched = p.parse_diff(DIFF)
+        added, touched, files = p.parse_diff(DIFF)
         self.assertEqual(added["app/news.py"][0], (1, "def join(email, birth_date):"))
         self.assertEqual(added["app/old.py"], [(11, 'cookie = request.cookies.get("analytics")')])
         self.assertEqual(touched, {"app/news.py", "app/old.py", "node_modules/lib/index.js", "gone.py"})
+        self.assertEqual(files, 4)
 
     def test_touchpoints_without_declarations(self):
         report = p.pr_check(DIFF)
@@ -129,14 +130,14 @@ class PRCheckTests(unittest.TestCase):
         diff = ("diff --git a/db/m.sql b/db/m.sql\n--- a/db/m.sql\n+++ b/db/m.sql\n@@ -1,2 +1,3 @@\n"
                 "--- keep consent records 30 days\n+++ counter\n+the user must give consent via the cookie banner\n"
                 " select 1;\n")
-        added, touched = p.parse_diff(diff)
+        added, touched, _ = p.parse_diff(diff)
         self.assertEqual(touched, {"db/m.sql"})
         self.assertEqual(added["db/m.sql"], [(1, "++ counter"), (2, "the user must give consent via the cookie banner")])
 
     def test_quoted_paths_and_form_feeds(self):
         diff = ('--- /dev/null\n+++ "b/src/gr\\303\\266\\303\\237e.py"\n@@ -0,0 +1,3 @@\n'
                 "+x = 1\x0c y = 2\n+z = 3\n+store_health_consent_cookie()\n")
-        added, touched = p.parse_diff(diff)
+        added, touched, _ = p.parse_diff(diff)
         self.assertEqual(touched, {"src/größe.py"})
         self.assertEqual(added["src/größe.py"][2][0], 3)
         self.assertTrue(p.pr_check(diff)["touchpoints"])
@@ -154,8 +155,33 @@ class PRCheckTests(unittest.TestCase):
                 "diff --git a/ev.txt b/ev2.txt\nsimilarity index 100%\nrename from ev.txt\nrename to ev2.txt\n"
                 "diff --git a/logo.png b/logo.png\nBinary files a/logo.png and b/logo.png differ\n"
                 'diff --git "a/gr\\303\\266\\303\\237e.py" "b/gr\\303\\266\\303\\237e.py"\nold mode 100644\nnew mode 100755\n')
-        _, touched = p.parse_diff(diff)
+        _, touched, files = p.parse_diff(diff)
         self.assertEqual(touched, {"src/old name.py", "ev.txt", "ev2.txt", "logo.png", "größe.py"})
+        self.assertEqual(files, 4)
+
+    def test_renames_count_once_and_headers_never_invent_paths(self):
+        rename = "diff --git a/src/app.py b/src/main.py\nsimilarity index 100%\nrename from src/app.py\nrename to src/main.py\n"
+        _, touched, files = p.parse_diff(rename)
+        self.assertEqual((touched, files), ({"src/app.py", "src/main.py"}, 1))
+        self.assertEqual(p.pr_check(rename)["files"], 1)
+        # git --stat counts 4 files here. Split at its first " b/", the rename's header would invent
+        # "src/x" and "y.py b/src/z.py"; the rename lines name the real paths.
+        diff = ('diff --git "a/src/a b/t\\tab.py" "b/src/a b/t\\tab.py"\nnew file mode 100644\n--- /dev/null\n'
+                '+++ "b/src/a b/t\\tab.py"\t\n@@ -0,0 +1 @@\n+consent = 1\n'
+                'diff --git "a/src/gr\\303\\266\\303\\237e.py" "b/src/gr\\303\\266\\303\\237e.py"\ndeleted file mode 100644\n'
+                '--- "a/src/gr\\303\\266\\303\\237e.py"\n+++ /dev/null\n@@ -1 +0,0 @@\n-z\n'
+                "diff --git a/src/x b/y.py b/src/z.py\nsimilarity index 90%\nrename from src/x b/y.py\nrename to src/z.py\n"
+                "--- a/src/x b/y.py\n+++ b/src/z.py\n@@ -1 +1,2 @@\n z\n+patient_health = 1\n"
+                "diff --git a/src/app.py b/src/app_copy.py\nsimilarity index 62%\ncopy from src/app.py\ncopy to src/app_copy.py\n")
+        added, touched, files = p.parse_diff(diff)
+        self.assertEqual(touched, {"src/a b/t\tab.py", "src/größe.py", "src/x b/y.py", "src/z.py", "src/app.py",
+                                   "src/app_copy.py"})
+        self.assertEqual(files, 4)
+        self.assertEqual(added["src/z.py"], [(2, "patient_health = 1")])
+        self.assertEqual(p.pr_check(diff)["files"], 4)
+        # The same file changed in several commits (`git log -p`) is one changed file.
+        twice = "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1 +1 @@\n-x\n+y\n" * 2
+        self.assertEqual(p.parse_diff(twice)[2], 1)
 
     def test_coloured_diffs_parse_like_plain_ones(self):
         coloured = _coloured(DIFF)
@@ -202,7 +228,7 @@ class PRCheckTests(unittest.TestCase):
                 "@@@@ -1,1 -1,1 -1,1 +1,2 @@@@\n"
                 "   keep = 1\n"
                 "+++patient_health_record = 1\n")
-        added, touched = p.parse_diff(diff)
+        added, touched, files = p.parse_diff(diff)
         self.assertEqual(touched, {"app/web.py", "lib/three.py"})
         self.assertEqual(added["app/web.py"], [
             (2, "def a(): pass"), (3, "def b(): pass"),
