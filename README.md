@@ -278,7 +278,9 @@ absent file. It lists the legal concepts in added lines with their candidate fam
 whether the declarations already mention each concept, and flags code evidence or
 requirements that live in a changed file. It is deterministic and offline. Colour codes
 from `git diff --color` are ignored; input that names no changed file (prose or a
-`--stat` summary) exits 2 with `invalid-input` instead of passing as an empty diff. To run it on
+`--stat` summary) or holds hunk lines a unified diff cannot (such as `--word-diff`
+output) exits 2 with `invalid-input` instead of passing unread. A merge's combined diff
+(`git show <merge>`) is screened too: a line added against any parent counts. To run it on
 every pull request, copy [`examples/github/eu-compliance-guard-pr.yml`](examples/github/eu-compliance-guard-pr.yml)
 into `.github/workflows/`; it keeps one comment updated, and `--strict` can fail the
 check. It is keyword screening: a diff with no touchpoints is not a clean bill.

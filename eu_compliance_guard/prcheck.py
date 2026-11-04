@@ -29,7 +29,6 @@ STRONG = {"health", "medical", "diagnosis", "biometric", "pregnancy", "religion"
           "bmi", "minor", "parental", "child", "children", "consent", "cookie", "cookies", "llm", "openai", "anthropic",
           "gpt", "newsletter", "unsubscribe", "subscription", "cancellation", "refund", "withdrawal", "retention",
           "geolocation", "fingerprint", "analytics", "tracking", "gtag", "mixpanel", "hotjar", "aria", "a11y", "dob"}
-HUNK = re.compile(r"^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 
 
 class PRCheckError(ValueError):
@@ -113,36 +112,83 @@ def _text_file(path: str) -> bool:
             and (name in TEXT_NAMES or any(name.endswith(suffix) for suffix in TEXT_SUFFIXES)))
 
 
+def _number(text: str) -> int | None:
+    """An ASCII decimal hunk number of at most 12 digits, or None."""
+    return int(text) if 0 < len(text) <= 12 and text.isascii() and text.isdigit() else None
+
+
+def _range(text: str, sign: str) -> tuple[int, int] | None:
+    """(start, count) of a hunk range such as `-10,2` or `+11`; a missing count means one line."""
+    if not text.startswith(sign):
+        return None
+    start, comma, count = text[1:].partition(",")
+    first, size = _number(start), _number(count) if comma else 1
+    return None if first is None or size is None else (first, size)
+
+
+def _hunk(line: str) -> tuple[list[int], int, int] | None:
+    """Old line counts (one per parent), new start and new count of a hunk header.
+
+    `@@ -a,b +c,d @@` has one parent; a merge's combined `@@@ -a,b -c,d +e,f @@@` has one `@`
+    more than it has parents. None when the line is not a well-formed hunk header.
+    """
+    marks = len(line) - len(line.lstrip("@"))
+    end = line.find(" " + "@" * marks, marks)
+    if marks < 2 or line[marks:marks + 1] != " " or end < 0:
+        return None
+    ranges = line[marks + 1:end].split(" ")
+    if len(ranges) != marks:  # marks - 1 old ranges and the new one
+        return None
+    olds = [_range(item, "-") for item in ranges[:-1]]
+    new = _range(ranges[-1], "+")
+    if new is None or None in olds:
+        return None
+    return [size for _, size in olds], new[0], new[1]
+
+
 def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str]]:
     """Added lines per new path, and every path the diff touches (old or new side).
 
-    Text that is not blank but names no file (prose, a stat summary, a bare hunk) is refused:
-    reporting it as an empty diff would pass a strict gate on input that was never screened.
+    Text that is not blank but names no file (prose, a stat summary, a bare hunk) is refused, and
+    so is a hunk line that is not a unified diff line (word-diff output, a broken header):
+    reporting such input as screened would pass a strict gate on lines that were never read.
+    A merge's combined diff (`git show <merge>`) has one prefix column per parent; a line with
+    "+" in any column and no "-" is in the result but missing from a parent, so it counts as added.
     """
     added: dict[str, list[tuple[int, str]]] = {}
     touched: set[str] = set()
     current, number, files = None, 0, False
-    old_left = new_left = 0  # lines still owed to the current hunk: inside it, "--- x" is a removed line
+    # Lines still owed to the current hunk, per parent and on the new side: inside it, "--- x" is a removed line.
+    old_left: list[int] = []
+    new_left = 0
     for line in _lines(text):
         if line.startswith("diff --git "):
-            old_left = new_left = 0  # a new file always ends the hunk, even one whose counts were short
+            old_left, new_left = [], 0  # a new file always ends the hunk, even one whose counts were short
             # Renames, copies, binary and mode-only changes have no ---/+++ lines; the header names them.
             touched.update(_header_paths(line[len("diff --git "):]))
             current, files = None, True
             continue
-        if old_left > 0 or new_left > 0:
-            if line.startswith("+"):
-                if current is not None:
-                    added.setdefault(current, []).append((number, line[1:]))
-                number += 1
-                new_left -= 1
-            elif line.startswith("-"):
-                old_left -= 1
-            elif line.startswith(" ") or line == "":
-                number += 1
-                old_left -= 1
-                new_left -= 1
-            continue  # "\\ No newline at end of file" and the like
+        if line.startswith(("diff --cc ", "diff --combined ")):
+            old_left, new_left = [], 0
+            current = _unquote(line.split(" ", 2)[2])  # the merge result's path, without a/ or b/
+            touched.add(current)
+            files = True
+            continue
+        if new_left > 0 or any(left > 0 for left in old_left):
+            if line.startswith("\\"):  # "\ No newline at end of file"
+                continue
+            columns, content = line[:len(old_left)].ljust(len(old_left)), line[len(old_left):]
+            if columns.strip(" +-") or ("+" in columns and "-" in columns):
+                raise PRCheckError("invalid-input")
+            if "-" in columns:  # gone from the result; only the parents marked "-" had it
+                old_left = [left - (mark == "-") for left, mark in zip(old_left, columns)]
+                continue
+            if "+" in columns and current is not None:
+                added.setdefault(current, []).append((number, content))
+            old_left = [left - (mark == " ") for left, mark in zip(old_left, columns)]
+            number += 1
+            new_left -= 1
+            continue
         if line.startswith(("rename from ", "rename to ", "copy from ", "copy to ")):
             value = line.split(" ", 2)[2]
             touched.add(_unquote(value) if value.startswith('"') else value)
@@ -154,10 +200,12 @@ def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str]]:
             current, files = _path(line), True
             if current:
                 touched.add(current)
-        elif (match := HUNK.match(line)):
-            number = int(match.group(2))
-            old_left = int(match.group(1)) if match.group(1) is not None else 1
-            new_left = int(match.group(3)) if match.group(3) is not None else 1
+        elif line.startswith("@@"):
+            hunk = _hunk(line)
+            if hunk is None and files:
+                raise PRCheckError("invalid-input")
+            if hunk is not None:
+                old_left, number, new_left = hunk
     if not files and text.strip():
         raise PRCheckError("invalid-input")
     return added, touched

@@ -181,6 +181,52 @@ class PRCheckTests(unittest.TestCase):
             self.assertEqual(out.getvalue(), "")
             self.assertEqual(err.getvalue(), "eu-compliance-guard: invalid-input: pr check failed\n")
 
+    def test_combined_merge_diffs_screen_the_lines_the_merge_adds(self):
+        # `git show <merge>`: one prefix column per parent; "+" in any column and no "-" is a result line
+        # that some parent lacked, "-" lines are gone from the result and do not advance its numbers.
+        diff = ("commit 0e1f481\nMerge: a2b5375 ec47063\n\n    merge\n\n"
+                "diff --cc app/web.py\nindex c94aa68,b3be3d7..3a45c78\n--- a/app/web.py\n+++ b/app/web.py\n"
+                "@@@ -1,5 -1,5 +1,5 @@@ def landing():\n"
+                "  def landing():\n"
+                "- old_one = 1\n"
+                " -old_two = 2\n"
+                "--both_gone = 3\n"
+                "+ def a(): pass\n"
+                " +def b(): pass\n"
+                '++def track(): mixpanel.track("health_diagnosis", user.email)\n'
+                "  tail = 0\n"
+                "@@@ -20,1 -20,1 +20,2 @@@\n"
+                "  x = 1\n"
+                "++cookie_consent = True\n"
+                "diff --combined lib/three.py\n--- a/lib/three.py\n+++ b/lib/three.py\n"
+                "@@@@ -1,1 -1,1 -1,1 +1,2 @@@@\n"
+                "   keep = 1\n"
+                "+++patient_health_record = 1\n")
+        added, touched = p.parse_diff(diff)
+        self.assertEqual(touched, {"app/web.py", "lib/three.py"})
+        self.assertEqual(added["app/web.py"], [
+            (2, "def a(): pass"), (3, "def b(): pass"),
+            (4, 'def track(): mixpanel.track("health_diagnosis", user.email)'), (21, "cookie_consent = True")])
+        self.assertEqual(added["lib/three.py"], [(2, "patient_health_record = 1")])
+        report = p.pr_check(diff)
+        concepts = {item["concept"] for item in report["touchpoints"]}
+        self.assertTrue({"special_category", "tracking"} <= concepts, concepts)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "merge.diff"
+            path.write_text(diff)
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["pr-check", "--diff", str(path), "--input", str(Path(folder) / "none.json"),
+                                       "--strict"]), 1)
+
+    def test_lines_a_hunk_cannot_hold_are_refused(self):
+        # Word-diff output and broken hunk headers are not unified diffs; dropping their lines would pass --strict.
+        for body in ("@@ -1,2 +1,2 @@\n keep = 1\n[-old-]{+cookie_consent = True+}\n",
+                     "@@ -1,x +1 @@\n+cookie_consent = True\n",
+                     "@@@ -1 -1 +1,2 @@@\n  keep = 1\n+-cookie_consent = True\n"):
+            with self.assertRaises(p.PRCheckError) as caught:
+                p.parse_diff("diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n" + body)
+            self.assertEqual(caught.exception.code, "invalid-input", body)
+
     def test_empty_diff_is_not_a_clean_bill(self):
         report = p.pr_check("")
         self.assertEqual(report["attention"], 0)
