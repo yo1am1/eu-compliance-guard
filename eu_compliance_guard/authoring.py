@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import re
+from typing import Literal, get_args, get_origin
 
 from pydantic import ValidationError
 
@@ -109,6 +110,30 @@ def _field_names() -> frozenset[str]:
     return frozenset(names)
 
 
+@cache
+def _fixed_keys() -> dict[str, frozenset[str]]:
+    """The keys a field's dict takes from a fixed vocabulary (a Literal), by field name.
+
+    These keys are public words, so a diagnostic may print them; free-form dict keys stay hidden.
+    """
+    keys, pending, seen = {}, [m.Record], set()
+    while pending:
+        model = pending.pop()
+        if model in seen:
+            continue
+        seen.add(model)
+        pending.extend(model.__subclasses__())
+        for name, field in model.model_fields.items():
+            annotations = [field.annotation]
+            while annotations:
+                annotation = annotations.pop()
+                arguments = get_args(annotation)
+                if get_origin(annotation) is dict and get_origin(arguments[0]) is Literal:
+                    keys[name] = keys.get(name, frozenset()) | frozenset(get_args(arguments[0]))
+                annotations.extend(argument for argument in arguments if not isinstance(argument, str))
+    return keys
+
+
 def _location(loc, kind: str = "") -> str:
     text = ""
     for index, part in enumerate(loc):
@@ -117,7 +142,8 @@ def _location(loc, kind: str = "") -> str:
             continue
         # Any other key comes from the input and is never printed, even when it looks like a field
         # name: an extra key is unknown where it stands.
-        known = part in _field_names() and not (kind == "extra_forbidden" and index == len(loc) - 1)
+        known = (part in _field_names() or (index and part in _fixed_keys().get(loc[index - 1], ()))) \
+            and not (kind == "extra_forbidden" and index == len(loc) - 1)
         text += ("." if text else "") + (part if known else "(unknown field)")
     return text or "(document)"
 

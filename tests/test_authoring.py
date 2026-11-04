@@ -411,6 +411,25 @@ class AuthoringTests(unittest.TestCase):
         payload["scope"]["roles"][0]["value"] = {"ghp_FAKE0000TOKEN1111": "x" * 70000}
         self.assertEqual([item["at"] for item in self.check(payload)["errors"]], ["scope.roles[0].value"])
 
+    def test_fixed_vocabulary_keys_are_printed_and_free_form_keys_are_not(self):
+        for topic in ("identity", "classification", "amendments_repeal", "case_law", "national_overlays",
+                      "translation", "application_transition_dates"):
+            with self.subTest(topic=topic):
+                payload = deepcopy(self.payload)
+                payload["source_reviews"][0]["review_notes"] = {topic: [1, 2]}
+                self.assertEqual([item["at"] for item in self.check(payload)["errors"]],
+                                 [f"source_reviews[0].review_notes.{topic}"])
+        payload = deepcopy(self.payload)
+        payload["source_reviews"][0]["review_notes"] = {"ghp_FAKE0000TOKEN1111": "x"}
+        report = self.check(payload)
+        self.assertTrue(report["errors"])
+        self.assertNotIn("ghp_FAKE0000TOKEN1111", a.format_check(report))
+        # A vocabulary word is still hidden where the dict takes free-form keys.
+        payload = deepcopy(self.payload)
+        payload["evidence"][0]["evidence"]["browser_context"] = {"case_law": [1, 2]}
+        self.assertEqual([item["at"] for item in self.check(payload)["errors"]],
+                         ["evidence[0].evidence.browser_context.(unknown field)"])
+
 
 if __name__ == "__main__":
     unittest.main()
