@@ -181,6 +181,55 @@ class HistoryTests(unittest.TestCase):
         self.save()
         self.assertEqual(family(r.run(self.input, self.root / "fam-4", previous=self.root / "fam-3")), "applicable")
 
+    def test_family_withdrawal_is_carried_while_the_screening_is_unresolved_for_another_reason(self):
+        from datetime import datetime, timedelta, timezone
+
+        class Later(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime.now(tz) + timedelta(hours=1)
+
+        decision = self.payload["applicability_decisions"][0]
+        self.payload["family_screenings"] = [{
+            "family": "gdpr", "synthetic": True, "scope": decision["scope"], "assessment_date": decision["assessment_date"],
+            "applicability": "applicable", "rationale": "Fictional screening.", "fact_refs": decision["fact_refs"],
+            "source_refs": [{"id": "source-example", "revision": 0}], "reviewer": "Fictional reviewer",
+            "reviewed_at": decision["reviewed_at"], "gaps": []}]
+        self.save()
+        screening = lambda bundle: next(item for item in bundle.family_screenings if item.family == "gdpr")
+        self.assertEqual(screening(r.run(self.input, self.root / "fam-1")).applicability, "applicable")
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        self.save()
+        self.assertEqual(screening(r.run(self.input, self.root / "fam-2", previous=self.root / "fam-1")).applicability,
+                         "unresolved")
+        # A renewal dated after the run that reads it is a gap and leaves the screening unresolved anyway.
+        future = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat().replace("+00:00", "Z")
+        self.payload["family_screenings"][0].update(rationale="Fictional screening, renewed.", reviewed_at=future)
+        self.save()
+        dated = screening(r.run(self.input, self.root / "fam-3", previous=self.root / "fam-2"))
+        self.assertIn("Family screening dated after this run.", dated.gaps)
+        self.assertIn(h.FAMILY_WITHDRAWN_GAP, dated.gaps)
+        with patch.object(r, "datetime", Later):  # The date has passed; the record itself is unchanged.
+            plain = r.run(self.input, self.root / "fam-4", previous=self.root / "fam-3")
+        self.assertEqual(plain.comparison.changes, [])
+        self.assertEqual(screening(plain).applicability, "unresolved")
+        self.assertIn(h.FAMILY_WITHDRAWN_GAP, screening(plain).gaps)
+        # Declared support the predecessor could not confirm is withdrawn by a change all the same.
+        self.payload["family_screenings"][0].update(rationale="Fictional screening.", reviewed_at=decision["reviewed_at"])
+        self.payload["requirements"][0].update(revision=0, statement="FICTIONAL: record the declared review.")
+        self.save()
+        r.run(self.input, self.root / "fam-5")
+        source = self.root / "revalidation-synthetic/source.txt"
+        kept = source.read_bytes()
+        source.unlink()
+        self.payload["requirements"][0].update(revision=1, statement="FICTIONAL changed requirement")
+        self.save()
+        unread = screening(r.run(self.input, self.root / "fam-6", previous=self.root / "fam-5"))
+        self.assertIn(h.FAMILY_WITHDRAWN_GAP, unread.gaps)
+        source.write_bytes(kept)
+        self.assertEqual(screening(r.run(self.input, self.root / "fam-7", previous=self.root / "fam-6")).applicability,
+                         "unresolved")
+
     def now(self):
         import time
         from datetime import datetime, timezone

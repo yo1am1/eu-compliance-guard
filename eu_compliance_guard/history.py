@@ -390,14 +390,21 @@ def compare(previous, current, previous_digest):
             assessment["gaps"].append("Mapped historical dependencies changed or incomplete; renew review.")
             assessment["next_actions"].append("Obtain accountable review of the changed dependency comparison.")
     withdrawn = {item.family for item in previous.family_screenings if FAMILY_WITHDRAWN_GAP in item.gaps}
+    declared_families = {item.family for item in previous.declarations.family_screenings if item.applicability != "unresolved"}
+    screened = {item.family for item in current.declarations.family_screenings}
     for screening in data["family_screenings"]:
         family = screening["family"]
+        if family not in screened:
+            continue  # No screening record to withdraw; a re-added one must be a renewal anyway.
         renewed = ("family", family) in renewals
+        # Like obligations, the marker is carried whatever else leaves the screening unresolved now,
+        # and support the predecessor declared is withdrawn even if it could not confirm it then.
+        held = screening["applicability"] != "unresolved" or family in declared_families or family in withdrawn
         # shortcut: family attestations lack complete dependency lists; renew all after any known change.
-        if screening["applicability"] != "unresolved" and (changed or (family in withdrawn and not renewed)
-                                                           or ("family", family) in stale_attestations):
+        if (changed and held) or (family in withdrawn and not renewed) or ("family", family) in stale_attestations:
             screening["applicability"] = "unresolved"
-            screening["gaps"].append(FAMILY_WITHDRAWN_GAP)
+            if FAMILY_WITHDRAWN_GAP not in screening["gaps"]:
+                screening["gaps"].append(FAMILY_WITHDRAWN_GAP)
             gaps.append(f"Family {family}: {FAMILY_WITHDRAWN_GAP}")
     if gaps:
         data["gaps"].extend(gaps)
