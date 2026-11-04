@@ -381,8 +381,9 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
         raise GroundingError("not-observable")
     relative, _, number = location.rpartition(":")
     # ASCII decimal without leading zeros, as ground prints it: str.isdigit() alone also accepts
-    # other scripts' digits and superscripts, which would store one line under several refs.
-    if not relative or not (number.isascii() and number.isdigit()) or number.startswith("0"):
+    # other scripts' digits and superscripts, which would store one line under several refs. No
+    # indexed file has more than nine digits of lines, and int() refuses very long digit strings.
+    if not relative or not (number.isascii() and number.isdigit()) or number.startswith("0") or len(number) > 9:
         raise GroundingError("bad-location")
     try:
         m.SourceFile(path=relative, digest="sha256:" + "0" * 64)

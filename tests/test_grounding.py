@@ -256,7 +256,8 @@ class GroundingTests(unittest.TestCase):
 
     def test_apply_accepts_only_plain_ascii_line_numbers(self):
         before = self.declarations.read_bytes()
-        for number in ("٢", "２", "²", "02", "+2", " 2", "2 ", "2.0", "0", ""):
+        # 5000 digits exceed Python's integer conversion limit.
+        for number in ("٢", "２", "²", "02", "+2", " 2", "2 ", "2.0", "0", "", "9" * 5000, "1" + "0" * 9):
             with self.subTest(number=number):
                 with self.assertRaises(g.GroundingError) as caught:
                     g.apply(self.declarations, "fact-cookie-lifetime", f"app/web.py:{number}")
