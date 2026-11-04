@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from eu_compliance_guard import models as m, revalidation as r, view as v
+from eu_compliance_guard import models as m, revalidation as r, scorecard as s, view as v
 from eu_compliance_guard.__main__ import main
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures/revalidation-synthetic.json"
@@ -164,6 +164,47 @@ class RunViewTests(unittest.TestCase):
             os.chdir(cwd)
         self.assertTrue(opened.call_args.args[0].startswith("file:///"))
         self.assertIn("no-browser", stderr.getvalue())
+
+    def test_review_progress_leads_the_view_with_the_score_command_numbers(self):
+        from test_scorecard import banned_words
+        before = self.snapshot()
+        html = v.write_view(self.run).read_text()
+        self.assertEqual(self.snapshot(), before)
+        start, end = html.index('<section class="progress"'), html.index("</section>")
+        section = html[start:end]
+        self.assertLess(start, html.index('<div class="cards">'))
+        self.assertLess(html.index('<div class="banner">'), start)
+        stdout = io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["score", "--run", str(self.run), "--json"]), 0)
+        card = m.parse_record(m.Scorecard, json.dumps(json.loads(stdout.getvalue())["scorecard"]))
+        for item in card.dimensions:
+            label = s.LABELS[item.key]
+            self.assertIn(f"{item.done} of {item.total} {s.UNITS[item.key]}", section)
+            self.assertIn(f'aria-label="{item.points} of 10 points"', section)
+            self.assertIn(label if item.key != "alignment" else label.upper(), section)
+        self.assertIn("0 of 11 families screened", section)
+        self.assertIn("Record hygiene", section)
+        self.assertIn(m.SCORE_NOTICE, section)
+        self.assertIn("▶ NEXT</b> Map requirement-unmapped to a candidate obligation", section)
+        # The hero, five meter tiles, screening and hygiene each carry the fictional marker.
+        self.assertEqual(section.count('<span class="chip fiction">fictional data</span>'), 8)
+        self.assertEqual(section.count('class="tile focus"'), 1)
+        self.assertEqual(banned_words(section.replace("compliance conclusion", "")), [])
+        self.assertNotIn("total", section.replace("not scored", "").replace("no total exists", "").lower())
+        for forbidden in ("<script", "<img", "<svg", "<link", "url(", "http://", "https://", "src="):
+            self.assertNotIn(forbidden, section.lower())
+
+    def test_review_progress_escapes_declared_text(self):
+        payload = json.loads(self.input.read_text())
+        payload["obligations"][1]["required_methods"] = ["<b onclick=x>method</b>"]
+        self.input.write_text(json.dumps(payload))
+        run = self.runs / "run-20261026T000000Z"
+        r.run(self.input, run)
+        html = v.write_view(run).read_text()
+        section = html[html.index('<section class="progress"'):html.index("</section>")]
+        self.assertIn("&lt;b onclick=x&gt;method&lt;/b&gt;", section)
+        self.assertNotIn("<b onclick", html)
 
     def test_view_leads_with_owner_questions_and_groups_attention_by_area(self):
         html = v.write_view(self.run).read_text()

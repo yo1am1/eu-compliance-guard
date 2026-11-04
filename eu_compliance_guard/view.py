@@ -14,7 +14,7 @@ from pathlib import Path
 import re
 import stat
 
-from . import articles, models as m, nextstep, revalidation as r
+from . import articles, models as m, nextstep, revalidation as r, scorecard
 
 CSS = """
 :root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--line:#e4e1d8;--card:#fff;--warn:#9a5b00;--warnbg:#fff4df;--bad:#a1271b;--badbg:#fde9e6;--ok:#2d6a3e;--okbg:#e6f3e9}
@@ -31,6 +31,19 @@ th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px soli
 .suggest{font-size:13px;margin-top:4px}.next{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 12px 12px 34px}.next li{margin:4px 0}.next b{font-weight:600}.tag.ok{background:var(--okbg);color:var(--ok)}.tag.bad{background:var(--badbg);color:var(--bad)}
 details{margin:10px 0}summary{cursor:pointer;font-weight:600;padding:6px 0}summary .count{display:inline-block;min-width:1.6em;padding:0 7px;margin-left:6px;border-radius:999px;background:var(--line);text-align:center;font-size:13px}
 details>.scroll{margin-top:6px}
+.progress{--accent:#3d5a80;--cell:#e4e1d8;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:16px 0}
+@media (prefers-color-scheme:dark){.progress{--accent:#9fb7d9;--cell:#3a3935}}
+.progress h2{margin:0;font-size:18px}.progress .head{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.chip{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--muted)}
+.chip.status{color:var(--fg);border-color:var(--accent)}.chip.bad{background:var(--badbg);color:var(--bad);border-color:transparent}.chip.fiction{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.bar{display:inline-flex;gap:2px;vertical-align:middle}.bar i{display:inline-block;width:12px;height:12px;border-radius:2px;background:var(--cell)}
+.bar i.on{background:var(--accent)}.bar i.cap{background:repeating-linear-gradient(45deg,var(--cell) 0 2px,transparent 2px 4px);outline:1px solid var(--cell)}
+.hero{border:1px solid var(--line);border-radius:8px;padding:12px;margin:8px 0}.hero .pts{font-size:28px;font-weight:700;margin:0 8px}
+.cta{border-left:3px solid var(--accent);padding:6px 10px;margin:10px 0}.cta b{font-weight:700}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px}.tile.focus{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.tile h3{font-size:14px;margin:0;display:flex;justify-content:space-between;gap:8px}.tile p{margin:4px 0;font-size:13px}.tile details{margin:4px 0}.tile summary{font-size:13px;font-weight:500}
+.tile li{font-size:13px}.notice{font-size:13px;color:var(--muted);margin:8px 0 0}
 ul{margin:0;padding-left:20px}code{font-size:13px;overflow-wrap:anywhere}td:first-child code{overflow-wrap:normal;word-break:normal}
 """
 
@@ -123,6 +136,94 @@ def _next_steps(bundle: m.RevalidationBundle) -> str:
     return f'<ol class="next">{items}</ol>'
 
 
+def _cells(item: m.ScoreDimension) -> str:
+    """Ten CSS cells; hatched above a ceiling. The label carries the number for screen readers."""
+    if item.points is None:
+        return '<span class="bar" role="img" aria-label="not scored">' + "<i></i>" * 10 + "</span>"
+    reachable = item.ceiling.points if item.ceiling else 10
+    cells = '<i class="on"></i>' * item.points + "<i></i>" * (reachable - item.points) + '<i class="cap"></i>' * (10 - reachable)
+    return f'<span class="bar" role="img" aria-label="{item.points} of 10 points">{cells}</span>'
+
+
+def _open_items(item: m.ScoreDimension) -> str:
+    rows = "".join(f"<li><code>{escape(entry.id)}</code>" + (f" · {escape(entry.method)}" if entry.method else "")
+                   + f' <span class="muted">{escape(", ".join(scorecard.TAG_LABELS[tag] for tag in entry.reasons))}</span></li>'
+                   for entry in item.open_items)
+    more = f'<li class="muted">and {item.open_total - len(item.open_items)} more</li>' if item.open_total > len(item.open_items) else ""
+    return (f'<details><summary>open items ({item.open_total})</summary><ul>{rows}{more}</ul></details>'
+            if item.open_total else "")
+
+
+def _counted(counts: list[m.ScoreCount]) -> str:
+    return " · ".join(escape(scorecard.tag_text(item)) for item in counts)
+
+
+def _review_progress(card: m.Scorecard) -> str:
+    """Top section: one status, the Alignment meter, the next step, then one tile per meter. No total."""
+    fiction = '<span class="chip fiction">fictional data</span>' if card.synthetic else ""
+    chips = [f'<span class="chip status">● {escape(scorecard.STATUS_LABELS[card.status])}</span>',
+             f'<span class="chip">assembly: {escape(card.run_state)} (processing state)</span>',
+             f'<span class="chip">{"offline" if card.offline else "official retrieval"}</span>']
+    if card.assessed_days_before_run is not None:
+        chips.append(f'<span class="chip">assessed {card.assessed_days_before_run} days before run</span>')
+    chips.append(f'<span class="chip">notes outside the meters: {card.notes_outside}</span>')
+    chips += [f'<span class="chip{" bad" if item.key == "reviewer_recorded_insufficient" else ""}">'
+              f"{escape(scorecard.ATTENTION_LABELS[item.key])} ×{item.count}</span>" for item in card.attention]
+    focus = card.next_step.focus if card.next_step else None
+    hero = card.dimensions[0]
+    hint = scorecard.raise_text(hero)
+    hero_html = (
+        f'<div class="hero{" focus" if focus == "alignment" else ""}"><b>{scorecard.LABELS[hero.key].upper()}</b>'
+        f'<span class="pts">{escape(scorecard.points_text(hero.points))}</span>{_cells(hero)} {fiction}'
+        f"<p>{hero.done} of {hero.total} {escape(scorecard.UNITS[hero.key])}"
+        + (f' · <span class="muted">{escape(hint)}</span>' if hint else "") + "</p>"
+        + (f'<p class="muted">blockers: {_counted(hero.reasons)}</p>' if hero.reasons else "")
+        + (f'<p class="muted">{escape(scorecard.ceiling_text(hero.ceiling, card.offline))}</p>' if hero.ceiling else "")
+        + (f"<p>{_counted(hero.counts)}</p>" if hero.counts else "") + _open_items(hero) + "</div>")
+    step = card.next_step
+    cta = (f'<div class="cta"><b>▶ NEXT</b> {escape(scorecard.describe_step(step))}<br>'
+           '<span class="muted">CLI: <code>eu-compliance-guard next</code> lists the ranked steps.</span></div>'
+           if step else '<div class="cta">No recorded step is open. That is not a compliance conclusion.</div>')
+    tiles = []
+    for item in card.dimensions[1:]:
+        hint = scorecard.raise_text(item)
+        tiles.append(
+            f'<div class="tile{" focus" if focus == item.key else ""}"><h3><span>{escape(scorecard.LABELS[item.key])}</span>'
+            f"<span>{escape(scorecard.points_text(item.points))}</span></h3>{_cells(item)} {fiction}"
+            f"<p>{item.done} of {item.total} {escape(scorecard.UNITS[item.key])}</p>"
+            + (f'<p class="muted">{_counted(item.counts)}</p>' if item.counts else "")
+            + (f'<p class="muted">open: {_counted(item.reasons)}</p>' if item.reasons else "")
+            + (f"<p>{escape(hint)}</p>" if hint else "")
+            + ('<p class="muted">focus of the next step</p>' if focus == item.key else "") + _open_items(item) + "</div>")
+    screening = card.screening
+    tiles.append(f'<div class="tile{" focus" if step and step.kind == "family" else ""}"><h3><span>Screening</span>'
+                 f'<span class="muted">not scored</span></h3> {fiction}'
+                 f"<p>{screening.screened} of {screening.total} families screened</p>"
+                 f'<p class="muted">applies {screening.applicable} · does not apply {screening.not_applicable}'
+                 f" · withdrawn {screening.withdrawn}</p></div>")
+    tiles.append('<div class="tile"><h3><span>Record hygiene</span><span class="muted">not scored</span></h3> ' + fiction
+                 + "".join(f"<p>{escape(scorecard.HYGIENE_LABELS[item.key])}: {item.done} of {item.total}</p>"
+                           for item in card.hygiene) + "</div>")
+    trend = ""
+    if card.trend is not None and card.trend.comparable:
+        trend = ('<p class="muted">Since the parent run: ' + " · ".join(
+            f"{escape(scorecard.LABELS[item.key])} {escape(scorecard.points_text(item.points_before))} → "
+            f"{escape(scorecard.points_text(item.points_after))}" for item in card.trend.deltas) + "</p>")
+    how = "".join(f"<li><b>{escape(scorecard.LABELS[key])}</b>: {escape(scorecard.UNITS[key])}. {escape(scorecard.HOW_TO_RAISE[key])}</li>"
+                  for key in m.SCORE_KEYS)
+    return (
+        '<section class="progress" aria-labelledby="review-progress">'
+        '<div class="head"><h2 id="review-progress">Review progress</h2>'
+        "<span class=\"muted\">points out of 10 · from this run's records</span></div>"
+        f'<div class="chips">{"".join(chips)}</div>{hero_html}{cta}'
+        f'<p class="notice">{escape(card.notice)}</p>'
+        f'<div class="tiles">{"".join(tiles)}</div>{trend}'
+        "<details><summary>How points work</summary><p>Each meter counts closed items of one kind: none closed is 0, all "
+        "closed is 10, otherwise ten times the closed share rounded down, kept between 1 and 9. A meter with nothing "
+        "declared is not scored. Meters are never added or averaged; no total exists.</p>"
+        f"<ul>{how}</ul></details></section>")
+
+
 def _digest(value: str | None) -> str:
     if value is None:
         return '<span class="muted">—</span>'
@@ -186,8 +287,10 @@ def _suggestions(statement: str, index: articles.ArticleIndex) -> str:
     return f'<div class="suggest">Articles to read: {names}<br><span class="muted">Text search suggestion, not a mapping.</span></div>'
 
 
-def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None = None) -> str:
+def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None = None,
+                card: m.Scorecard | None = None) -> str:
     """Every dynamic value passes through html.escape; nothing executes or loads."""
+    card = card or scorecard.score(bundle)
     acts = catalogue(bundle, contents or {})
     by_source = source_catalogue(bundle, contents or {})
     index = articles.ArticleIndex(acts)
@@ -260,6 +363,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
         f'<p class="muted">Project <code>{escape(bundle.project_id)}</code> · run <code>{escape(bundle.run.id)}</code> · '
         f'assessment date {escape(declared.scope.assessment_date)} · ended {escape(bundle.run.ended_at or "—")}</p>',
         f'<div class="banner">{escape(banner)}</div>',
+        _review_progress(card),
         '<div class="cards">' + "".join(f'<div class="card"><span class="muted">{escape(label)}</span><b>{escape(value)}</b></div>'
                                         for label, value in cards) + "</div>",
         "<h2>Next best steps</h2>",
