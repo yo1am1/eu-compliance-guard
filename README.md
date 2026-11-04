@@ -133,7 +133,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `ground [--input <file>] [--top N] [--json] [--apply <fact>=<path>:<line>]…` | Rank code evidence for each assumed or unknown fact with a local index. `--apply` marks a confirmed technical fact `observed`, pinned to that file's digest |
 | `state-dir [--input <file>]` | Print and create (0700) the private run storage for the declared `project_id` |
 | `next [--run <run dir>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
-| `pr-check [--diff <file>\|-] [--markdown\|--json] [--strict]` | Screen a diff's added lines for legal touchpoints, undeclared concepts and pinned evidence in changed files; `--strict` exits 1 when something needs attention |
+| `pr-check [--diff <file>\|-] [--input <file>] [--markdown\|--json] [--strict]` | Screen a diff's added lines for legal touchpoints, undeclared concepts and pinned evidence in changed files; `--strict` exits 1 when something needs attention |
 | `view --run <run dir> [--open]` | Verify a run and write `<parent>/views/<run>.html`; optionally open it |
 
 ```sh
@@ -260,8 +260,10 @@ first: if one is refused, none is written.
 
 ### Pull-request check
 
-`pr-check` reads a unified diff (a file or standard input) and the declarations, if
-present. It lists the legal concepts in added lines with their candidate families, says
+`pr-check` reads a unified diff (a file or standard input) and the declarations: the
+`--input` file, which must then exist, or `.eu-compliance-guard/declarations.json` if
+present. A declarations folder it cannot read is an `unsafe-path` error, never an
+absent file. It lists the legal concepts in added lines with their candidate families, says
 whether the declarations already mention each concept, and flags code evidence or
 requirements that live in a changed file. It is deterministic and offline. To run it on
 every pull request, copy [`examples/github/eu-compliance-guard-pr.yml`](examples/github/eu-compliance-guard-pr.yml)

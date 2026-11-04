@@ -9,6 +9,7 @@ _ERROR_CODES = {
     "incomplete-run", "corrupt-run",
     "wrong-project", "invalid-revision", "not-observable", "bad-location", "unrelated-line", "no-run",
 }
+_DEFAULT_INPUT = ".eu-compliance-guard/declarations.json"
 
 
 class _Parser(argparse.ArgumentParser):
@@ -62,7 +63,8 @@ def main(argv: list[str] | None = None) -> int:
     pr = commands.add_parser("pr-check", help="Screen a unified diff for EU legal touchpoints (for pull requests and CI)",
                              allow_abbrev=False)
     pr.add_argument("--diff", default="-", help="Unified diff file, or - for standard input (default)")
-    pr.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file, if present")
+    pr.add_argument("--input", help="Declarations file; must exist when given "
+                                    "(default: .eu-compliance-guard/declarations.json, if present)")
     output = pr.add_mutually_exclusive_group()
     output.add_argument("--json", action="store_true", help="Print the result as JSON")
     output.add_argument("--markdown", action="store_true", help="Print a pull-request comment")
@@ -202,7 +204,6 @@ def _next(args) -> int:
 
 def _pr_check(args) -> int:
     import json
-    import os
     from . import prcheck
     from .revalidation import load_input
     try:
@@ -213,7 +214,7 @@ def _pr_check(args) -> int:
                 diff = handle.read(prcheck.MAX_DIFF_BYTES + 1)
         if len(diff) > prcheck.MAX_DIFF_BYTES:
             raise prcheck.PRCheckError("capacity-exceeded")
-        declared = load_input(args.input) if os.path.lexists(args.input) else None
+        declared = load_input(args.input) if args.input is not None else _default_declarations()
         report = prcheck.pr_check(diff.decode("utf-8", "replace"), declared)
     except KeyboardInterrupt:
         return 130
@@ -224,6 +225,23 @@ def _pr_check(args) -> int:
     print(json.dumps(report, indent=2) if args.json else prcheck.format_markdown(report) if args.markdown
           else prcheck.format_text(report))
     return 1 if args.strict and report["attention"] else 0
+
+
+def _default_declarations():
+    """The default declarations, or None only when they plainly do not exist.
+
+    A folder that cannot be searched or resolved is not an absent file: load_input refuses it
+    (unsafe-path), so a permission problem never quietly drops the declaration-backed checks.
+    """
+    import os
+    from .revalidation import load_input
+    try:
+        os.lstat(_DEFAULT_INPUT)
+    except FileNotFoundError:
+        return None
+    except OSError:
+        pass
+    return load_input(_DEFAULT_INPUT)
 
 
 def _view(run_dir: str, open_browser: bool) -> int:

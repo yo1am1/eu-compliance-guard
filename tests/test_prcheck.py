@@ -3,6 +3,7 @@
 from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -134,17 +135,26 @@ class PRCheckTests(unittest.TestCase):
         self.assertEqual(report["attention"], 0)
         self.assertIn("not a clean bill", p.format_markdown(report))
 
+    def cli_in(self, folder, *args):
+        """Run the CLI with folder as the current directory, where the default declarations path resolves."""
+        previous = os.getcwd()
+        os.chdir(folder)
+        self.addCleanup(os.chdir, previous)
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = main(list(args))
+        os.chdir(previous)
+        return code, stdout.getvalue(), stderr.getvalue()
+
     def test_cli_reads_a_file_and_strict_mode_signals_attention(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "pr.diff"
             path.write_text(DIFF)
-            missing = str(Path(folder) / "none.json")
-            out = io.StringIO()
-            with redirect_stdout(out):
-                self.assertEqual(main(["pr-check", "--diff", str(path), "--input", missing, "--json"]), 0)
-            self.assertEqual(json.loads(out.getvalue())["attention"], 3)
-            with redirect_stdout(io.StringIO()):
-                self.assertEqual(main(["pr-check", "--diff", str(path), "--input", missing, "--strict"]), 1)
+            code, out, _ = self.cli_in(folder, "pr-check", "--diff", str(path), "--json")
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(out)["attention"], 3)
+            self.assertFalse(json.loads(out)["declarations"])
+            self.assertEqual(self.cli_in(folder, "pr-check", "--diff", str(path), "--strict")[0], 1)
             bad = Path(folder) / "bad.json"
             bad.write_text("{")
             err = io.StringIO()
@@ -152,6 +162,38 @@ class PRCheckTests(unittest.TestCase):
                 self.assertEqual(main(["pr-check", "--diff", str(path), "--input", str(bad)]), 2)
             self.assertTrue(err.getvalue().startswith("eu-compliance-guard: "))
             self.assertNotIn("{", err.getvalue())
+
+    def test_named_or_unreachable_declarations_are_never_skipped(self):
+        with tempfile.TemporaryDirectory() as folder:
+            diff = Path(folder) / "pr.diff"
+            diff.write_text(DIFF)
+            # A named --input must exist: a typo cannot turn a --strict failure into a pass.
+            code, stdout, stderr = self.cli_in(folder, "pr-check", "--diff", str(diff), "--strict",
+                                               "--input", str(Path(folder) / "declaration.json"))
+            self.assertEqual((code, stdout), (2, ""))
+            self.assertIn("unsafe-path", stderr)
+            # Only a clean "no such file" means absent; a folder that cannot be resolved is refused.
+            (Path(folder) / ".eu-compliance-guard").symlink_to(".eu-compliance-guard")
+            code, stdout, stderr = self.cli_in(folder, "pr-check", "--diff", str(diff), "--strict")
+            self.assertEqual((code, stdout), (2, ""))
+            self.assertIn("unsafe-path", stderr)
+
+    @unittest.skipIf(os.geteuid() == 0, "root can traverse any folder")
+    def test_an_untraversable_declarations_folder_is_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            diff = Path(folder) / "pr.diff"
+            diff.write_text(DIFF)
+            state = Path(folder) / ".eu-compliance-guard"
+            state.mkdir()
+            (state / "declarations.json").write_bytes(FIXTURE.read_bytes())
+            state.chmod(0)
+            try:
+                for named in ([], ["--input", ".eu-compliance-guard/declarations.json"]):
+                    code, _, stderr = self.cli_in(folder, "pr-check", "--diff", str(diff), "--strict", *named)
+                    self.assertEqual(code, 2)
+                    self.assertIn("unsafe-path", stderr)
+            finally:
+                state.chmod(0o700)
 
 
 if __name__ == "__main__":
