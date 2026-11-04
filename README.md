@@ -15,6 +15,30 @@ reports, predecessor revalidation and the Claude Code plugin), plus code-grounde
 facts, article text beside each reference, the next best step, a pull-request check
 and a side panel. See the [changelog](CHANGELOG.md).
 
+![Walkthrough: the band and side panel in Claude Code, then article text and articles to read in the report](docs/images/walkthrough.gif)
+
+<details>
+<summary>Screenshots</summary>
+
+**In Claude Code:** the band above the prompt names the next step and shows progress;
+the side panel lists the top steps, the questions for the owner and open items by area.
+
+![The band and the side panel in Claude Code](docs/images/plugin-band-panel.png)
+
+**In the report:** each declared article opens to its text, retrieved from the
+Publications Office and labelled as an unreviewed candidate.
+
+![Article text beside each declared legal reference](docs/images/report-article-text.png)
+
+**Articles to read:** each requirement lists the articles a local text search ranks
+highest. A suggestion, not a mapping.
+
+![Articles to read under each requirement](docs/images/report-articles-to-read.png)
+
+All screenshots show the fictional FitBox example project.
+
+</details>
+
 ## Quick start (Claude Code)
 
 ```text
