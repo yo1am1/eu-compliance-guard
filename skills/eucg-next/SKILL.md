@@ -40,8 +40,11 @@ requirements`. Then work on step 1 only, by its `kind`:
   When the action says a recorded decision cannot take effect, do not ask for the
   decision again: show the named blockers (source review, a source that cannot
   establish a binding duty, unavailable evidence, missing reasoning) and work on those.
-- `mapping`: list the report's "Articles to read" for the requirement and offer to
-  declare a candidate obligation citing the one the owner picks.
+- `mapping`: list the report's "Articles to read" for the requirement, with what matched.
+  When the owner picks one, run `<cli> accept <requirement>=<target>:<Article N> --input
+  <declarations>`. It reuses or creates a candidate obligation pinning that article and
+  never records a decision. Then say that applicability stays unresolved until a named
+  reviewer decides, and that the obligation still needs its review methods.
 - `family`: list unscreened families; screening needs a named reviewer.
 
 After any edit run `<cli> check`, then suggest a new run to see the step close.
