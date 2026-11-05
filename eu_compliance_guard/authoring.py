@@ -274,7 +274,14 @@ def _check(path, previous) -> dict:
                           else "declare a manually downloaded copy as a selected source instead")
                 warnings.append({"at": f"source_targets[{index}]", "problem": "--fetch-official will refuse this target ("
                                  + failure.code + "); " + advice})
-        targets.append({"at": f"source_targets[{index}]", "id": target.id, "fetch": state})
+        version = s.celex_version(target.intended_identifier, target.intended_url)
+        if target.intended_type == "eu_act" and version is not None and not version["consolidated"]:
+            warnings.append({"at": f"source_targets[{index}]",
+                             "problem": "base CELEX: the act as first published, not the law in force; declare a "
+                                        "consolidated CELEX (0YYYY…-YYYYMMDD) and review its date"})
+        targets.append({"at": f"source_targets[{index}]", "id": target.id, "fetch": state,
+                        **({"version": "consolidated " + version["date"] if version["consolidated"] else "as first published"}
+                           if version else {})})
     if not declared.requirements:
         warnings.append({"at": "requirements", "problem": "empty: every run will report a coverage gap"})
     if not declared.obligations:

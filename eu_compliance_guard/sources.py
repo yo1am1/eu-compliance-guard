@@ -482,3 +482,37 @@ def retrieve(requests: list[TargetRequest], *, transport_factory=SystemTransport
             used += min(outcome.bytes_read, limit + 1)
             results.append(outcome)
     return results
+
+
+def celex_version(identifier: str | None, url: str | None = None) -> dict | None:
+    """Read a CELEX number from an identifier or a Cellar/EUR-Lex URL, without a regular expression.
+
+    '32016R0679' -> base act as first published; '02016R0679-20160504' -> consolidated text in
+    force from 2016-05-04. Returns None when no CELEX number is recognised.
+    """
+    candidates = [identifier or ""]
+    if url:
+        for marker in ("/celex/", "CELEX:", "CELEX%3A", "celex:"):
+            if marker in url:
+                rest = url.split(marker, 1)[1]
+                for stop in "?&#/":
+                    rest = rest.split(stop, 1)[0]
+                candidates.append(rest)
+    for candidate in candidates:
+        value = candidate.strip()
+        if value.upper().startswith("CELEX:"):
+            value = value[6:]
+        number, _, date = value.partition("-")
+        if len(number) < 7 or not number[1:5].isdigit() or not number[1:5].isascii():
+            continue
+        sector, kind = number[0], number[5:].rstrip("0123456789")
+        # CELEX sectors are the digits 0-9 and C and E; the document type is one or two capital letters.
+        if not (sector in "0123456789CE" and kind.isascii() and kind.isupper() and 1 <= len(kind) <= 2):
+            continue
+        if not number[5 + len(kind):].isdigit():
+            continue
+        if sector == "0" and len(date) == 8 and date.isascii() and date.isdigit():
+            return {"celex": value, "consolidated": True, "date": f"{date[:4]}-{date[4:6]}-{date[6:]}"}
+        if not date:
+            return {"celex": value, "consolidated": False, "date": None}
+    return None

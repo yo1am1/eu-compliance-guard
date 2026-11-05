@@ -271,7 +271,16 @@ def source_catalogue(bundle: m.RevalidationBundle, contents: dict[str, bytes]) -
     return found
 
 
-def _article(pin: m.ProvisionRef, acts: dict[str, dict[str, dict]], by_source: dict[str, dict[str, dict]]) -> str:
+def _version_note(version: dict | None) -> str:
+    if version is None:
+        return "check the official consolidated version before relying on it."
+    if version["consolidated"]:
+        return f"consolidated version of {version['date']} (CELEX {version['celex']}); check that no newer one applies."
+    return f"the act as first published (base CELEX {version['celex']}), not the law in force; check the consolidated version."
+
+
+def _article(pin: m.ProvisionRef, acts: dict[str, dict[str, dict]], by_source: dict[str, dict[str, dict]],
+             versions: dict[str, dict | None] | None = None) -> str:
     """A pin naming a source shows that source's text; only an unpinned target falls back to the target's."""
     key = articles.article_key(pin.locator)
     origin = pin.source_id if pin.source_id else pin.source_target_id
@@ -283,7 +292,7 @@ def _article(pin: m.ProvisionRef, acts: dict[str, dict[str, dict]], by_source: d
     text = item["text"] if len(item["text"]) <= EXCERPT_CHARS else item["text"][:EXCERPT_CHARS].rsplit(" ", 1)[0] + " …"
     return (f'<details class="law"><summary>{escape(key)} — {escape(item["title"] or "untitled")}</summary>'
             f'<p>{escape(text)}</p><p>Unreviewed candidate text from the retained <code>{escape(target)}</code> bytes; '
-            "check the official consolidated version before relying on it.</p></details>")
+            f"{escape(_version_note((versions or {}).get(pin.source_target_id)))}</p></details>")
 
 
 def _suggestions(statement: str, index: articles.ArticleIndex) -> str:
@@ -309,6 +318,8 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
     # reference shows its source's declared type, an unpinned one its target's intended type.
     source_types = {item.source.id: item.source.type for item in declared.sources}
     target_types = {item.id: item.intended_type for item in declared.source_targets}
+    from .sources import celex_version
+    versions = {item.id: celex_version(item.intended_identifier, item.intended_url) for item in declared.source_targets}
     decisions = {item.obligation.id: item for item in bundle.effective_applicability_decisions}
     requirement_states = Counter(item.state for item in bundle.requirement_assessments)
     applicability = Counter(item.applicability for item in bundle.obligation_dispositions)
@@ -331,7 +342,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
         decision = decisions[disposition.obligation_id]
         references = "".join(f"<li>{escape(f'{pin.source_id or pin.source_target_id} — {pin.locator}')} "
                              f"({escape(source_types.get(pin.source_id) or target_types.get(pin.source_target_id) or 'type not declared')})"
-                             f"{_article(pin, acts, by_source)}</li>" for pin in obligation.source_provisions)
+                             f"{_article(pin, acts, by_source, versions)}</li>" for pin in obligation.source_provisions)
         methods = " ".join(_tag(f"{item.method}: {item.outcome}") for item in disposition.required_method_dispositions)
         obligation_rows.append([f"<code>{escape(obligation.id)}</code>", escape(f"{obligation.family} · {obligation.classification}"),
                                 f"<ul>{references}</ul>" if references else "—", _tag(decision.applicability) + f'<br><span class="muted">{escape(decision.reviewer or "no reviewer")}</span>',
