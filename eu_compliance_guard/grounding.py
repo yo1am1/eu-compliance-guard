@@ -201,6 +201,14 @@ def expand(query: list[str]) -> dict[str, float]:
     return weights
 
 
+def explain(matched: list[dict]) -> str:
+    """'cookie, lifetime (fact); analytics (concept vocabulary)': why a candidate was found."""
+    groups: dict[str, list[str]] = {}
+    for item in matched:
+        groups.setdefault(item["via"], []).append(item["term"] + (f" from {item['from']}" if "from" in item else ""))
+    return "; ".join(f"{', '.join(terms)} ({via})" for via, terms in groups.items()) or "no shared term"
+
+
 def concepts_of(terms) -> list[str]:
     return [key for key, (_, vocabulary) in CONCEPTS.items() if vocabulary & set(terms)]
 
@@ -221,7 +229,10 @@ def search(index: Index, query: list[str], top: int = 3, k1: float = 1.2, b: flo
         if score > 0:
             scored.append((score, line))
     scored.sort(key=lambda item: (-item[0], item[1].path, item[1].number))
+    direct = set(query)
     return [{"location": f"{line.path}:{line.number}", "score": round(score, 2), "concepts": concepts_of(line.terms),
+             "matched": [{"term": term, "via": "fact" if term in direct else "concept vocabulary"}
+                         for term in sorted(weights) if term in line.terms],
              "snippet": line.text, "digest": index.digests[line.path]} for score, line in scored[:top]]
 
 
@@ -334,6 +345,7 @@ def format_ground(report: dict) -> str:
             lines.append("  organisational: code cannot show this; ask the owner")
         for item in fact["candidates"]:
             lines.append(f"  {item['location']}  score {item['score']}  [{', '.join(item['concepts']) or '-'}]  {item['snippet']}")
+            lines.append("    matched: " + explain(item["matched"]))
         if fact["observable"] and not fact["candidates"]:
             lines.append("  no code evidence found; ask the owner")
     if report["undeclared"]:

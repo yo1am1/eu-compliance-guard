@@ -288,16 +288,22 @@ def _without_code_spans(text: str) -> str:
     return "".join(parts) + text[index:]
 
 
-def _query(statement: str) -> dict[str, float]:
-    """Statement terms at 1.0 plus their legal-vocabulary counterparts at 0.8, all stemmed."""
+def _explained_query(statement: str) -> dict[str, tuple[float, str]]:
+    """Stemmed term -> (weight, origin). Statement terms weigh 1.0 and come from the statement;
+    their legal-vocabulary counterparts weigh 0.8 and name the statement word that bridged to them."""
     query = [term for term in tokens(_without_code_spans(statement)) if term not in NOISE]
-    weights: dict[str, float] = {}
+    terms: dict[str, tuple[float, str]] = {}
     for term in query:
-        weights[_stem(term)] = 1.0
+        terms[_stem(term)] = (1.0, "statement")
     for term in query:
         for legal in (LEGAL_TERMS.get(term) or INFLECTED_TERMS.get(term, "")).split():
-            weights[_stem(legal)] = max(weights.get(_stem(legal), 0.0), 0.8)
-    return weights
+            terms.setdefault(_stem(legal), (0.8, term))
+    return terms
+
+
+def _query(statement: str) -> dict[str, float]:
+    """Statement terms at 1.0 plus their legal-vocabulary counterparts at 0.8, all stemmed."""
+    return {term: weight for term, (weight, _) in _explained_query(statement).items()}
 
 
 class _Field:
@@ -338,12 +344,21 @@ class ArticleIndex:
         """BM25 over the text plus a boosted BM25 over the title."""
         if not self.keys:
             return []
-        weights = _query(statement)
-        scored = sorted(((t + TITLE_WEIGHT * h, s, k) for t, h, (s, k)
-                         in zip(self.text.scores(weights), self.title.scores(weights), self.keys) if t + h > 0),
+        explained = _explained_query(statement)
+        weights = {term: weight for term, (weight, _) in explained.items()}
+        scored = sorted(((t + TITLE_WEIGHT * h, s, k, i) for i, (t, h, (s, k))
+                         in enumerate(zip(self.text.scores(weights), self.title.scores(weights), self.keys)) if t + h > 0),
                         key=lambda item: (-item[0], item[1], item[2]))
-        return [{"source": source, "article": key, "title": self.catalogue[source][key]["title"], "score": round(score, 2)}
-                for score, source, key in scored[:top]]
+        return [{"source": source, "article": key, "title": self.catalogue[source][key]["title"], "score": round(score, 2),
+                 "matched": self._matched(explained, index)}
+                for score, source, key, index in scored[:top]]
+
+    def _matched(self, explained: dict[str, tuple[float, str]], index: int) -> list[dict]:
+        """Why an article was suggested: each query term it contains, and where that term came from."""
+        present = self.text.documents[index].keys() | self.title.documents[index].keys()
+        return [{"term": term, "via": "statement" if origin == "statement" else "legal vocabulary",
+                 **({} if origin == "statement" else {"from": origin})}
+                for term, (_, origin) in sorted(explained.items()) if term in present]
 
 
 def suggest(statement: str, catalogue: dict[str, dict[str, dict]], top: int = 3) -> list[dict]:

@@ -76,6 +76,7 @@ class RunViewTests(unittest.TestCase):
         self.assertIn("Unreviewed candidate text", html)
         self.assertRegex(html, r"Articles to read: Article 2 <span class=\"muted\">Fictional erasure")
         self.assertIn("not a mapping", html)
+        self.assertRegex(html, r"Fictional erasure[^<]*; matched [^<]*\(statement\)")
         self.assertNotRegex(html, r"(?i)<script")
 
     def test_an_excerpt_comes_from_the_pinned_source_not_another_source_of_the_target(self):

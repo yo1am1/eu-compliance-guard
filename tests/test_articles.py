@@ -223,6 +223,16 @@ class ArticleTests(unittest.TestCase):
         self.assertEqual(a.suggest("zzz qqq", catalogue), [])
         self.assertEqual(a.suggest("anything", {}), [])
 
+    def test_each_suggestion_explains_its_matched_terms_and_where_they_came_from(self):
+        catalogue = {"fixture": a.parse(XHTML, "application/xhtml+xml")}
+        found = a.suggest("Users can delete their account", catalogue)[0]
+        bridged = [item for item in found["matched"] if item["via"] == "legal vocabulary"]
+        self.assertTrue(bridged and all(item["from"] == "delete" for item in bridged), found["matched"])
+        for item in found["matched"]:
+            self.assertIn(item["via"], ("statement", "legal vocabulary"))
+            self.assertEqual("from" in item, item["via"] == "legal vocabulary")
+        self.assertEqual(found["matched"], sorted(found["matched"], key=lambda item: item["term"]))
+
 
 if __name__ == "__main__":
     unittest.main()
