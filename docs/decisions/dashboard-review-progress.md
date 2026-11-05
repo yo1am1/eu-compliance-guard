@@ -39,3 +39,22 @@ combined, and the same run always gives byte-identical output. A row of 10s mean
 every recorded step the meters count is closed in that run; it is not a legal
 conclusion, and the view still lists notes outside the meters (scope exclusions,
 jurisdiction coverage, technical checks this workflow never runs).
+
+## Addendum (Owner, 2026-11-05): a simple dashboard page
+
+The Owner asked for a dashboard that a new user understands at a glance, modelled on
+Ponytail's board. The plugin's **Dashboard** button opens `views/<run>.dashboard.html`.
+It is one static file with no build, no server and no script. It shows:
+
+- the status;
+- the Alignment points as one large number, with a progress bar;
+- the next step;
+- the other five meters as simple cards: label, points, bar and one line;
+- a short to-do list;
+- coverage: screening and record hygiene, leaving out rows with nothing declared;
+- the owner's open questions.
+
+Blockers, open items, how-to-raise text and the points rule stay in the full report.
+On the dashboard, the fictional-data marker appears once at the top instead of on every
+tile. The report keeps the marker on every tile. The rules above are unchanged: no total,
+no verdict wording, and the same numbers as `score --json`.

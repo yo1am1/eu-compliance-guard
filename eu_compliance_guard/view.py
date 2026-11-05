@@ -395,29 +395,95 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
     return "\n".join(parts)
 
 
+DASH_CSS = """
+:root{--bg:#f7f6f2;--fg:#1b1b19;--muted:#6e6c66;--faint:#9a978f;--line:#e6e3da;--card:#fff;--track:#ece9e1;--accent:#3d5a80;--warn:#8a5a00;--warnbg:#fff3d9}
+@media (prefers-color-scheme:dark){:root{--bg:#0d0d0c;--fg:#f1f0eb;--muted:#9b9890;--faint:#6d6b64;--line:#24231f;--card:#151513;--track:#22211e;--accent:#9fb7d9;--warn:#f0c46a;--warnbg:#2a2312}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1040px;margin:0 auto;padding:32px 20px 56px}
+.num{font-variant-numeric:tabular-nums}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+h1{margin:0;font-size:26px;font-weight:650;text-wrap:balance}.sub{margin:4px 0 0;color:var(--muted);font-size:14px}.sub a{color:inherit}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600}
+.pill.warn{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 24px}
+.label{color:var(--muted);font-size:13px}
+.track{height:8px;border-radius:999px;background:var(--track);overflow:hidden;margin:12px 0 0}.track span{display:block;height:100%;background:var(--accent);border-radius:999px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:28px;align-items:center;margin-bottom:14px}
+.big{font-size:56px;font-weight:700;line-height:1.05}.big small{font-size:22px;color:var(--faint);font-weight:600}
+.step{border-radius:14px;background:var(--bg);padding:16px 18px}.step b{display:block;font-size:16px;margin:2px 0 4px;text-wrap:pretty}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.kpi{padding:16px 18px}.kpi .v{font-size:30px;font-weight:700;margin-top:2px}.kpi .v small{font-size:15px;color:var(--faint)}.kpi .note{color:var(--muted);font-size:13px;margin-top:8px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;margin-bottom:14px}
+h2{margin:0 0 12px;font-size:16px}ol,ul{margin:0;padding:0;list-style:none}
+li{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}li:first-child{border-top:0;padding-top:0}
+.n{color:var(--muted);white-space:nowrap}.hint{color:var(--muted);font-size:13px;margin:10px 0 0}
+footer{color:var(--faint);font-size:12px;margin-top:24px}
+@media (max-width:760px){.hero,.grid2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+"""
+
+
+def _ended(value: str | None) -> str:
+    """'2026-11-05T08:19:01.4Z' -> '2026-11-05 08:19 UTC': the same date form as the assessment date."""
+    return f"{value[:10]} {value[11:16]} UTC" if value and len(value) >= 16 else "not ended"
+
+
+def _track(points: int | None) -> str:
+    return f'<div class="track"><span style="width:{(points or 0) * 10}%"></span></div>'
+
+
+def _fraction(points: int | None) -> str:
+    return "—" if points is None else f'{points}<small>/10</small>'
+
+
 def render_dashboard(bundle: m.RevalidationBundle, card: m.Scorecard | None = None, report: str | None = None) -> str:
-    """One self-contained page: review progress, next steps and owner questions. No script, no request."""
+    """One self-contained page that reads at a glance: status, one big number, the next step, five
+    meters, a short to-do list and owner questions. Details stay in the full report. No script, no request."""
     card = card or scorecard.score(bundle)
-    banner = ("FICTIONAL / SYNTHETIC DATA. Every conclusion below is fictional and establishes no real EU duty."
-              if bundle.synthetic else "Recorded declarations and self-attested reviews. Not a compliance verdict.")
+    hero, *meters = card.dimensions
+    status = escape(scorecard.STATUS_LABELS[card.status])
+    link = f' · <a href="{escape(quote(report))}">full report</a>' if report else ""
+    fiction = '<span class="pill warn">Fictional sample data</span> ' if bundle.synthetic else ""
+    step = card.next_step
+    step_html = (f'<div class="step"><span class="label">Next step</span><b>{escape(scorecard.STEP_TEXT[step.kind].replace("{subject}", step.subject or ""))}</b>'
+                 f'<span class="label num">unblocks {step.unblocks} open requirement{"" if step.unblocks == 1 else "s"}</span></div>'
+                 if step else '<div class="step"><span class="label">Next step</span><b>No recorded step is open</b>'
+                 '<span class="label">That is not a compliance conclusion.</span></div>')
+    kpis = "".join(
+        f'<div class="card kpi"><div class="label">{escape(scorecard.LABELS[item.key])}</div>'
+        f'<div class="v num">{_fraction(item.points)}</div>{_track(item.points)}'
+        f'<div class="note num">{item.done} of {item.total} {escape(scorecard.UNITS[item.key])}</div></div>'
+        for item in meters)
+    todo = "".join(f'<li><span>{escape(item["action"])}</span><span class="n num">unblocks {item["unblocks"]}</span></li>'
+                   for item in nextstep.next_steps(bundle, top=3)) or "<li><span>No recorded step is open.</span></li>"
+    screening = card.screening
+    coverage = [f'<li><span>Legal families screened</span><span class="n num">{screening.screened} of {screening.total}</span></li>']
+    coverage += [f'<li><span>{escape(scorecard.HYGIENE_LABELS[item.key]).capitalize()}</span><span class="n num">{item.done} of {item.total}</span></li>'
+                 for item in card.hygiene if item.total]
+    coverage_hint = ('<p class="hint">Next: screen the eleven legal families with /eucg-audit.</p>'
+                     if screening.screened < screening.total else "")
+    questions = [fact for fact in {item.id: item for item in m.scope_facts(bundle.declarations.scope)}.values()
+                 if fact.basis in ("assumed", "unknown") or fact.conflicts]
+    questions_html = ("" if not questions else
+        '<section class="card"><h2>Questions for the owner</h2><ul>'
+        + "".join(f'<li><span>{escape(fact.key)}</span><span class="n">{escape(fact.basis)} · ask {escape(fact.owner or "the project owner")}</span></li>'
+                  for fact in questions)
+        + "</ul></section>")
     parts = [
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">",
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
         "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">",
-        f"<title>EU Compliance Guard dashboard</title><style>{CSS}</style></head><body><main>",
-        "<h1>EU Compliance Guard dashboard</h1>",
-        f'<p class="muted">Project <code>{escape(bundle.project_id)}</code> · run <code>{escape(bundle.run.id)}</code> · '
-        f'assessment date {escape(bundle.declarations.scope.assessment_date)} · ended {escape(bundle.run.ended_at or "—")}'
-        + (f' · <a href="{escape(quote(report))}">full report</a>' if report else "") + "</p>",
-        f'<div class="banner">{escape(banner)}</div>',
-        _review_progress(card),
-        "<h2>Next best steps</h2>",
-        "<p class=\"muted\">Ranked by how many open requirements each step unblocks. Workflow guidance, not a verdict.</p>",
-        _next_steps(bundle),
-        "<h2>Questions for the project owner</h2>",
-        _owner_questions(bundle),
-        '<p class="muted">Generated from the verified run bundle. Points count recorded review steps; '
-        "they are not a compliance score, verdict or legal approval.</p>",
+        f"<title>EU Compliance Guard dashboard</title><style>{DASH_CSS}</style></head><body><main>",
+        f'<div class="top"><div><h1>Review progress</h1><p class="sub">{escape(bundle.project_id)} · run ended '
+        f'<span class="num">{escape(_ended(bundle.run.ended_at))}</span>{link}</p></div>'
+        f'<div>{fiction}<span class="pill">{status}</span></div></div>',
+        f'<section class="card hero"><div><div class="label">{escape(scorecard.LABELS[hero.key])} · requirements supported</div>'
+        f'<div class="big num">{_fraction(hero.points)}</div>{_track(hero.points)}'
+        f'<div class="label num" style="margin-top:8px">{hero.done} of {hero.total} requirements</div></div>{step_html}</section>',
+        f'<section class="kpis">{kpis}</section>',
+        f'<div class="grid2"><section class="card"><h2>To do</h2><ol>{todo}</ol></section>'
+        f'<section class="card"><h2>Coverage</h2><ul>{"".join(coverage)}</ul>{coverage_hint}</section></div>',
+        questions_html,
+        f"<footer>{escape(scorecard.NOTICE)} Details are in the full report.</footer>",
         "</main></body></html>",
     ]
     return "\n".join(parts)

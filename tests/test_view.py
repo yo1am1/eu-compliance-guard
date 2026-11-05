@@ -228,7 +228,16 @@ class RunViewTests(unittest.TestCase):
         self.assertNotIn("<script", page.lower())
         self.assertNotIn("http", page.replace("http-equiv", ""))
         self.assertIn('href="run-20261025T000000Z.html"', page)
-        self.assertIn(v._review_progress(s.score(self.bundle)), page)
+        card = s.score(self.bundle)
+        # At a glance: one big number, the next step, one card per other meter, no detail blocks.
+        self.assertIn(f'<div class="big num">{card.dimensions[0].points}<small>/10</small></div>', page)
+        for item in card.dimensions[1:]:
+            self.assertIn(f'<div class="label">{s.LABELS[item.key]}</div>', page)
+        self.assertIn("Next step", page)
+        self.assertIn("Fictional sample data", page)
+        self.assertIn(s.NOTICE, page)
+        self.assertNotIn("<details", page)
+        self.assertNotIn("T00:00:00", page)
         first = dashboard.read_bytes()
         v.write_view(self.run)
         self.assertEqual(dashboard.read_bytes(), first)
