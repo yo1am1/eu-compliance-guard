@@ -16,18 +16,13 @@ permissions:
 
 env:
   BRANCHES: >-
-    claude/dashboard
-    claude/eval-set
-    claude/explain-suggestions
-    claude/graph-core
-    claude/graph-intent
-    claude/graph-pr-check
-    claude/graph-view
-    claude/hardening
-    claude/hybrid-search
-    claude/path-evidence
-    claude/release-1.3.0
-    claude/publish-1.3.0
+    claude/law-in-force
+    claude/accept
+    claude/real-repos
+    claude/ci
+    claude/panel-grounding
+    claude/release-1.4.0
+    claude/publish-1.4.0
 
 jobs:
   prune:

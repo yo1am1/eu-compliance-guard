@@ -26,7 +26,7 @@ jobs:
           git -c core.quotePath=false diff --no-color "origin/$BASE_REF...HEAD" > "$RUNNER_TEMP/pr.diff"
           set +e
           # 1.1.0, pinned to its commit so the install cannot change under you.
-          uvx --from "git+https://github.com/yo1am1/eu-compliance-guard@eaca42ddd21a1d549b41d1d32dcd766f821402bd" \
+          uvx --from "git+https://github.com/yo1am1/eu-compliance-guard@d0ea9ccaa29491178a9e50052cff61589a1ccb4e" \
             eu-compliance-guard pr-check --diff "$RUNNER_TEMP/pr.diff" --markdown --strict > "$RUNNER_TEMP/eucg.md"
           code=$?
           set -e
