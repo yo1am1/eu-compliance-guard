@@ -3062,6 +3062,34 @@
           "title": "Concepts",
           "type": "array"
         },
+        "data": {
+          "items": {
+            "enum": [
+              "personal_data",
+              "special_category",
+              "children",
+              "tracking",
+              "consent",
+              "marketing",
+              "ai",
+              "third_party",
+              "retention",
+              "subscription",
+              "security",
+              "accessibility"
+            ],
+            "type": "string"
+          },
+          "maxItems": 3,
+          "title": "Data",
+          "type": "array"
+        },
+        "end_line": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "End Line",
+          "type": "integer"
+        },
         "id": {
           "maxLength": 128,
           "minLength": 1,
@@ -3101,7 +3129,9 @@
         "path",
         "name",
         "line",
-        "concepts"
+        "end_line",
+        "concepts",
+        "data"
       ],
       "title": "GraphNode",
       "type": "object"

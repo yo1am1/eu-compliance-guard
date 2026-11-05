@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 import sys
 
-from . import articles, grounding, models as m
+from . import articles, graph, grounding, models as m
 
 EVAL_DIR = Path(__file__).resolve().parents[1] / "fixtures/eval"
 
@@ -46,6 +46,10 @@ def evaluate(directory: Path = EVAL_DIR) -> dict:
         if not three:
             misses.append(case["key"])
     result["grounding"] = {"cases": len(spec["grounding"]["facts"]), "top1": top1, "top3": top3, "misses": misses}
+    found = {(flow["hops"][0]["location"], flow["hops"][-1]["location"])
+             for flow in graph.flows(graph.build_graph(directory / spec["flows"]["project"]))}
+    expected = {tuple(item) for item in spec["flows"]["expected"]}
+    result["flows"] = {"expected": len(expected), "found": len(found & expected), "unexpected": sorted(found - expected)}
     return result
 
 
@@ -55,6 +59,9 @@ def format_result(result: dict) -> str:
         item = result[name]
         lines.append(f"{name:<18} top-1 {item['top1']:>2}/{item['cases']}  top-3 {item['top3']:>2}/{item['cases']}")
         lines += [f"  miss: {miss}" for miss in item["misses"]]
+    flows = result["flows"]
+    lines.append(f"{'flows':<18} found {flows['found']}/{flows['expected']}  unexpected {len(flows['unexpected'])}")
+    lines += [f"  unexpected: {start} → {end}" for start, end in flows["unexpected"]]
     return "\n".join(lines)
 
 

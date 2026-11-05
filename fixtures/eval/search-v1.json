@@ -1,66 +1,347 @@
 {
   "version": 1,
   "synthetic": true,
-  "act": {"target": "target-fictional-act", "path": "act.txt"},
+  "act": {
+    "target": "target-fictional-act",
+    "path": "act.txt"
+  },
   "articles": {
     "tune": [
-      {"statement": "Users can delete their account and all stored data from settings", "expected": ["Article 11"]},
-      {"statement": "Export all user data as a JSON download", "expected": ["Article 12"]},
-      {"statement": "Ask for cookie consent before loading analytics scripts", "expected": ["Article 22"]},
-      {"statement": "Show a privacy notice at signup listing what we collect and why", "expected": ["Article 8"]},
-      {"statement": "Notify the regulator within 72 hours after a security incident exposing user data", "expected": ["Article 19"]},
-      {"statement": "Encrypt personal data at rest and in transit", "expected": ["Article 18"]},
-      {"statement": "Sign a data processing agreement with every cloud vendor", "expected": ["Article 16"]},
-      {"statement": "Users under 16 need a parent's approval before creating an account", "expected": ["Article 6"]},
-      {"statement": "Tell users when they are chatting with an AI assistant", "expected": ["Article 23"]},
-      {"statement": "Users can unsubscribe from marketing emails with one click", "expected": ["Article 13"]},
-      {"statement": "Delete inactive accounts after two years", "expected": ["Article 3", "Article 11"]},
-      {"statement": "Keep a register of all processing activities", "expected": ["Article 17"]},
-      {"statement": "Store health measurements like weight only with explicit consent", "expected": ["Article 7"]},
-      {"statement": "Allow subscription cancellation online in the same way as sign-up", "expected": ["Article 26"]},
-      {"statement": "Users can see a copy of all data we hold about them", "expected": ["Article 9"]},
-      {"statement": "Show the total price and auto-renewal terms before checkout", "expected": ["Article 24"]},
-      {"statement": "Run a risk assessment before launching large-scale health tracking", "expected": ["Article 20"]},
-      {"statement": "Let users withdraw consent as easily as they gave it", "expected": ["Article 5"]},
-      {"statement": "Credit decisions made by the model must allow human review", "expected": ["Article 14"]},
-      {"statement": "Users can correct wrong profile details", "expected": ["Article 10"]}
+      {
+        "statement": "Users can delete their account and all stored data from settings",
+        "expected": [
+          "Article 11"
+        ]
+      },
+      {
+        "statement": "Export all user data as a JSON download",
+        "expected": [
+          "Article 12"
+        ]
+      },
+      {
+        "statement": "Ask for cookie consent before loading analytics scripts",
+        "expected": [
+          "Article 22"
+        ]
+      },
+      {
+        "statement": "Show a privacy notice at signup listing what we collect and why",
+        "expected": [
+          "Article 8"
+        ]
+      },
+      {
+        "statement": "Notify the regulator within 72 hours after a security incident exposing user data",
+        "expected": [
+          "Article 19"
+        ]
+      },
+      {
+        "statement": "Encrypt personal data at rest and in transit",
+        "expected": [
+          "Article 18"
+        ]
+      },
+      {
+        "statement": "Sign a data processing agreement with every cloud vendor",
+        "expected": [
+          "Article 16"
+        ]
+      },
+      {
+        "statement": "Users under 16 need a parent's approval before creating an account",
+        "expected": [
+          "Article 6"
+        ]
+      },
+      {
+        "statement": "Tell users when they are chatting with an AI assistant",
+        "expected": [
+          "Article 23"
+        ]
+      },
+      {
+        "statement": "Users can unsubscribe from marketing emails with one click",
+        "expected": [
+          "Article 13"
+        ]
+      },
+      {
+        "statement": "Delete inactive accounts after two years",
+        "expected": [
+          "Article 3",
+          "Article 11"
+        ]
+      },
+      {
+        "statement": "Keep a register of all processing activities",
+        "expected": [
+          "Article 17"
+        ]
+      },
+      {
+        "statement": "Store health measurements like weight only with explicit consent",
+        "expected": [
+          "Article 7"
+        ]
+      },
+      {
+        "statement": "Allow subscription cancellation online in the same way as sign-up",
+        "expected": [
+          "Article 26"
+        ]
+      },
+      {
+        "statement": "Users can see a copy of all data we hold about them",
+        "expected": [
+          "Article 9"
+        ]
+      },
+      {
+        "statement": "Show the total price and auto-renewal terms before checkout",
+        "expected": [
+          "Article 24"
+        ]
+      },
+      {
+        "statement": "Run a risk assessment before launching large-scale health tracking",
+        "expected": [
+          "Article 20"
+        ]
+      },
+      {
+        "statement": "Let users withdraw consent as easily as they gave it",
+        "expected": [
+          "Article 5"
+        ]
+      },
+      {
+        "statement": "Credit decisions made by the model must allow human review",
+        "expected": [
+          "Article 14"
+        ]
+      },
+      {
+        "statement": "Users can correct wrong profile details",
+        "expected": [
+          "Article 10"
+        ]
+      }
     ],
     "held_out": [
-      {"statement": "Remove a user's photos when they close the account", "expected": ["Article 11"]},
-      {"statement": "Provide a machine-readable archive of user history", "expected": ["Article 12"]},
-      {"statement": "Set tracking pixels only after the user accepts the banner", "expected": ["Article 22"]},
-      {"statement": "Inform customers which third parties receive their data", "expected": ["Article 8"]},
-      {"statement": "Report a leaked passwords incident to the supervisory authority", "expected": ["Article 19"]},
-      {"statement": "Pseudonymise analytics identifiers", "expected": ["Article 18"]},
-      {"statement": "Sub-processors need written authorisation", "expected": ["Article 16"]},
-      {"statement": "Verify the age of teenage users before collecting data", "expected": ["Article 6"]},
-      {"statement": "Label images generated by our model as artificial", "expected": ["Article 23"]},
-      {"statement": "Stop sending promotional newsletters when a user objects", "expected": ["Article 13"]},
-      {"statement": "Do not keep logs longer than needed", "expected": ["Article 3"]},
-      {"statement": "Biometric face unlock data needs explicit permission", "expected": ["Article 7"]},
-      {"statement": "Customers can cancel their plan from the account page", "expected": ["Article 26"]},
-      {"statement": "Refund window of 14 days for online purchases", "expected": ["Article 25"]},
-      {"statement": "Assess high-risk monitoring of employees before rollout", "expected": ["Article 20"]},
-      {"statement": "Send user data to US servers only with safeguards", "expected": ["Article 21"]},
-      {"statement": "Privacy settings default to the most protective option", "expected": ["Article 15"]},
-      {"statement": "Answer data access requests within one month", "expected": ["Article 9"]},
-      {"statement": "Users can fix their email address", "expected": ["Article 10"]},
-      {"statement": "Appoint a data protection officer", "expected": ["Article 27"]}
+      {
+        "statement": "Remove a user's photos when they close the account",
+        "expected": [
+          "Article 11"
+        ]
+      },
+      {
+        "statement": "Provide a machine-readable archive of user history",
+        "expected": [
+          "Article 12"
+        ]
+      },
+      {
+        "statement": "Set tracking pixels only after the user accepts the banner",
+        "expected": [
+          "Article 22"
+        ]
+      },
+      {
+        "statement": "Inform customers which third parties receive their data",
+        "expected": [
+          "Article 8"
+        ]
+      },
+      {
+        "statement": "Report a leaked passwords incident to the supervisory authority",
+        "expected": [
+          "Article 19"
+        ]
+      },
+      {
+        "statement": "Pseudonymise analytics identifiers",
+        "expected": [
+          "Article 18"
+        ]
+      },
+      {
+        "statement": "Sub-processors need written authorisation",
+        "expected": [
+          "Article 16"
+        ]
+      },
+      {
+        "statement": "Verify the age of teenage users before collecting data",
+        "expected": [
+          "Article 6"
+        ]
+      },
+      {
+        "statement": "Label images generated by our model as artificial",
+        "expected": [
+          "Article 23"
+        ]
+      },
+      {
+        "statement": "Stop sending promotional newsletters when a user objects",
+        "expected": [
+          "Article 13"
+        ]
+      },
+      {
+        "statement": "Do not keep logs longer than needed",
+        "expected": [
+          "Article 3"
+        ]
+      },
+      {
+        "statement": "Biometric face unlock data needs explicit permission",
+        "expected": [
+          "Article 7"
+        ]
+      },
+      {
+        "statement": "Customers can cancel their plan from the account page",
+        "expected": [
+          "Article 26"
+        ]
+      },
+      {
+        "statement": "Refund window of 14 days for online purchases",
+        "expected": [
+          "Article 25"
+        ]
+      },
+      {
+        "statement": "Assess high-risk monitoring of employees before rollout",
+        "expected": [
+          "Article 20"
+        ]
+      },
+      {
+        "statement": "Send user data to US servers only with safeguards",
+        "expected": [
+          "Article 21"
+        ]
+      },
+      {
+        "statement": "Privacy settings default to the most protective option",
+        "expected": [
+          "Article 15"
+        ]
+      },
+      {
+        "statement": "Answer data access requests within one month",
+        "expected": [
+          "Article 9"
+        ]
+      },
+      {
+        "statement": "Users can fix their email address",
+        "expected": [
+          "Article 10"
+        ]
+      },
+      {
+        "statement": "Appoint a data protection officer",
+        "expected": [
+          "Article 27"
+        ]
+      }
     ]
   },
   "grounding": {
     "project": "project",
     "facts": [
-      {"key": "Analytics cookie lifetime", "value": null, "expected": ["app/cookies.py:2"]},
-      {"key": "Member weight is sent to the LLM", "value": true, "expected": ["app/chat.py:2", "app/chat.py:3"]},
-      {"key": "Subscription renews automatically", "value": null, "expected": ["app/billing.py:2"]},
-      {"key": "Account deletion erases stored records", "value": null, "expected": ["app/account.py:1", "app/account.py:2"]},
-      {"key": "Data export format", "value": "json", "expected": ["app/account.py:6", "app/account.py:7"]},
-      {"key": "Minimum signup age", "value": 16, "expected": ["app/signup.py:1", "app/signup.py:6"]},
-      {"key": "Newsletter has an unsubscribe link", "value": true, "expected": ["app/mail.py:2", "app/mail.py:3"]},
-      {"key": "Data encrypted at rest", "value": true, "expected": ["app/storage.py:1", "app/storage.py:6"]},
-      {"key": "Log retention period in days", "value": 30, "expected": ["app/storage.py:2", "app/storage.py:10"]},
-      {"key": "Google analytics tag loaded on pages", "value": true, "expected": ["web/head.html:2", "web/head.html:3"]}
+      {
+        "key": "Analytics cookie lifetime",
+        "value": null,
+        "expected": [
+          "app/cookies.py:2"
+        ]
+      },
+      {
+        "key": "Member weight is sent to the LLM",
+        "value": true,
+        "expected": [
+          "app/chat.py:2",
+          "app/chat.py:3"
+        ]
+      },
+      {
+        "key": "Subscription renews automatically",
+        "value": null,
+        "expected": [
+          "app/billing.py:2"
+        ]
+      },
+      {
+        "key": "Account deletion erases stored records",
+        "value": null,
+        "expected": [
+          "app/account.py:1",
+          "app/account.py:2"
+        ]
+      },
+      {
+        "key": "Data export format",
+        "value": "json",
+        "expected": [
+          "app/account.py:6",
+          "app/account.py:7"
+        ]
+      },
+      {
+        "key": "Minimum signup age",
+        "value": 16,
+        "expected": [
+          "app/signup.py:1",
+          "app/signup.py:6"
+        ]
+      },
+      {
+        "key": "Newsletter has an unsubscribe link",
+        "value": true,
+        "expected": [
+          "app/mail.py:2",
+          "app/mail.py:3"
+        ]
+      },
+      {
+        "key": "Data encrypted at rest",
+        "value": true,
+        "expected": [
+          "app/storage.py:1",
+          "app/storage.py:6"
+        ]
+      },
+      {
+        "key": "Log retention period in days",
+        "value": 30,
+        "expected": [
+          "app/storage.py:2",
+          "app/storage.py:10"
+        ]
+      },
+      {
+        "key": "Google analytics tag loaded on pages",
+        "value": true,
+        "expected": [
+          "web/head.html:2",
+          "web/head.html:3"
+        ]
+      }
+    ]
+  },
+  "flows": {
+    "project": "graph-project",
+    "expected": [
+      [
+        "app/coach.py:5",
+        "app/llm.py:1"
+      ]
     ]
   }
 }

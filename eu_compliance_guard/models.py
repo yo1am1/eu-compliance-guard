@@ -2077,7 +2077,17 @@ class GraphNode(Record):
     path: Text
     name: Text
     line: Annotated[int, Field(ge=1, le=MAX_SEQUENCE)]
+    end_line: Annotated[int, Field(ge=1, le=MAX_SEQUENCE)]
+    # Strict tags (a strong term, or two terms of one concept); `data` uses any single data term,
+    # because a flow also needs a sink, which keeps the looser rule from flooding results.
     concepts: Annotated[list[GraphConcept], Field(max_length=12)]
+    data: Annotated[list[GraphConcept], Field(max_length=3)]
+
+    @model_validator(mode="after")
+    def ordered_lines(self) -> GraphNode:
+        if self.end_line < self.line:
+            raise ValueError("a graph node ends before it starts")
+        return self
 
 
 class GraphEdge(Record):

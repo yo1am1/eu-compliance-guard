@@ -1916,6 +1916,100 @@ export type Concepts =
         | "accessibility"
       )
     ];
+/**
+ * @maxItems 3
+ */
+export type Data =
+  | []
+  | [
+      | "personal_data"
+      | "special_category"
+      | "children"
+      | "tracking"
+      | "consent"
+      | "marketing"
+      | "ai"
+      | "third_party"
+      | "retention"
+      | "subscription"
+      | "security"
+      | "accessibility"
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ];
+export type EndLine = number;
 export type Id20 = string;
 export type Kind5 = "file" | "class" | "function";
 export type Line1 = number;
@@ -4030,6 +4124,8 @@ export interface GraphEdge {
  */
 export interface GraphNode {
   concepts: Concepts;
+  data: Data;
+  end_line: EndLine;
   id: Id20;
   kind: Kind5;
   line: Line1;

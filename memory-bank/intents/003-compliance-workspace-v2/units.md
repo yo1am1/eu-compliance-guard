@@ -13,7 +13,7 @@ every bolt keeps files as the API and pure cores with thin edges.
 | Bolt | Scope | Requirements | Depends on |
 |---|---|---|---|
 | 012 Graph core (done 2026-11-05) | Python `ast` code graph, concept tags, deterministic `graph.json` and digest, `graph` command. Recording the digest in each run moves to 013. | FR-G1, FR-G9 (corpus) | 1.5 bolt 005 (eval set) |
-| 013 Path evidence | Path queries; `ground` confirms facts with extracted paths; uncovered-flow gaps | FR-G2, FR-G5 | 012 |
+| 013 Path evidence (done 2026-11-05; the run-recorded graph digest moved to 015) | Path queries; `ground` confirms facts with extracted paths; uncovered-flow gaps | FR-G2, FR-G5 | 012 |
 | 014 Hybrid search | BM25 + graph closeness fused by reciprocal rank, with explanations and before/after numbers | FR-G3, FR-G9 | 012, 1.5 bolt 006 |
 | 015 Graph-aware PR check | A diff on a pinned path reopens dependent facts and obligations | FR-G4 | 013 |
 | 016 Graph view | Self-contained HTML graph view and a React dashboard page | FR-G6, FR-G7 | 013 |

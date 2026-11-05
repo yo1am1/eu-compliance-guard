@@ -329,8 +329,15 @@ Calls resolve the way Python looks names up: the same file first, then imported 
 and modules. A name that only matches several definitions elsewhere is labelled
 `ambiguous`, never guessed. The same files always give a byte-identical graph
 (`--json`) with one digest. Static parsing misses dynamic calls, so paths through the
-graph are possible paths, and an empty graph never shows compliance. Path evidence,
-graph-aware search and a graph view come next (2.0 bolts 013 to 016).
+graph are possible paths, and an empty graph never shows compliance.
+
+`ground` uses the graph to follow data. A flow is the shortest call path from a
+function that handles personal, health or children's data to the first function that
+reaches an AI model, tracking, a third party or marketing. Each hop carries its
+`file:line`, and a flow through an ambiguous call is labelled `ambiguous`. A candidate
+inside a flow shows that path. A flow with no pinned evidence on any of its functions
+is listed under "data flows no fact covers", and pinning a line on it with `--apply`
+accounts for it. Graph-aware search and a graph view come next (2.0 bolts 014 and 016).
 
 ### Search evaluation
 
