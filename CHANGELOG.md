@@ -23,6 +23,11 @@
   and grounding, with a baseline floor enforced by a test. Baseline: articles top-1
   15/20 and top-3 18/20 on tuning, 14/20 and 17/20 held out; grounding top-1 7/10 and
   top-3 8/10.
+- `graph` (2.0 bolt 012) builds a deterministic project graph by static parsing only:
+  Python files, classes and functions, imports and calls (resolved like Python, with
+  `ambiguous` labels instead of guesses), and the concepts each function touches. The
+  contract is generated from `models.py` (`ProjectGraph`). It maps 60k lines in about
+  3 s.
 - Explained suggestions (1.5 bolt 006): each article suggestion and grounding
   candidate lists the terms that matched. Each term is marked as coming from the
   statement or fact, or bridged through the legal or concept vocabulary (with the word

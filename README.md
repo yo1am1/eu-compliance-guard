@@ -316,6 +316,22 @@ For a future hosted service, `frontend/` holds a React page that renders such a 
 or drop the file). It is read in the browser only; the page's Content Security Policy blocks every
 connection, and its types are generated from `eu_compliance_guard/models.py`.
 
+### Project graph
+
+`graph` maps the Python files under the files root: files, classes and functions, the
+imports between files, and the calls between functions. It also lists the concepts
+each function touches (personal data, tracking, AI and others), using the same rule as
+the pull-request check. It only parses code (`ast`). Nothing is imported or run, links
+and dependency folders are skipped, and a file that does not parse is counted as
+skipped.
+
+Calls resolve the way Python looks names up: the same file first, then imported names
+and modules. A name that only matches several definitions elsewhere is labelled
+`ambiguous`, never guessed. The same files always give a byte-identical graph
+(`--json`) with one digest. Static parsing misses dynamic calls, so paths through the
+graph are possible paths, and an empty graph never shows compliance. Path evidence,
+graph-aware search and a graph view come next (2.0 bolts 013 to 016).
+
 ### Search evaluation
 
 `make eval` scores article search and code grounding on a fixed synthetic set in

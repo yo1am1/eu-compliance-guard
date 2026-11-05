@@ -2986,6 +2986,126 @@
       "title": "FindingDiscussCommand",
       "type": "object"
     },
+    "GraphEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "defines",
+            "imports",
+            "calls"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "line": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Line",
+          "type": "integer"
+        },
+        "provenance": {
+          "enum": [
+            "extracted",
+            "ambiguous"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "target",
+        "kind",
+        "provenance",
+        "line"
+      ],
+      "title": "GraphEdge",
+      "type": "object"
+    },
+    "GraphNode": {
+      "additionalProperties": false,
+      "properties": {
+        "concepts": {
+          "items": {
+            "enum": [
+              "personal_data",
+              "special_category",
+              "children",
+              "tracking",
+              "consent",
+              "marketing",
+              "ai",
+              "third_party",
+              "retention",
+              "subscription",
+              "security",
+              "accessibility"
+            ],
+            "type": "string"
+          },
+          "maxItems": 12,
+          "title": "Concepts",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "file",
+            "class",
+            "function"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "line": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Line",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 8192,
+          "title": "Name",
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 8192,
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "path",
+        "name",
+        "line",
+        "concepts"
+      ],
+      "title": "GraphNode",
+      "type": "object"
+    },
     "GraphRelationship": {
       "additionalProperties": false,
       "properties": {
@@ -4556,6 +4676,78 @@
         "evidence_owner"
       ],
       "title": "ProcessingActivity",
+      "type": "object"
+    },
+    "ProjectGraph": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/GraphEdge"
+          },
+          "maxItems": 200000,
+          "title": "Edges",
+          "type": "array"
+        },
+        "files": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Files",
+          "type": "integer"
+        },
+        "graph_version": {
+          "const": 1,
+          "title": "Graph Version",
+          "type": "integer"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/GraphNode"
+          },
+          "maxItems": 50000,
+          "title": "Nodes",
+          "type": "array"
+        },
+        "notice": {
+          "const": "Static structure only: dynamic calls are missed, so paths are possible paths. An empty graph or path never shows compliance.",
+          "title": "Notice",
+          "type": "string"
+        },
+        "parsed": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Parsed",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "skipped": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Skipped",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "graph_version",
+        "files",
+        "parsed",
+        "skipped",
+        "digest",
+        "nodes",
+        "edges",
+        "notice"
+      ],
+      "title": "ProjectGraph",
       "type": "object"
     },
     "ProjectRegisterArgs": {

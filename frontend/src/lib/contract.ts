@@ -792,6 +792,1135 @@ export type ProjectId23 = string;
 export type RequestId8 = string;
 export type RunId13 = string | null;
 export type SchemaVersion9 = 1;
+export type Kind4 = "defines" | "imports" | "calls";
+export type Line = number;
+export type Provenance3 = "extracted" | "ambiguous";
+export type Source = string;
+export type Target = string;
+/**
+ * @maxItems 12
+ */
+export type Concepts =
+  | []
+  | [
+      | "personal_data"
+      | "special_category"
+      | "children"
+      | "tracking"
+      | "consent"
+      | "marketing"
+      | "ai"
+      | "third_party"
+      | "retention"
+      | "subscription"
+      | "security"
+      | "accessibility"
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ]
+  | [
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      ),
+      (
+        | "personal_data"
+        | "special_category"
+        | "children"
+        | "tracking"
+        | "consent"
+        | "marketing"
+        | "ai"
+        | "third_party"
+        | "retention"
+        | "subscription"
+        | "security"
+        | "accessibility"
+      )
+    ];
+export type Id20 = string;
+export type Kind5 = "file" | "class" | "function";
+export type Line1 = number;
+export type Name = string;
+export type Path1 = string;
 export type BrowserState = {
   [k: string]: string;
 } | null;
@@ -805,7 +1934,7 @@ export type Exclusions1 = string[];
 export type FactDigest = string;
 export type FixtureDigest = string;
 export type GraphDigest = string | null;
-export type Id20 = string;
+export type Id21 = string;
 export type RegistryDigest = string;
 export type ScopeRevision = number;
 /**
@@ -859,7 +1988,7 @@ export type RequestId12 = string;
 export type RunId17 = string | null;
 export type SchemaVersion13 = 1;
 export type ExpiresAt = string;
-export type Id21 = string;
+export type Id22 = string;
 /**
  * @maxItems 100
  */
@@ -920,7 +2049,7 @@ export type SchemaVersion15 = 1;
  */
 export type DataCategories = string[];
 export type EvidenceOwner = string;
-export type Id22 = string;
+export type Id23 = string;
 export type Locations = Fact[];
 export type Purpose = string;
 export type Recipients = Fact[];
@@ -931,6 +2060,22 @@ export type Stores = Fact[];
  * @maxItems 1000
  */
 export type Subjects = string[];
+export type Digest4 = string;
+/**
+ * @maxItems 200000
+ */
+export type Edges = GraphEdge[];
+export type Files = number;
+export type GraphVersion = 1;
+/**
+ * @maxItems 50000
+ */
+export type Nodes = GraphNode[];
+export type Notice =
+  "Static structure only: dynamic calls are missed, so paths are possible paths. An empty graph or path never shows compliance.";
+export type Parsed = number;
+export type SchemaVersion16 = 1;
+export type Skipped = number;
 export type RepositoryRoot = string;
 export type Activities = ProcessingActivity[];
 export type AssessmentDate3 = string;
@@ -947,7 +2092,7 @@ export type Establishment = string[];
  * @maxItems 1000
  */
 export type Exclusions2 = string[];
-export type Id23 = string;
+export type Id24 = string;
 /**
  * @maxItems 1000
  */
@@ -974,7 +2119,7 @@ export type Operation12 = "project.register";
 export type ProjectId32 = string;
 export type RequestId15 = string;
 export type RunId20 = string | null;
-export type SchemaVersion16 = 1;
+export type SchemaVersion17 = 1;
 export type CandidateDigest = string;
 export type Reviewer4 = string;
 export type ExpectedRevision14 = number;
@@ -982,7 +2127,7 @@ export type Operation13 = "registry.accept";
 export type ProjectId33 = string;
 export type RequestId16 = string;
 export type RunId21 = string | null;
-export type SchemaVersion17 = 1;
+export type SchemaVersion18 = 1;
 /**
  * @maxItems 1000
  */
@@ -1010,7 +2155,7 @@ export type Operation14 = "results.import";
 export type ProjectId34 = string;
 export type RequestId17 = string;
 export type RunId22 = string | null;
-export type SchemaVersion18 = 1;
+export type SchemaVersion19 = 1;
 /**
  * @maxItems 200
  */
@@ -1025,7 +2170,7 @@ export type ApplicabilityDecisions = ApplicabilityDecision[];
 export type Controls = Control[];
 export type DeclarationManifestId = string;
 export type DeclarationRunId = string;
-export type Path1 = string | null;
+export type Path2 = string | null;
 /**
  * @maxItems 200
  */
@@ -1110,7 +2255,7 @@ export type ProjectId35 = string;
  * @maxItems 200
  */
 export type Requirements = DeclaredRequirement[];
-export type SchemaVersion19 = 1;
+export type SchemaVersion20 = 1;
 /**
  * @maxItems 16
  */
@@ -1370,7 +2515,7 @@ export type SourceTargets =
       SourceTarget
     ];
 export type Family2 = string;
-export type Id24 = string;
+export type Id25 = string;
 export type IntendedIdentifier1 = string | null;
 export type IntendedType1 =
   | "eu_act"
@@ -1706,7 +2851,7 @@ export type RetrievedSources =
       LegalSource,
       LegalSource
     ];
-export type SchemaVersion20 = 1;
+export type SchemaVersion21 = 1;
 /**
  * @maxItems 16
  */
@@ -1850,9 +2995,9 @@ export type Synthetic7 = boolean;
  * @minItems 4
  * @maxItems 37
  */
-export type Files = [SourceFile, SourceFile, SourceFile, SourceFile, ...SourceFile[]];
+export type Files1 = [SourceFile, SourceFile, SourceFile, SourceFile, ...SourceFile[]];
 export type RunId23 = string;
-export type SchemaVersion21 = 1;
+export type SchemaVersion22 = 1;
 export type CreatedAt = string;
 export type CreatingRequestId = string;
 export type Operation15 = string;
@@ -1867,7 +3012,7 @@ export type Operation16 = "scope.register";
 export type ProjectId38 = string;
 export type RequestId18 = string;
 export type RunId25 = string | null;
-export type SchemaVersion22 = 1;
+export type SchemaVersion23 = 1;
 export type Count = number;
 export type Key1 = "reviewer_recorded_insufficient" | "re_review_after_change" | "evidence_changed" | "origin_changed";
 export type Points = number;
@@ -1927,7 +3072,7 @@ export type TotalBefore = number;
 export type Counts = ScoreCount[];
 export type Done = number;
 export type Key4 = "alignment" | "law_text" | "facts" | "decisions" | "mapping" | "reviews";
-export type Id25 = string;
+export type Id26 = string;
 export type Method2 = string | null;
 /**
  * @minItems 1
@@ -2038,7 +3183,7 @@ export type Done1 = number;
 export type Key5 = "requirements_located" | "evidence_referenced" | "origins_unchanged";
 export type Total1 = number;
 export type Focus = ("alignment" | "law_text" | "facts" | "decisions" | "mapping" | "reviews") | null;
-export type Kind4 = "retrieve" | "fact" | "source" | "applicability" | "mapping" | "review" | "family";
+export type Kind6 = "retrieve" | "fact" | "source" | "applicability" | "mapping" | "review" | "family";
 export type Subject = string | null;
 export type Unblocks = number;
 export type Applicable = number;
@@ -2090,13 +3235,13 @@ export type EndedAt2 = string | null;
  */
 export type Hygiene = [ScoreHygiene, ScoreHygiene, ScoreHygiene];
 export type NotesOutside = number;
-export type Notice = "Points count recorded review steps in this run. They are not a compliance score or verdict.";
+export type Notice1 = "Points count recorded review steps in this run. They are not a compliance score or verdict.";
 export type Offline = boolean;
 export type ParentRunId2 = string | null;
 export type ProjectId39 = string;
 export type RunId26 = string;
 export type RunState = "planned" | "running" | "cancelling" | "completed" | "partial" | "cancelled" | "interrupted";
-export type SchemaVersion23 = 1;
+export type SchemaVersion24 = 1;
 export type ScorerVersion = 1;
 export type Status1 = "declarations_incomplete" | "needs_attention" | "in_review" | "steps_closed";
 export type Synthetic8 = boolean;
@@ -2109,7 +3254,7 @@ export type Findings = Finding[];
 export type ObligationDispositions1 = ObligationDisposition[];
 export type ProjectId40 = string;
 export type RelationsRevision = number;
-export type SchemaVersion24 = 1;
+export type SchemaVersion25 = 1;
 export type Terminal = boolean;
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -2870,6 +4015,29 @@ export interface FindingDiscussCommand {
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "GraphEdge".
+ */
+export interface GraphEdge {
+  kind: Kind4;
+  line: Line;
+  provenance: Provenance3;
+  source: Source;
+  target: Target;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "GraphNode".
+ */
+export interface GraphNode {
+  concepts: Concepts;
+  id: Id20;
+  kind: Kind5;
+  line: Line1;
+  name: Name;
+  path: Path1;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
  * via the `definition` "InputManifest".
  */
 export interface InputManifest {
@@ -2881,7 +4049,7 @@ export interface InputManifest {
   fact_digest: FactDigest;
   fixture_digest: FixtureDigest;
   graph_digest?: GraphDigest;
-  id: Id20;
+  id: Id21;
   registry_digest: RegistryDigest;
   scope_revision: ScopeRevision;
   source_files: SourceFiles;
@@ -2976,7 +4144,7 @@ export interface PatchProposeCommand {
  */
 export interface PermissionGrant {
   expires_at: ExpiresAt;
-  id: Id21;
+  id: Id22;
   operations: Operations;
   project_id: ProjectId28;
   provider: ProviderBoundary;
@@ -3042,7 +4210,7 @@ export interface PermissionRevokeCommand {
 export interface ProcessingActivity {
   data_categories: DataCategories;
   evidence_owner: EvidenceOwner;
-  id: Id22;
+  id: Id23;
   lawful_basis: Fact;
   locations: Locations;
   purpose: Purpose;
@@ -3051,6 +4219,21 @@ export interface ProcessingActivity {
   roles: Roles;
   stores: Stores;
   subjects: Subjects;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ProjectGraph".
+ */
+export interface ProjectGraph {
+  digest: Digest4;
+  edges: Edges;
+  files: Files;
+  graph_version: GraphVersion;
+  nodes: Nodes;
+  notice: Notice;
+  parsed: Parsed;
+  schema_version: SchemaVersion16;
+  skipped: Skipped;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -3072,7 +4255,7 @@ export interface Scope {
   environment: Environment;
   establishment: Establishment;
   exclusions: Exclusions2;
-  id: Id23;
+  id: Id24;
   included_scenarios: IncludedScenarios;
   jurisdictions: Jurisdictions1;
   markets: Markets;
@@ -3093,7 +4276,7 @@ export interface ProjectRegisterCommand {
   project_id: ProjectId32;
   request_id: RequestId15;
   run_id?: RunId20;
-  schema_version: SchemaVersion16;
+  schema_version: SchemaVersion17;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -3114,7 +4297,7 @@ export interface RegistryAcceptCommand {
   project_id: ProjectId33;
   request_id: RequestId16;
   run_id?: RunId21;
-  schema_version: SchemaVersion17;
+  schema_version: SchemaVersion18;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -3148,7 +4331,7 @@ export interface ResultsImportCommand {
   project_id: ProjectId34;
   request_id: RequestId17;
   run_id?: RunId22;
-  schema_version: SchemaVersion18;
+  schema_version: SchemaVersion19;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -3170,7 +4353,7 @@ export interface RevalidationBundle {
   requirement_assessments: RequirementAssessments;
   retrieved_sources?: RetrievedSources;
   run: AuditRun;
-  schema_version: SchemaVersion20;
+  schema_version: SchemaVersion21;
   source_attempts?: SourceAttempts;
   synthetic: Synthetic7;
 }
@@ -3190,7 +4373,7 @@ export interface RevalidationInput {
   obligations?: Obligations;
   project_id: ProjectId35;
   requirements?: Requirements;
-  schema_version: SchemaVersion19;
+  schema_version: SchemaVersion20;
   scope: Scope;
   source_reviews?: SourceReviews;
   source_targets?: SourceTargets;
@@ -3203,7 +4386,7 @@ export interface RevalidationInput {
  */
 export interface SelectedEvidence {
   evidence: Evidence;
-  path?: Path1;
+  path?: Path2;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -3211,7 +4394,7 @@ export interface SelectedEvidence {
  */
 export interface SourceTarget {
   family: Family2;
-  id: Id24;
+  id: Id25;
   intended_identifier?: IntendedIdentifier1;
   intended_type: IntendedType1;
   intended_url: IntendedUrl1;
@@ -3237,9 +4420,9 @@ export interface SelectedSource {
  * via the `definition` "RunCompletion".
  */
 export interface RunCompletion {
-  files: Files;
+  files: Files1;
   run_id: RunId23;
-  schema_version: SchemaVersion21;
+  schema_version: SchemaVersion22;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -3281,7 +4464,7 @@ export interface ScopeRegisterCommand {
   project_id: ProjectId38;
   request_id: RequestId18;
   run_id?: RunId25;
-  schema_version: SchemaVersion22;
+  schema_version: SchemaVersion23;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -3343,7 +4526,7 @@ export interface ScoreDimension {
  * via the `definition` "ScoreOpenItem".
  */
 export interface ScoreOpenItem {
-  id: Id25;
+  id: Id26;
   method?: Method2;
   reasons: Reasons1;
 }
@@ -3364,7 +4547,7 @@ export interface ScoreHygiene {
  */
 export interface ScoreNextStep {
   focus: Focus;
-  kind: Kind4;
+  kind: Kind6;
   subject: Subject;
   unblocks: Unblocks;
 }
@@ -3408,13 +4591,13 @@ export interface Scorecard {
   hygiene: Hygiene;
   next_step: ScoreNextStep | null;
   notes_outside: NotesOutside;
-  notice: Notice;
+  notice: Notice1;
   offline: Offline;
   parent_run_id: ParentRunId2;
   project_id: ProjectId39;
   run_id: RunId26;
   run_state: RunState;
-  schema_version: SchemaVersion23;
+  schema_version: SchemaVersion24;
   scorer_version: ScorerVersion;
   screening: ScoreScreening;
   status: Status1;
@@ -3436,6 +4619,6 @@ export interface Snapshot {
   project_id: ProjectId40;
   relations_revision: RelationsRevision;
   run: AuditRun;
-  schema_version: SchemaVersion24;
+  schema_version: SchemaVersion25;
   terminal: Terminal;
 }

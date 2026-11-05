@@ -146,48 +146,59 @@ def _is_text(path: Path) -> bool:
     return path.name in TEXT_NAMES or "".join(path.suffixes[-2:]) in TEXT_SUFFIXES or path.suffix in TEXT_SUFFIXES
 
 
-def build_index(root: Path, exclude: frozenset[str] = frozenset()) -> Index:
-    """Read text files below root without following symlinks; bounded by file count and bytes."""
-    index = Index(root=root)
-    total = 0
+def read_project(root: Path, exclude: frozenset[str] = frozenset()) -> tuple[list[tuple[str, bytes, str]], int]:
+    """Text files below root as (relative path, bytes, text), sorted, plus a count of what was skipped.
+
+    Never follows symlinks; bounded by file count, file size and total bytes; skips binary and
+    non-UTF-8 files and dependency folders. A folder or file that cannot be read is counted, never dropped.
+    """
+    files, skipped, total = [], 0, 0
 
     def unreadable(_error: OSError) -> None:
-        # A folder that cannot be listed is not covered by the index: count it, never drop it silently.
-        index.skipped += 1
+        nonlocal skipped
+        skipped += 1
 
-    for directory, folders, files in os.walk(root, onerror=unreadable, followlinks=False):
+    for directory, folders, names in os.walk(root, onerror=unreadable, followlinks=False):
         folders[:] = sorted(name for name in folders if name not in SKIP_DIRS and not name.startswith("."))
-        for name in sorted(files):
+        for name in sorted(names):
             path = Path(directory) / name
             if not _is_text(path) or path.relative_to(root).as_posix() in exclude:
                 continue
             try:
                 info = os.lstat(path)
             except OSError:
-                index.skipped += 1  # listed but not examinable, e.g. in a folder without search permission
+                skipped += 1  # listed but not examinable, e.g. in a folder without search permission
                 continue
             if not stat.S_ISREG(info.st_mode):  # symlinks, devices and sockets are never read
                 continue
-            if len(index.digests) >= MAX_FILES or total >= MAX_TOTAL_BYTES:
-                index.skipped += 1
+            if len(files) >= MAX_FILES or total >= MAX_TOTAL_BYTES:
+                skipped += 1
                 continue
             raw = _read_capped(path)
             if raw is None or b"\0" in raw[:4096]:
-                index.skipped += 1
+                skipped += 1
                 continue
             try:
                 text = raw.decode("utf-8")
             except UnicodeDecodeError:
-                index.skipped += 1
+                skipped += 1
                 continue
             total += len(raw)
-            relative = path.relative_to(root).as_posix()
-            index.digests[relative] = m.content_digest(raw)
-            for number, content in enumerate(_lines(text), 1):
-                terms = Counter(tokens(content))
-                if terms:
-                    index.lines.append(Line(relative, number, content.strip()[:200], terms))
-                    index.document_frequency.update(set(terms))
+            files.append((path.relative_to(root).as_posix(), raw, text))
+    return files, skipped
+
+
+def build_index(root: Path, exclude: frozenset[str] = frozenset()) -> Index:
+    """Read text files below root without following symlinks; bounded by file count and bytes."""
+    index = Index(root=root)
+    files, index.skipped = read_project(root, exclude)
+    for relative, raw, text in files:
+        index.digests[relative] = m.content_digest(raw)
+        for number, content in enumerate(_lines(text), 1):
+            terms = Counter(tokens(content))
+            if terms:
+                index.lines.append(Line(relative, number, content.strip()[:200], terms))
+                index.document_frequency.update(set(terms))
     return index
 
 
