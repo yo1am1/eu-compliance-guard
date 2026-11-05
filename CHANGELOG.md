@@ -23,6 +23,11 @@
   and grounding, with a baseline floor enforced by a test. Baseline: articles top-1
   15/20 and top-3 18/20 on tuning, 14/20 and 17/20 held out; grounding top-1 7/10 and
   top-3 8/10.
+- Path evidence (2.0 bolt 013): `ground` follows data through the project graph.
+  Candidates inside a flow show the call path, for example `plan_meals → ask_model`,
+  with each hop's `file:line`. Flows from personal, health or children's data to AI,
+  tracking, third parties or marketing that no pinned evidence covers are listed for
+  review. `make eval` now reports flows found (1/1) and unexpected flows (0).
 - `graph` (2.0 bolt 012) builds a deterministic project graph by static parsing only:
   Python files, classes and functions, imports and calls (resolved like Python, with
   `ambiguous` labels instead of guesses), and the concepts each function touches. The
