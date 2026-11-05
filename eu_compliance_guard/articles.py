@@ -42,6 +42,8 @@ LEGAL_TERMS = {
     "recommend": "profiling automated", "score": "profiling automated", "personalise": "profiling",
     "abroad": "transfers third country", "transfer": "transfers third country",
     "retention": "storage limitation", "keep": "storage limitation", "log": "records processing",
+    "parent": "parental responsibility child", "approval": "consent authorised", "approve": "consent authorised",
+    "correct": "rectification inaccurate", "wrong": "inaccurate rectification", "incorrect": "inaccurate rectification",
 }
 TITLE_WEIGHT = 1.0
 SUFFIXES = ("ations", "ation", "ings", "ing", "ies", "ed", "es", "s")

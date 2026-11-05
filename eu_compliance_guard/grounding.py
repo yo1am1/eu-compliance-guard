@@ -191,9 +191,25 @@ def build_index(root: Path, exclude: frozenset[str] = frozenset()) -> Index:
     return index
 
 
+def base_forms(term: str) -> set[str]:
+    """Plain-English endings removed: 'renews' -> renew, 'encrypted' -> encrypt, 'policies' -> policy."""
+    forms = set()
+    if term.endswith("ies") and len(term) > 4:
+        forms.add(term[:-3] + "y")
+    for suffix in ("ing", "ed", "es", "s"):
+        if term.endswith(suffix) and len(term) - len(suffix) >= 3 and not term.endswith("ss"):
+            forms.add(term[: -len(suffix)])
+    if term.endswith("ed") and len(term) > 5:
+        forms.add(term[:-1])  # "renamed" -> rename
+    return forms - {term}
+
+
 def expand(query: list[str]) -> dict[str, float]:
-    """Query terms weighted 1.0, plus 0.4 for the vocabulary of every concept the query touches."""
+    """Query terms weighted 1.0, their base forms 0.9, plus 0.4 for the vocabulary of every concept the query touches."""
     weights = {term: 1.0 for term in query}
+    for term in query:
+        for form in base_forms(term):
+            weights.setdefault(form, 0.9)
     for _, vocabulary in CONCEPTS.values():
         if vocabulary & set(query):
             for term in vocabulary:

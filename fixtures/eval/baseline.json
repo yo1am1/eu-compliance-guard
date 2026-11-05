@@ -3,8 +3,8 @@
   "recorded": "2026-11-05",
   "note": "Floor for make eval. Raise it with the before/after numbers of a search change; never lower it without an Owner decision.",
   "articles_tune": {
-    "top1": 15,
-    "top3": 18
+    "top1": 17,
+    "top3": 20
   },
   "articles_held_out": {
     "top1": 14,
@@ -12,6 +12,38 @@
   },
   "grounding": {
     "top1": 7,
-    "top3": 8
-  }
+    "top3": 10
+  },
+  "history": [
+    {
+      "change": "bolt 005 baseline",
+      "articles_tune": [
+        15,
+        18
+      ],
+      "articles_held_out": [
+        14,
+        17
+      ],
+      "grounding": [
+        7,
+        8
+      ]
+    },
+    {
+      "change": "bolt 006: rectification and parental bridge terms; base forms in grounding",
+      "articles_tune": [
+        17,
+        20
+      ],
+      "articles_held_out": [
+        14,
+        17
+      ],
+      "grounding": [
+        7,
+        10
+      ]
+    }
+  ]
 }
