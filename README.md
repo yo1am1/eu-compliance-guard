@@ -219,7 +219,9 @@ downgrade is refused. Requests carry the target's language as `Accept-Language`.
 and the last reachability check; `make verify-hosts` repeats that check with consent.
 A base CELEX (`resource/celex/32002L0058`) returns the act as first published; for the
 law in force use a consolidated CELEX such as `02002L0058-20091219`, and have a reviewer
-confirm that it is the latest consolidation.
+confirm that it is the latest consolidation. `check` warns when an `eu_act` target uses a
+base CELEX and lists each target's version ("consolidated 2009-12-19" or "as first
+published"). Each article excerpt in the report names the version it comes from.
 
 - Requests use HTTPS on port 443 only, with no credentials and no proxy.
 - DNS answers must all be public, and the connection is pinned to a validated
