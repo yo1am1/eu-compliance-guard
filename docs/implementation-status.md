@@ -57,6 +57,24 @@ in `frontend/` (`npm test` covers its parsing and wording; `npm run build` its b
 Screening is a coverage line and "style" is unscored record hygiene. All tests use the
 synthetic fixture; a scorecard says nothing about real compliance.
 
+## Hardening, 1.5 bolt 011 (2026-11-05)
+
+Order of priority: security, then determinism, then features.
+
+- **Supply chain.** New releases wait 14 days: `exclude-newer = "14 days"` for uv and
+  Dependabot `cooldown` for uv, npm and GitHub Actions. Security updates are exempt.
+  Actions are pinned to commit SHAs.
+- **Official hosts.** `docs/official-hosts.md` names each host's operator and purpose.
+  `make verify-hosts` re-checks reachability with consent. On 2026-11-05 all six
+  answered: EUR-Lex returned a bot challenge (202) and CURIA refused automated clients
+  at its root (403).
+- **Fewer regular expressions.** Parsing now uses explicit code, and tests check it
+  against the old patterns. Six anchored validators remain, and
+  `tests/test_regex_policy.py` blocks any new regex.
+- **Legal notice.** Every human-readable output ends with `notice.LEGAL_NOTICE`.
+- **Determinism.** `tests/test_determinism.py` compares every output across hash
+  seeds, time zones and locales. A planted set-order dependency makes it fail.
+
 ## Verification for this extraction
 
 - `make check`: all 61 synthetic tests passed; JSON Schema and generated TypeScript
