@@ -337,7 +337,17 @@ reaches an AI model, tracking, a third party or marketing. Each hop carries its
 `file:line`, and a flow through an ambiguous call is labelled `ambiguous`. A candidate
 inside a flow shows that path. A flow with no pinned evidence on any of its functions
 is listed under "data flows no fact covers", and pinning a line on it with `--apply`
-accounts for it. Graph-aware search and a graph view come next (2.0 bolts 014 and 016).
+accounts for it.
+
+`graph --view [--open]` writes `<state-dir>/views/graph.html`, and the panel's **Graph**
+button opens it. Like the dashboard, it is one static file with no script and no
+request, kept private (0600). It draws the functions on data flows or touching a concept,
+and their neighbours, in a fixed layout: one column per file. Flows are highlighted and
+ambiguous calls are dashed, and each box links to its details. Tables list each flow
+with the facts pinned on it, and each fact with the requirements and obligations
+(and their articles) that rely on it. How many functions were left out is always stated.
+
+![Graph view of a fictional project](docs/images/graph-view.png)
 
 ### Search evaluation
 
