@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import hashlib
 import json
+import heapq
 import math
 import os
 from pathlib import Path
@@ -136,10 +137,30 @@ class Index:
     digests: dict[str, str] = field(default_factory=dict)
     document_frequency: Counter = field(default_factory=Counter)
     skipped: int = 0  # unreadable, unexaminable, binary or over-limit files, and folders that could not be listed
+    _postings: dict[str, list[int]] | None = field(default=None, repr=False, compare=False)
+    _lengths: list[int] | None = field(default=None, repr=False, compare=False)
+
+    def _prepare(self) -> None:
+        """Inverted index, built once: each term lists the lines that contain it, in line order."""
+        if self._postings is None or self._lengths is None or len(self._lengths) != len(self.lines):
+            postings: dict[str, list[int]] = {}
+            for position, line in enumerate(self.lines):
+                for term in line.terms:
+                    postings.setdefault(term, []).append(position)
+            self._postings, self._lengths = postings, [sum(line.terms.values()) for line in self.lines]
 
     @property
     def average_length(self) -> float:
-        return sum(sum(line.terms.values()) for line in self.lines) / max(1, len(self.lines))
+        self._prepare()
+        return sum(self._lengths) / max(1, len(self.lines))
+
+    def postings(self, term: str) -> list[int]:
+        self._prepare()
+        return self._postings.get(term, [])
+
+    def length(self, position: int) -> int:
+        self._prepare()
+        return self._lengths[position]
 
 
 def _is_text(path: Path) -> bool:
@@ -243,19 +264,24 @@ def concepts_of(terms) -> list[str]:
 def search(index: Index, query: list[str], top: int = 3, k1: float = 1.2, b: float = 0.75) -> list[dict]:
     weights = expand(query)
     count, average = len(index.lines), index.average_length
-    scored = []
-    for line in index.lines:
-        score, length = 0.0, sum(line.terms.values())
-        for term, weight in weights.items():
-            frequency = line.terms.get(term)
-            if frequency:
-                idf = math.log(1 + (count - index.document_frequency[term] + 0.5) / (index.document_frequency[term] + 0.5))
-                score += weight * idf * frequency * (k1 + 1) / (frequency + k1 * (1 - b + b * length / average))
-        # A line sharing only concept vocabulary (gtag for "tracking") qualifies at its lower weight:
-        # the same relatedness test apply uses, so every candidate can be pinned.
-        if score > 0:
-            scored.append((score, line))
-    scored.sort(key=lambda item: (-item[0], item[1].path, item[1].number))
+    # Only lines holding a query term can score: walk their postings, adding each line's terms in
+    # the same order as a full scan would, so scores (and ties) are identical to it.
+    scores: dict[int, float] = {}
+    for term, weight in weights.items():
+        frequency_of = index.document_frequency[term]
+        if not frequency_of:
+            continue
+        idf = math.log(1 + (count - frequency_of + 0.5) / (frequency_of + 0.5))
+        for position in index.postings(term):
+            frequency = index.lines[position].terms[term]
+            length = index.length(position)
+            scores[position] = scores.get(position, 0.0) + weight * idf * frequency * (k1 + 1) / (
+                frequency + k1 * (1 - b + b * length / average))
+    # A line sharing only concept vocabulary (gtag for "tracking") qualifies at its lower weight:
+    # the same relatedness test apply uses, so every candidate can be pinned.
+    scored = [(score, index.lines[position]) for position, score in scores.items() if score > 0]
+    # The best `top` lines in the full-sort order, without sorting every scored line.
+    scored = heapq.nsmallest(top, scored, key=lambda item: (-item[0], item[1].path, item[1].number))
     direct = set(query)
     return [{"location": f"{line.path}:{line.number}", "score": round(score, 2), "concepts": concepts_of(line.terms),
              "matched": [{"term": term, "via": "fact" if term in direct else "concept vocabulary"}

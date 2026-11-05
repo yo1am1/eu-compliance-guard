@@ -175,6 +175,28 @@ class GroundingTests(unittest.TestCase):
         self.assertIn("cookie", g.explain(top["matched"]))
         self.assertEqual(g.explain([]), "no shared term")
 
+    def test_indexed_search_matches_a_full_scan_exactly(self):
+        import math
+        index = g.build_index(self.project)
+
+        def full_scan(query, top, k1=1.2, b=0.75):
+            weights, count, average, scored = g.expand(query), len(index.lines), index.average_length, []
+            for line in index.lines:
+                score, length = 0.0, sum(line.terms.values())
+                for term, weight in weights.items():
+                    frequency = line.terms.get(term)
+                    if frequency:
+                        idf = math.log(1 + (count - index.document_frequency[term] + 0.5) / (index.document_frequency[term] + 0.5))
+                        score += weight * idf * frequency * (k1 + 1) / (frequency + k1 * (1 - b + b * length / average))
+                if score > 0:
+                    scored.append((score, line))
+            scored.sort(key=lambda item: (-item[0], item[1].path, item[1].number))
+            return [(f"{line.path}:{line.number}", round(score, 2)) for score, line in scored[:top]]
+
+        for query in (["cookie"], ["weight", "llm"], ["renew", "auto"], ["user"], ["nothing", "here"], ["cookie", "visitor", "age"]):
+            found = [(item["location"], item["score"]) for item in g.search(index, query, 5)]
+            self.assertEqual(found, full_scan(query, 5), query)
+
     def test_tokens_split_identifiers(self):
         self.assertEqual(g.tokens("response.set_cookie(maxAge=395)"), ["response", "set", "cookie", "max", "age", "395"])
 
