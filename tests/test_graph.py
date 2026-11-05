@@ -77,6 +77,32 @@ class GraphTests(unittest.TestCase):
         self.assertNotIn("app/linked.py", paths)
         self.assertFalse(any(path.startswith("node_modules") for path in paths))
 
+    def test_flows_run_from_data_to_the_first_sink_with_every_hop_located(self):
+        flows = g.flows(g.build_graph(self.root))
+        self.assertEqual([g.describe_flow(flow) for flow in flows],
+                         ["special_category → ai: app/coach.py:5 plan_meals → app/llm.py:1 ask_model (extracted)"])
+        self.assertTrue(g.covers(flows[0], {"app/llm.py:2"}))  # inside ask_model's lines
+        self.assertFalse(g.covers(flows[0], {"app/llm.py:5", "app/coach.py:1"}))
+
+    def test_ground_shows_paths_and_a_pinned_line_covers_its_flow(self):
+        declarations = a.init(self.root / ".eu-compliance-guard/declarations.json", "demo", synthetic=True)
+        data = json.loads(declarations.read_text())
+        data["scope"]["roles"] = [{"id": "fact-weight-llm", "revision": 0, "key": "Member weight is sent to the model",
+                                   "value": True, "basis": "assumed", "evidence_ids": [], "owner": "Fictional owner",
+                                   "observed_at": "2026-11-05T00:00:00Z", "conflicts": []}]
+        declarations.write_text(json.dumps(data))
+        report = grounding.ground(declarations)
+        top = report["facts"][0]["candidates"][0]
+        self.assertEqual(top["location"], "app/coach.py:7")
+        self.assertEqual([hop["name"] for hop in top["path"]], ["plan_meals", "ask_model"])
+        self.assertEqual([flow["covered"] for flow in report["flows"]], [False])
+        self.assertIn("data flows no fact covers", grounding.format_ground(report))
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["ground", "--input", str(declarations), "--apply", "fact-weight-llm=app/coach.py:7"]), 0)
+        report = grounding.ground(declarations)
+        self.assertEqual([flow["covered"] for flow in report["flows"]], [True])
+        self.assertNotIn("data flows no fact covers", grounding.format_ground(report))
+
     def test_the_contract_rejects_dangling_or_unsorted_edges(self):
         graph = g.build_graph(self.root)
         data = graph.model_dump(mode="json")

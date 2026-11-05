@@ -359,8 +359,21 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
         if hits:
             undeclared.append({"concept": key, "label": label, "count": len(hits),
                                "examples": [f"{line.path}:{line.number}  {line.text}" for line in hits[:3]]})
+    # Data flows from the project graph: a candidate inside one carries its path, and a flow no
+    # pinned evidence lies on is listed for review. Possible paths only; never a finding.
+    from . import graph
+    flows = graph.flows(graph.build_graph(root, _own_files(path, root)))
+    for flow in flows:
+        flow["covered"] = graph.covers(flow, cited)
+    for result in results:
+        for candidate in result["candidates"]:
+            through = next((flow for flow in flows if graph.covers(flow, {candidate["location"]})), None)
+            if through is not None:
+                candidate["path"] = [{"name": hop["name"], "location": hop["location"]} for hop in through["hops"]]
+                candidate["path_provenance"] = through["provenance"]
     return {"root": str(root), "files": len(index.digests), "skipped": index.skipped, "facts": results,
-            "undeclared": undeclared}
+            "undeclared": undeclared,
+            "flows": [{key: value for key, value in flow.items()} for flow in flows]}
 
 
 def format_ground(report: dict) -> str:
@@ -373,12 +386,19 @@ def format_ground(report: dict) -> str:
         for item in fact["candidates"]:
             lines.append(f"  {item['location']}  score {item['score']}  [{', '.join(item['concepts']) or '-'}]  {item['snippet']}")
             lines.append("    matched: " + explain(item["matched"]))
+            if "path" in item:
+                lines.append(f"    path ({item['path_provenance']}): " + " → ".join(f"{hop['location']} {hop['name']}" for hop in item["path"]))
         if fact["observable"] and not fact["candidates"]:
             lines.append("  no code evidence found; ask the owner")
     if report["undeclared"]:
         lines.append("\npossible touchpoints no fact covers:")
         for item in report["undeclared"]:
             lines.append(f"  {item['label']} ({item['count']}): " + " | ".join(item["examples"]))
+    uncovered = [flow for flow in report.get("flows", []) if not flow["covered"]]
+    if uncovered:
+        lines.append("\ndata flows no fact covers (possible paths from static parsing):")
+        from .graph import describe_flow
+        lines += [f"  {describe_flow(flow)}" for flow in uncovered]
     lines.append("\nCandidates are search results, not findings. Confirm each before --apply; no output is a compliance conclusion.")
     return "\n".join(lines)
 

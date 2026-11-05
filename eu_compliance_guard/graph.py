@@ -17,6 +17,10 @@ from pathlib import Path
 from . import grounding, models as m, prcheck
 
 MAX_AMBIGUOUS = 5
+DATA = ("personal_data", "special_category", "children")
+SINKS = ("ai", "tracking", "third_party", "marketing")
+MAX_FLOW_DEPTH = 6
+MAX_FLOWS = 200
 
 
 def node_id(path: str, name: str = "") -> str:
@@ -31,6 +35,11 @@ def _module(path: str) -> str:
 def _concepts(text: str) -> list[str]:
     """pr-check's rule: a strong term counts alone, otherwise two of a concept's terms must appear."""
     return prcheck.concepts_in(text)
+
+
+def _data(text: str) -> list[str]:
+    terms = set(grounding.tokens(text))
+    return [key for key in DATA if grounding.CONCEPTS[key][1] & terms]
 
 
 def _called(call: ast.Call) -> tuple[str | None, str] | None:
@@ -49,7 +58,7 @@ class _FileVisitor(ast.NodeVisitor):
     def __init__(self, path: str, text: str):
         self.path, self.text = path, text
         self.scope = [(node_id(path), "")]
-        self.definitions: list[tuple[str, str, str, int, list[str], str]] = []  # id, kind, qualname, line, concepts, parent
+        self.definitions: list[tuple] = []  # id, kind, qualname, line, end line, concepts, data, parent
         self.calls: list[tuple[str, str | None, str, int]] = []  # caller id, qualifier, called name, line
         self.imports: list[tuple[str, int, int]] = []  # module, level, line
         self.symbols: list[tuple[str, str, str, int]] = []  # local name, module, imported name, level
@@ -60,7 +69,8 @@ class _FileVisitor(ast.NodeVisitor):
         qualname = f"{prefix}.{node.name}" if prefix else node.name
         identity = node_id(self.path, qualname)
         segment = ast.get_source_segment(self.text, node) or node.name
-        self.definitions.append((identity, kind, qualname, node.lineno, _concepts(segment), parent))
+        self.definitions.append((identity, kind, qualname, node.lineno, node.end_lineno or node.lineno,
+                                 _concepts(segment), _data(segment), parent))
         self.scope.append((identity, qualname))
         self.generic_visit(node)
         self.scope.pop()
@@ -131,13 +141,14 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
             skipped += 1
             continue
         nodes[node_id(path)] = m.GraphNode(id=node_id(path), kind="file", path=path, name=path, line=1,
-                                           concepts=_concepts(text))
-        for identity, kind, qualname, line, concepts, parent in visitor.definitions:
-            nodes[identity] = m.GraphNode(id=identity, kind=kind, path=path, name=qualname, line=line, concepts=concepts)
+                                           end_line=max(1, len(text.splitlines())), concepts=_concepts(text), data=[])
+        for identity, kind, qualname, line, end, concepts, data, parent in visitor.definitions:
+            nodes[identity] = m.GraphNode(id=identity, kind=kind, path=path, name=qualname, line=line, end_line=end,
+                                          concepts=concepts, data=data)
             edges.add((parent, "defines", identity, "extracted", line))
             by_name.setdefault(qualname.rsplit(".", 1)[-1], []).append(identity)
         pending_calls += [(path, *call) for call in visitor.calls]
-        top_level[path] = {qualname: identity for identity, _, qualname, _, _, _ in visitor.definitions if "." not in qualname}
+        top_level[path] = {item[2]: item[0] for item in visitor.definitions if "." not in item[2]}
         scopes[path] = ({}, {})
         for local, module, level in visitor.aliases:
             target = _resolve(path, module, level, modules)
@@ -188,6 +199,64 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
         nodes=[nodes[key] for key in sorted(nodes)],
         edges=[m.GraphEdge(source=s, kind=k, target=t, provenance=p, line=n) for s, k, t, p, n in unique.values()],
         notice=m.GRAPH_NOTICE)
+
+
+def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
+    """Shortest call paths from a function that handles personal data to one that reaches an AI model,
+    tracking, a third party or marketing. A flow through an ambiguous call is labelled ambiguous.
+
+    These are possible paths found by static parsing; they show where to look, never a finding.
+    """
+    nodes = {node.id: node for node in graph.nodes}
+    calls: dict[str, list[tuple[str, str]]] = {}
+    for edge in graph.edges:
+        if edge.kind == "calls":
+            calls.setdefault(edge.source, []).append((edge.target, edge.provenance))
+    found = []
+    for start in sorted(node.id for node in graph.nodes if node.kind == "function" and node.data):
+        previous: dict[str, tuple[str, str] | None] = {start: None}
+        frontier = [start]
+        for _ in range(max_depth + 1):
+            following = []
+            for current in frontier:
+                sinks = [concept for concept in nodes[current].concepts if concept in SINKS]
+                if sinks:
+                    hops, cursor, provenance = [], current, "extracted"
+                    while cursor is not None:
+                        hops.append(cursor)
+                        step = previous[cursor]
+                        if step is not None and step[1] == "ambiguous":
+                            provenance = "ambiguous"
+                        cursor = step[0] if step else None
+                    hops.reverse()
+                    found.append({"data": nodes[start].data, "sinks": sinks, "provenance": provenance,
+                                  "hops": [{"name": nodes[hop].name, "location": f"{nodes[hop].path}:{nodes[hop].line}",
+                                            "end_line": nodes[hop].end_line} for hop in hops]})
+                    continue  # the first sink on a route ends it; what it calls is the sink's own detail
+                for target, provenance in sorted(calls.get(current, [])):
+                    if target not in previous:
+                        previous[target] = (current, provenance)
+                        following.append(target)
+            frontier = following
+    found.sort(key=lambda flow: (flow["hops"][0]["location"], flow["hops"][-1]["location"]))
+    return found[:MAX_FLOWS]
+
+
+def covers(flow: dict, refs: set[str]) -> bool:
+    """A flow is accounted for when a pinned `path:line` lies inside any of its functions."""
+    for hop in flow["hops"]:
+        path, _, start = hop["location"].rpartition(":")
+        for ref in refs:
+            ref_path, _, number = ref.rpartition(":")
+            if ref_path == path and number.isdigit() and int(start) <= int(number) <= hop["end_line"]:
+                return True
+    return False
+
+
+def describe_flow(flow: dict) -> str:
+    """'special_category → ai: app/coach.py:5 plan_meals → app/llm.py:1 ask_model (extracted)'."""
+    route = " → ".join(f"{hop['location']} {hop['name']}" for hop in flow["hops"])
+    return f"{', '.join(flow['data'])} → {', '.join(flow['sinks'])}: {route} ({flow['provenance']})"
 
 
 def to_json(graph: m.ProjectGraph) -> bytes:
