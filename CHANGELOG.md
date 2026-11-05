@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 — 2026-11-05
+
+Act on suggestions in one step, see which version of the law you are reading, and use
+the plugin on real repositories: faster grounding, monorepos, the newest run by
+completion, CI on every pull request, and code evidence in the side panel.
 
 ### Added
 
