@@ -103,6 +103,34 @@ class GraphTests(unittest.TestCase):
         self.assertEqual([flow["covered"] for flow in report["flows"]], [True])
         self.assertNotIn("data flows no fact covers", grounding.format_ground(report))
 
+    def test_pr_check_names_the_flows_a_diff_changes_and_the_facts_on_them(self):
+        declarations = a.init(self.root / ".eu-compliance-guard/declarations.json", "demo", synthetic=True)
+        data = json.loads(declarations.read_text())
+        data["scope"]["roles"] = [{"id": "fact-weight-llm", "revision": 0, "key": "Member weight is sent to the model",
+                                   "value": True, "basis": "assumed", "evidence_ids": [], "owner": "Fictional owner",
+                                   "observed_at": "2026-11-05T00:00:00Z", "conflicts": []}]
+        declarations.write_text(json.dumps(data))
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["ground", "--input", str(declarations), "--apply", "fact-weight-llm=app/coach.py:7"]), 0)
+        diff = self.root / "change.diff"
+
+        def check(text: str) -> dict:
+            diff.write_text(text)
+            stdout = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(io.StringIO()):
+                self.assertIn(main(["pr-check", "--diff", str(diff), "--input", str(declarations), "--json"]), (0, 1))
+            return json.loads(stdout.getvalue())
+
+        report = check("diff --git a/app/llm.py b/app/llm.py\n--- a/app/llm.py\n+++ b/app/llm.py\n"
+                       "@@ -2,0 +2,1 @@\n+    prompt = prompt.strip()\n")
+        self.assertEqual(report["flows"], [{"flow": "special_category → ai: app/coach.py:5 plan_meals → app/llm.py:1 ask_model (extracted)",
+                                            "changed": ["app/llm.py:2"], "facts": ["fact-weight-llm"]}])
+        self.assertGreaterEqual(report["attention"], 1)
+        report = check("diff --git a/app/billing.py b/app/billing.py\n--- a/app/billing.py\n+++ b/app/billing.py\n"
+                       "@@ -2,0 +2,1 @@\n+    pass\n")
+        self.assertEqual(report["flows"], [])
+        self.assertTrue(report["graph"])
+
     def test_the_contract_rejects_dangling_or_unsorted_edges(self):
         graph = g.build_graph(self.root)
         data = graph.model_dump(mode="json")
