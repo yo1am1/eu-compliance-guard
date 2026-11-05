@@ -1,6 +1,6 @@
 {
   "name": "eu-compliance-guard",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Read-only EU legal revalidation for coding agents: map project changes to candidate EU obligations, keep declarations and gaps explicit, and produce private traceable reports. Never a compliance verdict.",
   "author": {
     "name": "Yehor Trepalin",

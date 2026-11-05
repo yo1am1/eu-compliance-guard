@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 — 2026-11-05
+
+Review progress at a glance, a project graph that follows data through the code,
+measured search, and hardening: a 14-day version cooldown, verified official hosts,
+fewer regular expressions, a legal notice on every output and a determinism test.
 
 ### Added
 
