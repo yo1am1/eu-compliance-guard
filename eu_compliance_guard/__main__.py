@@ -399,7 +399,7 @@ def _pr_check(args) -> int:
         if len(diff) > prcheck.MAX_DIFF_BYTES:
             raise prcheck.PRCheckError("capacity-exceeded")
         declared = load_input(args.input) if args.input is not None else _default_declarations()
-        project_graph = None
+        project_graph = root_prefix = None
         if declared is not None:
             # The checked-out project, mapped by parsing only, shows which data flows the diff changes.
             from pathlib import Path
@@ -407,7 +407,12 @@ def _pr_check(args) -> int:
             location = Path(args.input or ".eu-compliance-guard/declarations.json")
             _, root = grounding._declarations(location)
             project_graph = graph.build_graph(root, grounding._own_files(location, root))
-        report = prcheck.pr_check(diff.decode("utf-8", "replace"), declared, project_graph)
+            # git diff paths are relative to the working directory (the repository top): find the
+            # files root inside it, so a project in a monorepo subfolder still matches its paths.
+            import os
+            relative = os.path.relpath(root, os.path.realpath(os.getcwd()))
+            root_prefix = None if relative.startswith("..") else relative
+        report = prcheck.pr_check(diff.decode("utf-8", "replace"), declared, project_graph, root_prefix)
     except KeyboardInterrupt:
         return 130
     except Exception as error:

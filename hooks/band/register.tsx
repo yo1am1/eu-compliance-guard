@@ -35,7 +35,7 @@ async function readLevel($: EngineInterface, home: string): Promise<string> {
   return LEVELS.includes(level) ? level : 'full'
 }
 
-// Finds the newest run (by its timestamped name) that has a completion marker, and summarizes it.
+// Finds the newest completed run (latest completion, then name) and summarizes it.
 // The declared project_id keys run storage, exactly as `eu-compliance-guard state-dir` and the session hook do.
 async function declaredProject($: EngineInterface, project: string): Promise<string | null> {
   try {
@@ -66,9 +66,9 @@ async function refresh($: EngineInterface, rerank = false): Promise<void> {
   if (identity !== null) {
     const runs = (await $.fs.list(stateDir).catch(() => []))
       .filter(entry => entry.kind === 'dir' && !entry.isLink && entry.name.startsWith('run-'))
+      // Newest completion first: a run folder changes last when its completion marker is written.
+      .sort((a, b) => b.mtimeMs - a.mtimeMs || (a.name < b.name ? 1 : a.name > b.name ? -1 : 0))
       .map(entry => entry.name)
-      .sort()
-      .reverse()
     for (const name of runs) {
       const files = await $.fs.list(`${stateDir}/${name}`).catch(() => [])
       if (!files.some(file => file.name === 'complete.json' && file.kind === 'file')) continue

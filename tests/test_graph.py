@@ -2,6 +2,7 @@
 from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
+import os
 from pathlib import Path
 import shutil
 import tempfile
@@ -165,6 +166,35 @@ class GraphTests(unittest.TestCase):
         self.assertIn("requirement req-ai", html)  # law to code
         self.assertIn("possible paths", html)
         self.assertIn(LEGAL_NOTICE, html)
+
+    def test_pr_check_in_a_monorepo_matches_paths_below_the_project_folder(self):
+        repository = Path(self.temporary.name) / "repo"
+        project = repository / "services/api"
+        shutil.copytree(self.root, project)
+        declarations = a.init(project / ".eu-compliance-guard/declarations.json", "demo", synthetic=True)
+        data = json.loads(declarations.read_text())
+        data["scope"]["roles"] = [{"id": "fact-weight-llm", "revision": 0, "key": "Member weight is sent to the model",
+                                   "value": True, "basis": "assumed", "evidence_ids": [], "owner": "Fictional owner",
+                                   "observed_at": "2026-11-05T00:00:00Z", "conflicts": []}]
+        declarations.write_text(json.dumps(data))
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["ground", "--input", str(declarations), "--apply", "fact-weight-llm=app/coach.py:7"]), 0)
+        diff = repository / "change.diff"
+        diff.write_text("diff --git a/services/api/app/coach.py b/services/api/app/coach.py\n"
+                        "--- a/services/api/app/coach.py\n+++ b/services/api/app/coach.py\n"
+                        "@@ -6,0 +6,1 @@\n+    member = member or None\n")
+        previous = os.getcwd()
+        os.chdir(repository)
+        try:
+            stdout = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(io.StringIO()):
+                main(["pr-check", "--diff", "change.diff", "--input", "services/api/.eu-compliance-guard/declarations.json", "--json"])
+        finally:
+            os.chdir(previous)
+        report = json.loads(stdout.getvalue())
+        self.assertEqual([item["path"] for item in report["pinned_evidence"]], ["services/api/app/coach.py"])
+        self.assertEqual([item["changed"] for item in report["flows"]], [["services/api/app/coach.py:6"]])
+        self.assertEqual(report["flows"][0]["facts"], ["fact-weight-llm"])
 
     def test_the_contract_rejects_dangling_or_unsorted_edges(self):
         graph = g.build_graph(self.root)

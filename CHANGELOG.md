@@ -4,6 +4,14 @@
 
 ### Added
 
+- Real repositories (1.5 bolt 009):
+  - `ground` searches through an inverted index. 300 facts over about 60,000 lines of
+    real Python now take 0.6 s instead of 33 s, with identical results (checked on 400
+    queries and pinned by a full-scan test).
+  - The newest run is the one completed last (its completion marker), not the last
+    name, in the CLI and the band.
+  - `pr-check` in a monorepo matches diff paths below the project folder: run it from
+    the repository top with `--input services/api/.eu-compliance-guard/declarations.json`.
 - `accept REQ=TARGET:ARTICLE` (1.5 bolt 007) maps a requirement to a candidate
   obligation citing that article, reused or created, with revisions and pins updated
   atomically. It never records an applicability decision. `/eucg-next` offers it for

@@ -402,7 +402,9 @@ output) exits 2 with `invalid-input` instead of passing unread. A merge's combin
 (`git show <merge>`) is screened too: a line added against any parent counts. With
 declarations, it also maps the checked-out Python code (as `graph` does) and lists each
 data flow whose functions gained an added line, with the facts pinned on that flow, or
-says that no fact covers it. Each counts as an item needing attention. To run it on
+says that no fact covers it. Each counts as an item needing attention. In a monorepo,
+run it from the repository top with `--input <project>/.eu-compliance-guard/declarations.json`;
+diff paths are matched below that project's folder. To run it on
 every pull request, copy [`examples/github/eu-compliance-guard-pr.yml`](examples/github/eu-compliance-guard-pr.yml)
 into `.github/workflows/`; it keeps one comment updated, and `--strict` can fail the
 check. It is keyword screening: a diff with no touchpoints is not a clean bill.
