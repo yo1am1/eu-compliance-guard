@@ -49,6 +49,7 @@ for name, args in {"check": ("check", "--input", work / "input.json"), "check-js
                    "pr": ("pr-check", "--diff", work / "change.diff", "--input", work / "input.json"),
                    "pr-md": ("pr-check", "--diff", work / "change.diff", "--input", work / "input.json", "--markdown"),
                    "pr-json": ("pr-check", "--diff", work / "change.diff", "--input", work / "input.json", "--json"),
+                   "graph": ("graph", "--input", work / "input.json"), "graph-json": ("graph", "--input", work / "input.json", "--json"),
                    "view": ("view", "--run", run)}.items():
     cli(name, *args)
 for path in sorted((work / "state/views").iterdir()):

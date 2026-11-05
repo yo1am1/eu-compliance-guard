@@ -2060,3 +2060,55 @@ class Scorecard(Record):
         if self.trend is not None and self.trend.comparable and self.trend.previous_run_id != self.parent_run_id:
             raise ValueError("a comparable trend is against the recorded parent run only")
         return self
+
+
+# Project graph (2.0 bolt 012): code structure from static parsing only; nothing is imported or run.
+GRAPH_NOTICE = ("Static structure only: dynamic calls are missed, so paths are possible paths. "
+                "An empty graph or path never shows compliance.")
+GraphConcept = Literal["personal_data", "special_category", "children", "tracking", "consent", "marketing", "ai",
+                       "third_party", "retention", "subscription", "security", "accessibility"]
+MAX_GRAPH_NODES = 50000
+MAX_GRAPH_EDGES = 200000
+
+
+class GraphNode(Record):
+    id: Id
+    kind: Literal["file", "class", "function"]
+    path: Text
+    name: Text
+    line: Annotated[int, Field(ge=1, le=MAX_SEQUENCE)]
+    concepts: Annotated[list[GraphConcept], Field(max_length=12)]
+
+
+class GraphEdge(Record):
+    source: Id
+    target: Id
+    kind: Literal["defines", "imports", "calls"]
+    # extracted: parsed and resolved to one node; ambiguous: the name matches several definitions.
+    provenance: Literal["extracted", "ambiguous"]
+    line: Annotated[int, Field(ge=1, le=MAX_SEQUENCE)]
+
+
+class ProjectGraph(Record):
+    schema_version: SchemaVersion
+    graph_version: Literal[1]
+    files: Count
+    parsed: Count
+    skipped: Count
+    digest: Digest
+    nodes: Annotated[list[GraphNode], Field(max_length=MAX_GRAPH_NODES)]
+    edges: Annotated[list[GraphEdge], Field(max_length=MAX_GRAPH_EDGES)]
+    notice: Literal[GRAPH_NOTICE]
+
+    @model_validator(mode="after")
+    def consistent(self) -> ProjectGraph:
+        ids = [node.id for node in self.nodes]
+        if ids != sorted(set(ids)):
+            raise ValueError("graph nodes must be unique and sorted by id")
+        known = set(ids)
+        if any(edge.source not in known or edge.target not in known for edge in self.edges):
+            raise ValueError("graph edges must join known nodes")
+        keys = [(edge.source, edge.kind, edge.target, edge.line) for edge in self.edges]
+        if keys != sorted(set(keys)):
+            raise ValueError("graph edges must be unique and sorted")
+        return self
