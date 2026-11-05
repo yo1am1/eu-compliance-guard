@@ -319,6 +319,18 @@ For a future hosted service, `frontend/` holds a React page that renders such a 
 or drop the file). It is read in the browser only; the page's Content Security Policy blocks every
 connection, and its types are generated from `eu_compliance_guard/models.py`.
 
+### Accepting a suggestion
+
+`accept REQ=TARGET:ARTICLE` (for example `accept req-delete=target-gdpr:Article 17`)
+turns an article suggestion into a mapping in one step. The requirement gains a
+candidate obligation that pins the article. An obligation that already pins the same
+target and article is reused; otherwise one is created, as a duty when the target is
+binding law and a recommendation otherwise, with no invented review methods. Revisions
+rise and every pin follows. The file is validated and written atomically, never
+through a link, and running it again changes nothing. No applicability decision is
+recorded: the obligation stays unresolved until a named reviewer decides.
+`/eucg-next` offers this for mapping steps.
+
 ### Project graph
 
 `graph` maps the Python files under the files root: files, classes and functions, the

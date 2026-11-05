@@ -56,6 +56,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 - `ground [--apply <fact>=<path>:<line>]` finds code evidence for assumed facts with a local index and pins confirmed technical facts as observed.
 - `next [--run <run dir>] [--top N] [--json]` ranks the open steps of the newest (or given) run by how many open requirements each unblocks.
 - `score [--run <run dir>] [--against <run dir>] [--json]` shows review progress: separate meters (Alignment, Law text, Facts, Decisions, Mapping, Reviews), each points out of 10 for recorded review steps, plus a family screening line and unscored record hygiene. There is no total; the points are not a compliance score or verdict. Exit 0 whatever the points.
+- `accept <requirement>=<target>:<Article N> [--input <file>] [--json]` maps a requirement to a candidate obligation citing that article (reused or created); it never decides applicability.
 - `graph [--input <file>] [--json] [--view [--open]]` maps the project's Python files, functions, imports and calls by parsing only (nothing is run); paths are possible paths, never proof.
 - `pr-check [--diff <file>|-] [--input <file>] [--markdown|--json] [--strict]` screens a unified diff's added lines for legal touchpoints and compares them with the declarations.
 - `state-dir` prints (and creates, 0700) the private run storage for this project's `project_id`.

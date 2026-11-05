@@ -4,6 +4,10 @@
 
 ### Added
 
+- `accept REQ=TARGET:ARTICLE` (1.5 bolt 007) maps a requirement to a candidate
+  obligation citing that article, reused or created, with revisions and pins updated
+  atomically. It never records an applicability decision. `/eucg-next` offers it for
+  mapping steps.
 - Law in force (1.5 bolt 008, part one): CELEX numbers are read from target identifiers
   and Cellar or EUR-Lex URLs without a regular expression. `check` warns when an act
   target uses a base CELEX (the act as first published) and lists each target's
