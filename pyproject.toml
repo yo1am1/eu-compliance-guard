@@ -20,6 +20,11 @@ api = [
 [project.scripts]
 eu-compliance-guard = "eu_compliance_guard.__main__:main"
 
+[tool.uv]
+# Supply-chain cooldown: resolve only releases at least 14 days old. A security fix for a
+# published advisory may be adopted sooner, with the reason recorded in the commit.
+exclude-newer = "14 days"
+
 [build-system]
 requires = ["hatchling==1.32.4"]
 build-backend = "hatchling.build"
