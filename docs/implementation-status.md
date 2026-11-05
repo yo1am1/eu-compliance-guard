@@ -33,18 +33,41 @@ library is imported into the standalone repository.
   containment/admission requirements remain unmet; fake tests are not that evidence.
 - Separate Python/frontend lock files, package selection, and license notices.
 
-## Current priority and remaining work
+## Current state (v1.4.0, 2026-11-05) and what remains
 
-The first offline reporting script is implemented. Official-source retrieval and
-predecessor comparison, followed by the portable skill/release, remain the next
-implementation work. The earlier OS isolation investigation is not a prerequisite to
-this text/evidence workflow. No OS security policy was changed and no PC vulnerability
-audit was performed. Do not continue that detour as the next task.
+Released: 1.0 to 1.4. The read-only workflow covers:
 
-No operational compliance audit, API, reviewed legal corpus, real scanner,
-browser checks, provider bridge, remediation loop, dashboard, Graphify integration,
-global host installation, or completed legal audit exists yet. These obligations
-remain pending. Research links are a starting register, not a current vetted corpus.
+- declarations, `check`, official-source retrieval from six verified EU hosts,
+  reports, and predecessor revalidation;
+- the Claude Code plugin: band, side panel, a static dashboard and a graph view;
+- grounding with an inverted index and explained matches, `accept`, and `next`;
+- `pr-check` (graph-aware, monorepo-aware), `score`, and `make eval`.
+
+CI runs `make check` on every pull request. Supply-chain, determinism, regex and
+legal-notice rules are enforced by tests.
+
+Remaining for 1.5:
+
+- **Newer-consolidation notice (bolt 008, part two).** It asks the Publications Office,
+  with per-run consent, whether a newer consolidation exists. It needs the live network.
+- **Live acceptance in a real Claude Code session.** Accept a suggestion and see its
+  mapping step close on the next run. This needs the Owner's own session.
+- Open choices: keep or remove the unused React page in `frontend/` (the plugin uses the
+  static dashboard), and review Dependabot updates under the 14-day cooldown.
+
+Next for 2.0, the law track (bolts 017 to 019):
+
+- the law lockfile and change impact;
+- signed decisions with Git SSH signing, and a citation guard, also as MCP tools;
+- importing EDPS Website Evidence Collector and SARIF results as untrusted evidence.
+
+The graph track (012 to 016) shipped in 1.3. Hybrid ranking was measured and not
+adopted (`docs/decisions/hybrid-search.md`). Runs do not record a graph, because
+`revalidate` never crawls the project.
+
+Still not built: an operational compliance audit, an API or hosted service, a reviewed
+legal corpus, scanners of our own, browser checks, and managed remediation. Outputs
+remain workflow evidence for a named reviewer, never a verdict.
 
 ## Review-progress dashboard (2026-11-04)
 

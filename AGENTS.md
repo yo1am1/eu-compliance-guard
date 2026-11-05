@@ -7,8 +7,9 @@ not an operational compliance audit.
 
 - Preserve `specs/**` byte-for-byte. Record new decisions and progress separately.
   Historical paths and draft labels in these snapshots describe their original home.
-- Prioritize the read-only legal revalidation skill and scripts. Scanners, Graphify,
-  managed remediation, and the dashboard are later work. Do not audit the laptop or
+- Prioritize the read-only legal revalidation skill and scripts. The static dashboard
+  and the hand-built project graph exist; scanners of our own, managed remediation and
+  a hosted service are later work (see `docs/roadmap.md`). Do not audit the laptop or
   change OS security policy to advance the core legal workflow.
 - Read callers and tests before editing. Use existing helpers and the standard
   library before adding dependencies. Generate JSON/TypeScript contracts from
