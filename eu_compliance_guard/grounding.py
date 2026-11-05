@@ -16,7 +16,6 @@ import json
 import math
 import os
 from pathlib import Path
-import re
 import stat
 
 from . import models as m, revalidation as r
@@ -83,8 +82,43 @@ STOPWORDS = {"the", "and", "for", "with", "this", "that", "from", "are", "is", "
 
 def tokens(text: str) -> list[str]:
     """Identifier-aware tokens: snake_case, camelCase and digits split; lower-cased."""
-    words = re.findall(r"[A-Za-z][a-z]+|[A-Z]+(?![a-z])|[a-z]+|\d+", re.sub(r"[_\-./]", " ", text))
-    return [word.lower() for word in words if len(word) > 1 and word.lower() not in STOPWORDS]
+    return [word.lower() for word in _words(text) if len(word) > 1 and word.lower() not in STOPWORDS]
+
+
+def _lower(char: str) -> bool:
+    return "a" <= char <= "z"
+
+
+def _words(text: str) -> list[str]:
+    """Split identifiers without a regular expression: 'setCookie_maxAge2' -> set, Cookie, max, Age, 2.
+
+    A letter followed by lower-case letters is a word; an upper-case run is a word up to the
+    letter that starts the next capitalised word; a digit run is a word; anything else separates.
+    """
+    words, index, size = [], 0, len(text)
+    while index < size:
+        char = text[index]
+        if char.isascii() and char.isalpha():
+            end = index + 1
+            if end < size and _lower(text[end]):
+                while end < size and _lower(text[end]):
+                    end += 1
+            elif not _lower(char):
+                while end < size and "A" <= text[end] <= "Z":
+                    end += 1
+                if end < size and _lower(text[end]) and end - index > 1:
+                    end -= 1
+            words.append(text[index:end])
+            index = end
+        elif char.isdecimal():
+            end = index + 1
+            while end < size and text[end].isdecimal():
+                end += 1
+            words.append(text[index:end])
+            index = end
+        else:
+            index += 1
+    return words
 
 
 @dataclass

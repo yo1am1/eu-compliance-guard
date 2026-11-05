@@ -2,6 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import { SYNTHETIC_CARD } from './scorecard.fixture'
+import { baseName, errorCode, words } from './summary'
 
 const PROJECT = '/work/shop'
 const STATE = '/state/eu-compliance-guard/shop-id'
@@ -443,4 +444,24 @@ test('no point changes appear against a run that is not the recorded parent', as
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect(await eventually(() => ui.find({ type: 'Text', text: 'Law 10 · Facts 3 · Decisions 5 · Mapping 5 · Reviews 5 (points of 10)' }))).toBeDefined()
   await ui.unmount()
+})
+
+// The old patterns stay here, in tests only, as the oracle for the parsers that replaced them.
+test('id words, CLI error codes and run names match the regular expressions they replaced', async () => {
+  const oldWords = (id: string) =>
+    id.replace(/^(fact|obl|obligation|req|requirement|target|source|activity)[-_]/, '').replace(/[-_.:]+/g, ' ').trim()
+  const oldCode = (stderr: string) => stderr.match(/eu-compliance-guard: ([a-z-]+):/)?.[1] ?? null
+  const oldBase = (path: string) => path.replace(/\/+$/, '').split('/').pop() ?? ''
+  const pieces = ['fact', 'obl', 'obligation', 'req', 'requirement', '-', '_', '.', ':', 'a', 'B2', 'x', '/', ' ', 'eu-compliance-guard: ', 'unsafe-path', 'Z']
+  let seed = 7
+  const pick = () => pieces[(seed = (seed * 1103515245 + 12345) % 2147483648) % pieces.length]
+  for (let i = 0; i < 3000; i++) {
+    const text = Array.from({ length: (i % 7) + 1 }, pick).join('')
+    expect(words(text)).toBe(oldWords(text))
+    expect(errorCode(text)).toBe(oldCode(text))
+    expect(baseName(text)).toBe(oldBase(text))
+  }
+  expect(words('fact-accounts-basis')).toBe('accounts basis')
+  expect(errorCode('eu-compliance-guard: unsafe-path: run view failed')).toBe('unsafe-path')
+  expect(baseName('/state/run-1//')).toBe('run-1')
 })

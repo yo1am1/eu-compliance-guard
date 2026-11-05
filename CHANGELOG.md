@@ -13,9 +13,27 @@
 - The band and panel show the meters in fixed format (one `score --json` call per run
   replaces the `next` call).
 - `frontend/` has a local, offline dashboard page that renders a scorecard file.
+- **Dashboard** button (band hotkey `d`, also in the panel): `view --dashboard --open`
+  opens `views/<run>.dashboard.html`. It is one static, at-a-glance page with no build,
+  no server and no script.
+- `make verify-hosts` checks, with consent, that each official host answers over
+  HTTPS. `docs/official-hosts.md` names each host's operator and purpose, and a test
+  keeps it in step with the code.
+- Every text, markdown and HTML output ends with one legal notice: not legal advice,
+  the named reviewer decides and is responsible, no warranty.
 
 ### Changed
 
+- Hardening (1.5 bolt 011):
+  - Dependency resolution waits 14 days for new releases (`[tool.uv] exclude-newer`).
+    Dependabot updates uv, npm and GitHub Actions with a 14-day cooldown, while
+    security updates go through without the wait.
+  - The pull-request check example pins its actions to commit SHAs.
+  - Parsing regular expressions are replaced by explicit parsers, and tests compare
+    each parser with the old pattern on random inputs. Only short, anchored validators
+    remain, and a lint test blocks any new regular expression in Python or in the band.
+  - A test runs the pipeline under different hash seeds, time zones and locales and
+    requires byte-identical outputs.
 - Gap phrases that other modules read back and the provision pin checks are shared
   constants and one helper in `revalidation.py`; recorded output is unchanged.
 

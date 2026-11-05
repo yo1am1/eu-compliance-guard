@@ -214,6 +214,8 @@ source targets, and only to six exact hosts: `eur-lex.europa.eu`, `curia.europa.
 `publications.europa.eu` (the Publications Office's machine endpoint, Cellar). For
 Cellar alone, its own same-host `http://` redirect is upgraded to https; every other
 downgrade is refused. Requests carry the target's language as `Accept-Language`.
+[docs/official-hosts.md](docs/official-hosts.md) names each host's operator and purpose
+and the last reachability check; `make verify-hosts` repeats that check with consent.
 A base CELEX (`resource/celex/32002L0058`) returns the act as first published; for the
 law in force use a consolidated CELEX such as `02002L0058-20091219`, and have a reviewer
 confirm that it is the latest consolidation.
@@ -352,7 +354,9 @@ git diff origin/main...HEAD | eu-compliance-guard pr-check --markdown
 ## Limits
 
 - No output is a compliance verdict, legal advice or an exhaustive search of EU
-  law. The eleven candidate families are screening keys, not a corpus.
+  law. The eleven candidate families are screening keys, not a corpus. Every text,
+  markdown and HTML output ends with the same notice: the named reviewer decides and
+  is responsible, and the tool comes without warranty (see `LICENSE` and `NOTICE`).
 - Reviewer names are self-attested, not authenticated.
 - Retrieval checks cannot prove a document's identity or currency; a reviewer must.
   National hosts and PDFs need manual review.

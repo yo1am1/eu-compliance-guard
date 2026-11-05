@@ -3,6 +3,7 @@
 import json
 import unicodedata
 
+from .notice import LEGAL_NOTICE
 from . import models as m
 
 MAX_REPORT_BYTES = 16 * 1024 * 1024
@@ -57,6 +58,7 @@ def render_report(bundle: m.RevalidationBundle) -> str:
         emit("**Recorded local declarations and unauthenticated reviewer attestations. Offline legal freshness remains unverified.**")
     emit()
     emit("Processing status describes report assembly only. No compliance verdict, legal approval, exhaustive law search or technical test is established.")
+    emit(LEGAL_NOTICE)
     emit("Only explicitly selected local files were considered. Evidence bodies are excluded from this report; metadata and declarations remain private.")
     emit("Recorded processing budgets use cooperative checks; they do not establish a hard CPU/filesystem deadline or process containment.")
     emit()

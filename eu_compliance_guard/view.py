@@ -11,11 +11,11 @@ from html import escape
 import json
 import os
 from pathlib import Path
-import re
 import stat
 
 from urllib.parse import quote
 
+from .notice import LEGAL_NOTICE
 from . import articles, models as m, nextstep, revalidation as r, scorecard
 
 CSS = """
@@ -76,11 +76,18 @@ def _list(items: list[str]) -> str:
     return "<ul>" + "".join(f"<li>{escape(item)}</li>" for item in items) + "</ul>" if items else '<span class="muted">none</span>'
 
 
+def _gap_area(gap: str) -> str:
+    subject, _, detail = gap.partition(": ")
+    if not detail:
+        return "coverage"
+    return "source target" if subject.startswith("Source target ") else subject.split(" ", 1)[0].lower()
+
+
 def _gap_row(gap: str) -> list[str]:
     subject, _, detail = gap.partition(": ")
     if not detail:
         return [_tag("coverage"), "", escape(gap)]
-    area = "source target" if subject.startswith("Source target ") else subject.split(" ", 1)[0].lower()
+    area = _gap_area(gap)
     return [_tag(area), f"<code>{escape(subject.split(' ', 2 if area == 'source target' else 1)[-1])}</code>", escape(detail)]
 
 
@@ -94,9 +101,8 @@ AREAS = [("requirement", "Requirements", True), ("obligation", "Candidate obliga
 def _attention(gaps: list[str]) -> str:
     groups: dict[str, list] = {}
     for gap in gaps:
-        row = _gap_row(gap)
-        area = re.sub(r"<[^>]+>", "", row[0])
-        groups.setdefault(area if area in {key for key, _, _ in AREAS} else "coverage", []).append(row)
+        area = _gap_area(gap)
+        groups.setdefault(area if area in {key for key, _, _ in AREAS} else "coverage", []).append(_gap_row(gap))
     if not groups:
         return '<p class="muted">No open gaps recorded. That is not a compliance conclusion.</p>'
     parts = []
@@ -390,6 +396,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
         _table(["Family", "Applicability", "Reviewer", "Gaps"], family_rows, ""),
         '<p class="muted">Generated from the verified run bundle. Processing state describes report assembly only; '
         "no compliance verdict, legal approval or exhaustive law search is established.</p>",
+        f'<p class="muted">{escape(LEGAL_NOTICE)}</p>',
         "</main></body></html>",
     ]
     return "\n".join(parts)
@@ -483,7 +490,7 @@ def render_dashboard(bundle: m.RevalidationBundle, card: m.Scorecard | None = No
         f'<div class="grid2"><section class="card"><h2>To do</h2><ol>{todo}</ol></section>'
         f'<section class="card"><h2>Coverage</h2><ul>{"".join(coverage)}</ul>{coverage_hint}</section></div>',
         questions_html,
-        f"<footer>{escape(scorecard.NOTICE)} Details are in the full report.</footer>",
+        f"<footer>{escape(scorecard.NOTICE)} Details are in the full report.<br>{escape(LEGAL_NOTICE)}</footer>",
         "</main></body></html>",
     ]
     return "\n".join(parts)

@@ -115,8 +115,46 @@ export function parseSteps(dir: string, text: string): NextSteps | null {
 }
 
 // A safe id in words: "fact-accounts-basis" -> "accounts basis". Ids are validated, never free text.
+const ID_PREFIXES = ['fact', 'obl', 'obligation', 'req', 'requirement', 'target', 'source', 'activity']
+
 export function words(id: string): string {
-  return id.replace(/^(fact|obl|obligation|req|requirement|target|source|activity)[-_]/, '').replace(/[-_.:]+/g, ' ').trim()
+  let rest = id
+  for (const prefix of ID_PREFIXES) {
+    const separator = rest[prefix.length]
+    if (rest.startsWith(prefix) && (separator === '-' || separator === '_')) {
+      rest = rest.slice(prefix.length + 1)
+      break
+    }
+  }
+  const parts: string[] = []
+  let part = ''
+  for (const char of rest) {
+    if ('-_.:'.includes(char)) {
+      if (part !== '') parts.push(part)
+      part = ''
+    } else part += char
+  }
+  if (part !== '') parts.push(part)
+  return parts.join(' ').trim()
+}
+
+// "eu-compliance-guard: unsafe-path: ..." -> "unsafe-path"; stderr carries only the CLI's fixed codes.
+export function errorCode(stderr: string | undefined): string | null {
+  const marker = 'eu-compliance-guard: '
+  if (stderr === undefined) return null
+  for (let start = stderr.indexOf(marker); start !== -1; start = stderr.indexOf(marker, start + 1)) {
+    let end = start + marker.length
+    while (end < stderr.length && (stderr[end] === '-' || (stderr[end] >= 'a' && stderr[end] <= 'z'))) end += 1
+    if (end > start + marker.length && stderr[end] === ':') return stderr.slice(start + marker.length, end)
+  }
+  return null
+}
+
+// "/state/run-1///" -> "run-1"
+export function baseName(path: string): string {
+  let end = path.length
+  while (end > 0 && path[end - 1] === '/') end -= 1
+  return path.slice(path.lastIndexOf('/', end - 1) + 1, end)
 }
 
 export function describeStep(step: NextStep): string {

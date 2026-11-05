@@ -38,6 +38,13 @@ def _emit(text: str, end: str = "\n") -> None:
         raise _OutputFailed from error
 
 
+def _emit_text(text: str) -> None:
+    """A human-readable result, always followed by the legal notice."""
+    from .notice import LEGAL_NOTICE
+    _emit(text)
+    _emit(LEGAL_NOTICE)
+
+
 def _flush() -> None:
     try:
         if sys.stdout is not None:
@@ -193,7 +200,7 @@ def _command(argv: list[str] | None) -> int:
         print(f"eu-compliance-guard: {code}: revalidation failed", file=sys.stderr)
         return 2
     _emit(f"Run {bundle.run.id}: processing state {bundle.run.state}; report.md and bundle.json retained.")
-    _emit("Processing state is not a compliance verdict.")
+    _emit_text("Processing state is not a compliance verdict.")
     return 0
 
 
@@ -207,7 +214,7 @@ def _init(args) -> int:
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'invalid-input'}: init failed", file=sys.stderr)
         return 2
     _emit(str(path))
-    _emit("Starter declarations written. Add requirements, facts, source targets and obligations, then run check.")
+    _emit_text("Starter declarations written. Add requirements, facts, source targets and obligations, then run check.")
     return 0
 
 
@@ -222,7 +229,7 @@ def _check(path: str, as_json: bool, previous: str | None = None) -> int:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'check-failed'}: check failed", file=sys.stderr)
         return 2
-    _emit(json.dumps(report, indent=2) if as_json else format_check(report))
+    (_emit(json.dumps(report, indent=2)) if as_json else _emit_text(format_check(report)))
     return 0 if report["valid"] else 2
 
 
@@ -256,9 +263,9 @@ def _ground(args) -> int:
     if pins:
         for fact, location in pins:
             _emit(f"{fact}: observed, pinned to {location}")
-        _emit("Run check, then a new revalidate run; a later change to the file makes this evidence unavailable.")
+        _emit_text("Run check, then a new revalidate run; a later change to the file makes this evidence unavailable.")
         return 0
-    _emit(json.dumps(report, indent=2) if args.json else grounding.format_ground(report))
+    (_emit(json.dumps(report, indent=2)) if args.json else _emit_text(grounding.format_ground(report)))
     return 0
 
 
@@ -280,7 +287,8 @@ def _next(args) -> int:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'next-failed'}: next step failed", file=sys.stderr)
         return 2
-    _emit(json.dumps({"run": args.run, "steps": steps}, indent=2) if args.json else nextstep.format_steps(steps))
+    (_emit(json.dumps({"run": args.run, "steps": steps}, indent=2)) if args.json
+     else _emit_text(nextstep.format_steps(steps)))
     return 0
 
 
@@ -306,8 +314,8 @@ def _score(args) -> int:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'score-failed'}: score failed", file=sys.stderr)
         return 2
-    _emit(json.dumps({"run": args.run, "scorecard": card.model_dump(mode="json"), "steps": steps}, indent=2)
-          if args.json else scorecard.format_text(card))
+    (_emit(json.dumps({"run": args.run, "scorecard": card.model_dump(mode="json"), "steps": steps}, indent=2))
+     if args.json else _emit_text(scorecard.format_text(card)))
     return 0
 
 
@@ -331,8 +339,8 @@ def _pr_check(args) -> int:
         code = getattr(error, "code", None)
         print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'pr-check-failed'}: pr check failed", file=sys.stderr)
         return 2
-    _emit(json.dumps(report, indent=2) if args.json else prcheck.format_markdown(report) if args.markdown
-          else prcheck.format_text(report))
+    (_emit(json.dumps(report, indent=2)) if args.json
+     else _emit_text(prcheck.format_markdown(report) if args.markdown else prcheck.format_text(report)))
     return 1 if args.strict and report["attention"] else 0
 
 
