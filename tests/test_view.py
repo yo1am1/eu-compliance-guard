@@ -55,7 +55,7 @@ class RunViewTests(unittest.TestCase):
         self.assertEqual(len(re.findall(r'<span class="tag [a-z]*">family</span>', html)), 11)
         v.write_view(self.run)  # A later view replaces the derived file.
         self.assertEqual(sorted(item.name for item in path.parent.iterdir()),
-                         [path.name, "run-20261025T000000Z.scorecard.json"])
+                         sorted([path.name, "run-20261025T000000Z.scorecard.json", "run-20261025T000000Z.dashboard.html"]))
 
     def test_article_text_and_suggestions_come_from_retained_source_bytes(self):
         text = ("FICTIONAL SOURCE — SYNTHETIC EXAMPLE ONLY\nArticle 1\nFictional review records\n"
@@ -216,7 +216,27 @@ class RunViewTests(unittest.TestCase):
         v.write_view(self.run)
         self.assertFalse(path.is_symlink())
         self.assertEqual((outside.read_text(), path.read_bytes()), ("keep", first))
-        self.assertEqual(sorted(item.name for item in path.parent.iterdir()), [html.name, path.name])
+        self.assertEqual(sorted(item.name for item in path.parent.iterdir()),
+                         sorted([html.name, path.name, "run-20261025T000000Z.dashboard.html"]))
+
+    def test_dashboard_is_one_static_private_page_opened_from_the_cli(self):
+        dashboard = v.write_view(self.run, dashboard=True)
+        self.assertEqual(dashboard.name, "run-20261025T000000Z.dashboard.html")
+        self.assertEqual(dashboard.stat().st_mode & 0o777, 0o600)
+        page = dashboard.read_text()
+        self.assertIn("default-src 'none'", page)
+        self.assertNotIn("<script", page.lower())
+        self.assertNotIn("http", page.replace("http-equiv", ""))
+        self.assertIn('href="run-20261025T000000Z.html"', page)
+        self.assertIn(v._review_progress(s.score(self.bundle)), page)
+        first = dashboard.read_bytes()
+        v.write_view(self.run)
+        self.assertEqual(dashboard.read_bytes(), first)
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch("webbrowser.open", return_value=True) as opened, redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(main(["view", "--run", str(self.run), "--dashboard", "--open"]), 0)
+        self.assertEqual(stdout.getvalue().strip(), str(dashboard))
+        opened.assert_called_once_with(dashboard.as_uri())
 
     def test_review_progress_escapes_declared_text(self):
         payload = json.loads(self.input.read_text())

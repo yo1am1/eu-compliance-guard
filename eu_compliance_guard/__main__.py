@@ -123,6 +123,8 @@ def _command(argv: list[str] | None) -> int:
     view = commands.add_parser("view", help="Write and optionally open a static HTML view of a verified run", allow_abbrev=False)
     view.add_argument("--run", required=True, help="Existing run directory with a valid completion marker")
     view.add_argument("--open", action="store_true", help="Open the view in the default browser")
+    view.add_argument("--dashboard", action="store_true",
+                      help="Print (and with --open, open) the one-page review-progress dashboard instead of the full report")
     step = commands.add_parser("next", help="Rank the next review steps of a run by the open requirements they unblock",
                                allow_abbrev=False)
     step.add_argument("--run", help="Completed run directory (default: the newest run in this project's state-dir)")
@@ -149,7 +151,7 @@ def _command(argv: list[str] | None) -> int:
     arguments = sys.argv[1:] if argv is None else argv
     args = parser.parse_args(arguments)
     if args.command == "view":
-        return _view(args.run, args.open)
+        return _view(args.run, args.open, args.dashboard)
     if args.command == "next":
         return _next(args)
     if args.command == "score":
@@ -351,10 +353,10 @@ def _default_declarations():
     return load_input(_DEFAULT_INPUT)
 
 
-def _view(run_dir: str, open_browser: bool) -> int:
+def _view(run_dir: str, open_browser: bool, dashboard: bool = False) -> int:
     try:
         from .view import write_view
-        path = write_view(run_dir)
+        path = write_view(run_dir, dashboard=dashboard)
     except KeyboardInterrupt:
         return 130
     except Exception as error:

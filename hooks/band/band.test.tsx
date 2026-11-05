@@ -161,6 +161,9 @@ test('buttons run the plugin skills and the report view through the plugin CLI',
   expect(view).toContain('-P')
   expect(processes.some(argv => argv[0] === 'realpath' && argv[2] === RUN)).toBe(true)
   expect(await ui.find({ type: 'Link' })).toBeDefined()
+  await ui.press({ key: 'dashboard' })
+  const dashboard = processes.find(argv => argv.includes('--dashboard'))
+  expect(dashboard?.slice(-5)).toEqual(['view', '--run', RUN, '--dashboard', '--open'])
   await ui.unmount()
 })
 

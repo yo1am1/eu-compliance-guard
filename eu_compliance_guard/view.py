@@ -14,6 +14,8 @@ from pathlib import Path
 import re
 import stat
 
+from urllib.parse import quote
+
 from . import articles, models as m, nextstep, revalidation as r, scorecard
 
 CSS = """
@@ -393,6 +395,34 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
     return "\n".join(parts)
 
 
+def render_dashboard(bundle: m.RevalidationBundle, card: m.Scorecard | None = None, report: str | None = None) -> str:
+    """One self-contained page: review progress, next steps and owner questions. No script, no request."""
+    card = card or scorecard.score(bundle)
+    banner = ("FICTIONAL / SYNTHETIC DATA. Every conclusion below is fictional and establishes no real EU duty."
+              if bundle.synthetic else "Recorded declarations and self-attested reviews. Not a compliance verdict.")
+    parts = [
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">",
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+        "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">",
+        f"<title>EU Compliance Guard dashboard</title><style>{CSS}</style></head><body><main>",
+        "<h1>EU Compliance Guard dashboard</h1>",
+        f'<p class="muted">Project <code>{escape(bundle.project_id)}</code> · run <code>{escape(bundle.run.id)}</code> · '
+        f'assessment date {escape(bundle.declarations.scope.assessment_date)} · ended {escape(bundle.run.ended_at or "—")}'
+        + (f' · <a href="{escape(quote(report))}">full report</a>' if report else "") + "</p>",
+        f'<div class="banner">{escape(banner)}</div>',
+        _review_progress(card),
+        "<h2>Next best steps</h2>",
+        "<p class=\"muted\">Ranked by how many open requirements each step unblocks. Workflow guidance, not a verdict.</p>",
+        _next_steps(bundle),
+        "<h2>Questions for the project owner</h2>",
+        _owner_questions(bundle),
+        '<p class="muted">Generated from the verified run bundle. Points count recorded review steps; '
+        "they are not a compliance score, verdict or legal approval.</p>",
+        "</main></body></html>",
+    ]
+    return "\n".join(parts)
+
+
 def verify_run(run_dir: str | os.PathLike, contents: dict[str, bytes] | None = None) -> m.RevalidationBundle:
     """Accept a run only when its marker and every listed artifact digest match."""
     from .history import load_run
@@ -402,7 +432,7 @@ def verify_run(run_dir: str | os.PathLike, contents: dict[str, bytes] | None = N
         raise ViewError(error.code) from None
 
 
-def write_view(run_dir: str | os.PathLike) -> Path:
+def write_view(run_dir: str | os.PathLike, dashboard: bool = False) -> Path:
     """Write ``<parent>/views/<run>.html`` and ``<run>.scorecard.json`` (0700 directory, 0600 files).
 
     Each file is written to a temporary name and renamed into place, never through a symlink;
@@ -415,7 +445,9 @@ def write_view(run_dir: str | os.PathLike) -> Path:
     bundle = verify_run(run_dir, contents)
     card = scorecard.score(bundle)
     html = render_html(bundle, contents, card).encode("utf-8")
-    files = [(run_dir.name + ".scorecard.json", scorecard.to_json(card)), (run_dir.name + ".html", html)]
+    files = [(run_dir.name + ".scorecard.json", scorecard.to_json(card)),
+             (run_dir.name + ".dashboard.html", render_dashboard(bundle, card, run_dir.name + ".html").encode("utf-8")),
+             (run_dir.name + ".html", html)]
     try:
         with r._parent(run_dir) as (parent_fd, _):
             r._private_parent(parent_fd)
@@ -443,4 +475,4 @@ def write_view(run_dir: str | os.PathLike) -> Path:
         raise ViewError(error.code) from None
     except OSError:
         raise ViewError("io-failed") from None
-    return run_dir.parent / "views" / (run_dir.name + ".html")
+    return run_dir.parent / "views" / (run_dir.name + (".dashboard.html" if dashboard else ".html"))

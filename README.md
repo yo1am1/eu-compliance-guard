@@ -78,14 +78,20 @@ In your project:
 the desktop app. In projects with `.eu-compliance-guard/`, it shows the latest run's
 state, open gaps, supported requirements, assessment-date age and source attempts, plus
 the next best step (for example `Next: confirm fact-minimum-age · unblocks 2 open
-requirements`). It has **Next step**, **Audit**, **Review diff**, **Gaps**, **Open report**,
-**Panel** and **Help** buttons, and `–` folds it to one line. It shows counts and
+requirements`). It has **Next step**, **Audit**, **Review diff**, **Gaps**, **Dashboard**,
+**Open report**, **Panel** and **Help** buttons, and `–` folds it to one line. It shows counts and
 fixed-format fields only, never gap text.
 
 **Side panel.** **Panel** (or `/eucg-panel`) opens a pane beside the chat, docked in
 the desktop app and in a wide fullscreen terminal. It shows the top three next steps,
 the facts the owner still has to confirm (by id), and open gaps counted by area, with
 buttons to work on step 1, open the report, list gaps or refresh.
+
+**Dashboard** opens a one-page view of review progress: the meters, the next best
+steps and the owner's open questions, with a link to the full report. Like Ponytail's
+board, it is a single self-contained HTML file written beside the report, with no
+build, no server and no scripts, opened straight from disk in your browser
+(`view --run <run dir> --dashboard --open`).
 
 **Open report** writes a static HTML view of the verified run and opens it in your
 browser. The page has no scripts, loads nothing and escapes every value. When the run
@@ -136,7 +142,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `next [--run <run dir>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
 | `score [--run <run dir>] [--against <run dir>] [--top N] [--json]` | Show the review progress of the newest (or given) run: separate meters, points out of 10, never a compliance score. Exit 0 whatever the points |
 | `pr-check [--diff <file>\|-] [--input <file>] [--markdown\|--json] [--strict]` | Screen a diff's added lines for legal touchpoints, undeclared concepts and pinned evidence in changed files; `--strict` exits 1 when something needs attention |
-| `view --run <run dir> [--open]` | Verify a run and write `<parent>/views/<run>.html` and `<run>.scorecard.json` (both 0600); optionally open the HTML |
+| `view --run <run dir> [--dashboard] [--open]` | Verify a run and write `<parent>/views/<run>.html`, `<run>.dashboard.html` and `<run>.scorecard.json` (all 0600); print and optionally open the report, or with `--dashboard` the dashboard |
 
 ```sh
 eu-compliance-guard init --project-id shop --jurisdiction EU --jurisdiction DE
@@ -301,10 +307,11 @@ recorded parent and used the same tool version; the trend never changes the stat
 
 ![Review progress at the top of the HTML view of the synthetic fixture run](docs/images/review-progress-view.png)
 
-`view` also writes `<parent>/views/<run>.scorecard.json` (0600). The local dashboard
-page in `frontend/` renders such a file: run `npm --prefix frontend run build` and
-`npm --prefix frontend run preview` (it listens on 127.0.0.1), then choose or drop the
-file. It is read in the browser only; the page's Content Security Policy blocks every
+`view` also writes `<parent>/views/<run>.scorecard.json` (0600) as data for other
+tools. The plugin never needs it: its **Dashboard** button opens the static page above.
+For a future hosted service, `frontend/` holds a React page that renders such a file
+(`npm --prefix frontend run build`, then `npm --prefix frontend run preview`; choose
+or drop the file). It is read in the browser only; the page's Content Security Policy blocks every
 connection, and its types are generated from `eu_compliance_guard/models.py`.
 
 ### Grounding assumptions in the code

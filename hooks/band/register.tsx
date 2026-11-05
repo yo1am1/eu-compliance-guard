@@ -144,8 +144,9 @@ async function runSkill($: EngineInterface, name: string) {
 }
 
 // Writes the run's HTML view with the plugin's own CLI and opens it in the default browser.
-async function openReport($: EngineInterface, linked: string) {
-  const result = await cli($, ['view', '--run', await resolve($, linked), '--open'])
+// The dashboard is one static page the CLI writes beside the report and opens in the browser, like the report.
+async function openReport($: EngineInterface, linked: string, dashboard = false) {
+  const result = await cli($, ['view', '--run', await resolve($, linked), ...(dashboard ? ['--dashboard'] : []), '--open'])
   const path = result?.exitCode === 0 ? result.stdout.trim().split('\n').pop() ?? '' : ''
   if (path === '') {
     // stderr carries only the CLI's fixed safe code.
@@ -153,8 +154,9 @@ async function openReport($: EngineInterface, linked: string) {
     $.ui.toast(`EU Compliance Guard: report view failed (${code})`)
     return
   }
-  await update($, lastView, () => path)
-  $.ui.toast(result?.stderr.includes('no-browser') ? `Report written: ${path}` : 'Report opened in your browser')
+  if (!dashboard) await update($, lastView, () => path)
+  const what = dashboard ? 'Dashboard' : 'Report'
+  $.ui.toast(result?.stderr.includes('no-browser') ? `${what} written: ${path}` : `${what} opened in your browser`)
 }
 
 // "▓▓▓░░░ 3/12 requirements supported · 94 open items (−7 since last run)": progress first, never a verdict.
@@ -239,6 +241,7 @@ export const register: Register = on => {
           {areas.map(item => <Text>{`${item.count} · ${item.area}`}</Text>)}
         </Box>
         <Box flexDirection="row" gap={1}>
+          <Button key="dashboard" label="Dashboard" variant="primary" onPress={() => openReport($, run.dir, true)} />
           <Button key="report" label="Open report" onPress={() => openReport($, run.dir)} />
           <Button key="gaps" label="Gaps" onPress={() => runSkill($, 'eucg-gaps')} />
           <Button key="refresh" label="Refresh" onPress={() => refresh($, true)} />
@@ -314,6 +317,7 @@ export const register: Register = on => {
           <Button key="audit" label="Audit" variant={stepForRun ? undefined : 'primary'} hotkey="a" onPress={() => runSkill($, 'eucg-audit')} />
           <Button key="review" label="Review diff" hotkey="r" onPress={() => runSkill($, 'eucg-review')} />
           {run ? <Button key="gaps" label="Gaps" hotkey="g" onPress={() => runSkill($, 'eucg-gaps')} /> : null}
+          {run ? <Button key="dashboard" label="Dashboard" hotkey="d" onPress={() => openReport($, run.dir, true)} /> : null}
           {run ? <Button key="report" label="Open report" hotkey="o" onPress={() => openReport($, run.dir)} /> : null}
           {run ? <Button key="panel" label="Panel" hotkey="p" onPress={() => openPanel($)} /> : null}
           <Button key="help" label="Help" hotkey="h" onPress={() => runSkill($, 'eucg-help')} />
