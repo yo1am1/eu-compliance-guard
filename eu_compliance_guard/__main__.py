@@ -119,6 +119,11 @@ def _command(argv: list[str] | None) -> int:
     state = commands.add_parser("state-dir", help="Print (and create) the private run directory for a project",
                                 allow_abbrev=False)
     state.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file naming the project")
+    accept = commands.add_parser("accept", help="Map a requirement to a candidate obligation citing an article (no decision)",
+                                 allow_abbrev=False)
+    accept.add_argument("mapping", metavar="REQ=TARGET:ARTICLE", help="For example req-delete=target-gdpr:Article 17")
+    accept.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    accept.add_argument("--json", action="store_true", help="Print the result as JSON")
     graph = commands.add_parser("graph", help="Map the project's Python files, functions, imports and calls (static, read-only)",
                                 allow_abbrev=False)
     graph.add_argument("--input", default=".eu-compliance-guard/declarations.json",
@@ -179,6 +184,8 @@ def _command(argv: list[str] | None) -> int:
         return _ground(args)
     if args.command == "graph":
         return _graph(args)
+    if args.command == "accept":
+        return _accept(args)
     if args.command == "state-dir":
         try:
             from .authoring import state_dir
@@ -241,6 +248,22 @@ def _check(path: str, as_json: bool, previous: str | None = None) -> int:
         return 2
     (_emit(json.dumps(report, indent=2)) if as_json else _emit_text(format_check(report)))
     return 0 if report["valid"] else 2
+
+
+def _accept(args) -> int:
+    import json
+    from . import mapping
+    try:
+        result = mapping.accept(args.input, args.mapping)
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        known = _ERROR_CODES | {"bad-mapping", "unknown-id"}
+        print(f"eu-compliance-guard: {code if code in known else 'accept-failed'}: accept failed", file=sys.stderr)
+        return 2
+    (_emit(json.dumps(result, indent=2)) if args.json else _emit_text(mapping.format_result(result)))
+    return 0
 
 
 def _graph(args) -> int:
