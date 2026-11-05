@@ -16,7 +16,7 @@ import stat
 from urllib.parse import quote
 
 from .notice import LEGAL_NOTICE
-from . import articles, models as m, nextstep, revalidation as r, scorecard
+from . import articles, grounding, models as m, nextstep, revalidation as r, scorecard
 
 CSS = """
 :root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--line:#e4e1d8;--card:#fff;--warn:#9a5b00;--warnbg:#fff4df;--bad:#a1271b;--badbg:#fde9e6;--ok:#2d6a3e;--okbg:#e6f3e9}
@@ -290,7 +290,8 @@ def _suggestions(statement: str, index: articles.ArticleIndex) -> str:
     found = index.suggest(statement, top=3)
     if not found:
         return ""
-    names = " · ".join(f'{escape(item["article"])} <span class="muted">{escape(item["title"][:60])} ({escape(item["source"])})</span>'
+    names = " · ".join(f'{escape(item["article"])} <span class="muted">{escape(item["title"][:60])} ({escape(item["source"])}); '
+                       f'matched {escape(grounding.explain(item["matched"]))}</span>'
                        for item in found)
     return f'<div class="suggest">Articles to read: {names}<br><span class="muted">Text search suggestion, not a mapping.</span></div>'
 

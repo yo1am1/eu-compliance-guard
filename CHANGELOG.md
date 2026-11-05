@@ -23,6 +23,20 @@
   and grounding, with a baseline floor enforced by a test. Baseline: articles top-1
   15/20 and top-3 18/20 on tuning, 14/20 and 17/20 held out; grounding top-1 7/10 and
   top-3 8/10.
+- Explained suggestions (1.5 bolt 006): each article suggestion and grounding
+  candidate lists the terms that matched. Each term is marked as coming from the
+  statement or fact, or bridged through the legal or concept vocabulary (with the word
+  it came from). This appears in the view, in `ground` text and in JSON. The search
+  also improved:
+
+  | Set | Before (top-1, top-3) | After |
+  |---|---|---|
+  | Articles, tuning | 15, 18 | 17, 20 |
+  | Articles, held out | 14, 17 | 14, 17 |
+  | Grounding | 7, 8 | 7, 10 |
+
+  The changes are rectification and parental-consent bridge terms, and base word
+  forms ("renews" finds `auto_renew`) in grounding. Only tuning misses were used.
 - Every text, markdown and HTML output ends with one legal notice: not legal advice,
   the named reviewer decides and is responsible, no warranty.
 

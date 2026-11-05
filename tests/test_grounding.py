@@ -166,6 +166,15 @@ class GroundingTests(unittest.TestCase):
         # A candidate naming the fact's own terms is covered.
         self.assertFalse(any(example.startswith("app/web.py:2 ") for example in examples), examples)
 
+    def test_candidates_explain_matched_terms_in_json_and_text(self):
+        report = g.ground(self.declarations)
+        top = {item["fact"]: item for item in report["facts"]}["fact-cookie-lifetime"]["candidates"][0]
+        self.assertIn({"term": "cookie", "via": "fact"}, top["matched"])
+        self.assertTrue(all(item["via"] in ("fact", "concept vocabulary") for item in top["matched"]))
+        self.assertIn("matched: ", g.format_ground(report))
+        self.assertIn("cookie", g.explain(top["matched"]))
+        self.assertEqual(g.explain([]), "no shared term")
+
     def test_tokens_split_identifiers(self):
         self.assertEqual(g.tokens("response.set_cookie(maxAge=395)"), ["response", "set", "cookie", "max", "age", "395"])
 
