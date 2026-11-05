@@ -1,4 +1,4 @@
-.PHONY: check contracts plugin-check verify-hosts
+.PHONY: check contracts plugin-check verify-hosts eval
 check:
 	uv run --locked python -m unittest discover -s tests -v
 	uv run --locked python -m eu_compliance_guard.schema --check
@@ -14,3 +14,5 @@ plugin-check:
 	claude plugin test .
 verify-hosts:
 	uv run --locked --no-dev python scripts/verify_hosts.py --consent
+eval:
+	uv run --locked python -m eu_compliance_guard.evaluation

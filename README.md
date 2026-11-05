@@ -316,6 +316,15 @@ For a future hosted service, `frontend/` holds a React page that renders such a 
 or drop the file). It is read in the browser only; the page's Content Security Policy blocks every
 connection, and its types are generated from `eu_compliance_guard/models.py`.
 
+### Search evaluation
+
+`make eval` scores article search and code grounding on a fixed synthetic set in
+`fixtures/eval/`. The set is a fictional 28-article act written for this purpose (not
+law), 40 developer-style requirements split into a tuning half and a held-out half, and
+a small fictional code project with 10 facts. It reports top-1 and top-3 hits. A test
+keeps the scores at or above `fixtures/eval/baseline.json`, and a search change ships
+with its before/after numbers. The numbers measure ranking, not legal correctness.
+
 ### Grounding assumptions in the code
 
 `ground` builds a local index of the project's text files: no network, model or

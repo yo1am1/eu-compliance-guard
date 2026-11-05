@@ -1,0 +1,113 @@
+FICTIONAL DIGITAL SERVICES AND DATA ACT (synthetic evaluation text, not law)
+
+Article 1
+Subject matter and scope
+This Act lays down rules on the processing of personal data by providers of online services and on contracts concluded with consumers at a distance.
+
+Article 2
+Definitions
+For the purposes of this Act, personal data means any information relating to an identified or identifiable natural person; processing means any operation performed on personal data; controller means the body that determines the purposes and means of processing; processor means a body that processes personal data on behalf of the controller; terminal equipment means a device used by a user to access a service.
+
+Article 3
+Principles relating to processing
+Personal data shall be processed lawfully, fairly and transparently, collected for specified purposes only, limited to what is necessary, kept accurate, and kept in a form which permits identification for no longer than is necessary for the purposes of the processing. Data no longer needed shall be deleted or anonymised at the end of the retention period.
+
+Article 4
+Lawful grounds for processing
+Processing shall be lawful only where the person has given consent, where it is necessary for the performance of a contract, for compliance with a legal obligation, or for the legitimate interests of the controller, unless those interests are overridden by the rights of the person.
+
+Article 5
+Conditions for consent
+Consent shall be freely given, specific, informed and unambiguous. The controller shall be able to demonstrate that consent was given. The person shall have the right to withdraw consent at any time, and withdrawing shall be as easy as giving consent.
+
+Article 6
+Consent of children in relation to online services
+Where an online service is offered directly to a child below the age of sixteen years, processing based on consent shall be lawful only where consent is given or authorised by the holder of parental responsibility. The provider shall make reasonable efforts to verify the age of the user and the authorisation.
+
+Article 7
+Special categories of personal data
+Processing of data concerning health, genetic data, biometric data for the purpose of uniquely identifying a person, and data revealing religious beliefs or sexual orientation shall be prohibited unless the person has given explicit consent or another listed exception applies.
+
+Article 8
+Information to be provided when data are collected
+When personal data are collected, the controller shall provide the identity of the controller, the purposes of the processing, the recipients or categories of recipients, the period for which the data will be stored, and the existence of the rights of access, rectification, erasure and portability.
+
+Article 9
+Right of access
+The person shall have the right to obtain confirmation of whether personal data concerning them are processed and a copy of those data. The controller shall answer the request without undue delay and in any event within one month.
+
+Article 10
+Right to rectification
+The person shall have the right to obtain without undue delay the rectification of inaccurate personal data and to have incomplete data completed.
+
+Article 11
+Right to erasure
+The person shall have the right to obtain the erasure of personal data without undue delay where the data are no longer necessary, where consent is withdrawn, or where the person closes the account, and the controller shall erase the data including copies held by processors.
+
+Article 12
+Right to data portability
+The person shall have the right to receive the personal data they provided in a structured, commonly used and machine-readable format and to transmit those data to another controller.
+
+Article 13
+Right to object and direct marketing
+Where personal data are processed for direct marketing purposes, the person shall have the right to object at any time, and the data shall no longer be processed for such purposes. Each marketing message shall offer a simple means to unsubscribe.
+
+Article 14
+Automated individual decisions
+The person shall have the right not to be subject to a decision based solely on automated processing, including profiling, which produces legal or similarly significant effects, and shall have the right to obtain human intervention and to contest the decision.
+
+Article 15
+Data protection by design and by default
+The controller shall implement measures designed to apply the principles effectively and shall ensure that, by default, only personal data necessary for each purpose are processed and that settings are the most protective available.
+
+Article 16
+Processors
+The controller shall use only processors providing sufficient guarantees. Processing by a processor shall be governed by a binding contract setting out the instructions of the controller. A processor shall not engage another processor without prior written authorisation of the controller.
+
+Article 17
+Records of processing activities
+Each controller shall maintain a record of processing activities under its responsibility, including the purposes, the categories of data and recipients, and the envisaged time limits for erasure.
+
+Article 18
+Security of processing
+The controller and the processor shall implement appropriate technical measures, including the pseudonymisation and encryption of personal data, the ability to ensure ongoing confidentiality and resilience, and a process for regularly testing the effectiveness of those measures.
+
+Article 19
+Notification of a personal data breach
+In the case of a personal data breach, the controller shall notify the supervisory authority without undue delay and, where feasible, not later than 72 hours after becoming aware of it. Where the breach is likely to result in a high risk, the controller shall also inform the affected persons.
+
+Article 20
+Impact assessment
+Where a type of processing is likely to result in a high risk, in particular large-scale processing of special categories of data or systematic monitoring, the controller shall carry out an assessment of the impact of the processing before it starts.
+
+Article 21
+Transfers to third countries
+Personal data shall be transferred to a third country only where that country ensures an adequate level of protection or where appropriate safeguards, such as standard contractual clauses, are in place.
+
+Article 22
+Storage of information in terminal equipment
+The storing of information, or the gaining of access to information already stored, in the terminal equipment of a user, such as cookies and similar tracking technologies, shall be allowed only where the user has given consent, unless it is strictly necessary to provide the service requested.
+
+Article 23
+Transparency of artificial intelligence systems
+Providers shall ensure that systems intended to interact with natural persons inform those persons that they are interacting with an artificial intelligence system, and that synthetic audio, image, video or text content generated by such a system is marked as artificially generated.
+
+Article 24
+Information before a distance contract
+Before the consumer is bound by a distance contract, the trader shall provide the total price including taxes, the duration of the contract, the conditions for terminating contracts of indeterminate duration or that are automatically extended, and the conditions for withdrawal.
+
+Article 25
+Right of withdrawal
+The consumer shall have a period of fourteen days to withdraw from a distance contract without giving any reason, and the trader shall reimburse all payments received within fourteen days of being informed of the withdrawal.
+
+Article 26
+Termination of subscriptions
+Where a contract was concluded online, the trader shall enable the consumer to terminate the contract through the same online interface, using a clearly labelled function, and shall confirm the termination without delay.
+
+Article 27
+Data protection officer
+The controller and the processor shall designate a data protection officer where their core activities consist of large-scale processing of special categories of data or regular and systematic monitoring of persons.
+
+Article 28
+Penalties
+Member authorities shall lay down rules on penalties applicable to infringements of this Act and shall ensure that they are effective, proportionate and dissuasive.

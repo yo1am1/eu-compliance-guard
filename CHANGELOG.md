@@ -19,6 +19,10 @@
 - `make verify-hosts` checks, with consent, that each official host answers over
   HTTPS. `docs/official-hosts.md` names each host's operator and purpose, and a test
   keeps it in step with the code.
+- `make eval`: a versioned synthetic evaluation set (1.5 bolt 005) for article search
+  and grounding, with a baseline floor enforced by a test. Baseline: articles top-1
+  15/20 and top-3 18/20 on tuning, 14/20 and 17/20 held out; grounding top-1 7/10 and
+  top-3 8/10.
 - Every text, markdown and HTML output ends with one legal notice: not legal advice,
   the named reviewer decides and is responsible, no warranty.
 
