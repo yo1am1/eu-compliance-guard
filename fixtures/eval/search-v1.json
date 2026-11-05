@@ -343,5 +343,57 @@
         "app/llm.py:1"
       ]
     ]
+  },
+  "graph_grounding": {
+    "project": "graph-project",
+    "facts": [
+      {
+        "key": "Member weight is sent to the language model",
+        "value": true,
+        "expected": [
+          "app/coach.py:7",
+          "app/llm.py:2"
+        ]
+      },
+      {
+        "key": "Visitor events are tracked with analytics",
+        "value": true,
+        "expected": [
+          "app/analytics.py:5",
+          "app/analytics.py:10"
+        ]
+      },
+      {
+        "key": "Subscription renews automatically",
+        "value": true,
+        "expected": [
+          "app/billing.py:6"
+        ]
+      },
+      {
+        "key": "Member birth date is stored",
+        "value": true,
+        "expected": [
+          "app/models.py:5",
+          "app/models.py:10"
+        ]
+      },
+      {
+        "key": "Model client used for prompts",
+        "value": null,
+        "expected": [
+          "app/llm.py:2",
+          "app/llm.py:1"
+        ]
+      },
+      {
+        "key": "Analytics events are saved to storage",
+        "value": true,
+        "expected": [
+          "app/analytics.py:6",
+          "app/storage.py:1"
+        ]
+      }
+    ]
   }
 }

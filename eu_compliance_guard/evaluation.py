@@ -19,6 +19,21 @@ def _hits(found: list[str], expected: list[str]) -> tuple[int, int]:
     return int(bool(found[:1]) and found[0] in expected), int(any(item in expected for item in found[:3]))
 
 
+def _ground_cases(project: Path, facts: list[dict]) -> dict:
+    code = grounding.build_index(project)
+    top1 = top3 = 0
+    misses = []
+    for case in facts:
+        fact = m.Fact(id="fact-eval", revision=0, key=case["key"], value=case["value"], basis="assumed",
+                      evidence_ids=[], owner="Fictional owner", observed_at="2026-11-05T00:00:00Z", conflicts=[])
+        found = [item["location"] for item in grounding.search(code, grounding._fact_query(fact), 3)]
+        one, three = _hits(found, case["expected"])
+        top1, top3 = top1 + one, top3 + three
+        if not three:
+            misses.append(case["key"])
+    return {"cases": len(facts), "top1": top1, "top3": top3, "misses": misses}
+
+
 def evaluate(directory: Path = EVAL_DIR) -> dict:
     spec = json.loads((directory / "search-v1.json").read_text(encoding="utf-8"))
     act = articles.parse((directory / spec["act"]["path"]).read_bytes(), "text/plain")
@@ -46,6 +61,7 @@ def evaluate(directory: Path = EVAL_DIR) -> dict:
         if not three:
             misses.append(case["key"])
     result["grounding"] = {"cases": len(spec["grounding"]["facts"]), "top1": top1, "top3": top3, "misses": misses}
+    result["graph_grounding"] = _ground_cases(directory / spec["graph_grounding"]["project"], spec["graph_grounding"]["facts"])
     found = {(flow["hops"][0]["location"], flow["hops"][-1]["location"])
              for flow in graph.flows(graph.build_graph(directory / spec["flows"]["project"]))}
     expected = {tuple(item) for item in spec["flows"]["expected"]}
@@ -55,7 +71,7 @@ def evaluate(directory: Path = EVAL_DIR) -> dict:
 
 def format_result(result: dict) -> str:
     lines = [f"Search evaluation v{result['version']} (synthetic; ranking quality, not legal correctness)"]
-    for name in ("articles_tune", "articles_held_out", "grounding"):
+    for name in ("articles_tune", "articles_held_out", "grounding", "graph_grounding"):
         item = result[name]
         lines.append(f"{name:<18} top-1 {item['top1']:>2}/{item['cases']}  top-3 {item['top3']:>2}/{item['cases']}")
         lines += [f"  miss: {miss}" for miss in item["misses"]]
