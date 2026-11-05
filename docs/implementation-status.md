@@ -75,6 +75,21 @@ Order of priority: security, then determinism, then features.
 - **Determinism.** `tests/test_determinism.py` compares every output across hash
   seeds, time zones and locales. A planted set-order dependency makes it fail.
 
+## Search evaluation, 1.5 bolt 005 (2026-11-05)
+
+`make eval` runs the synthetic set in `fixtures/eval/`: a fictional act, 20 tuning and
+20 held-out requirements, and 10 grounding facts over a fictional project. Baseline,
+enforced as a floor by `tests/test_evaluation.py`:
+
+| Set | Top-1 | Top-3 |
+|---|---|---|
+| Articles, tuning | 15/20 | 18/20 |
+| Articles, held out | 14/20 | 17/20 |
+| Grounding | 7/10 | 8/10 |
+
+Misses to work on in bolt 006: parental consent, rectification wording ("correct",
+"fix"), pseudonymisation, cancelling "a plan", and the auto-renew and encryption facts.
+
 ## Verification for this extraction
 
 - `make check`: all 61 synthetic tests passed; JSON Schema and generated TypeScript
