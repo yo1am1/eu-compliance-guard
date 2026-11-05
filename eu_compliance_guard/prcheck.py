@@ -315,7 +315,7 @@ def _snippet(text: str) -> str:
     return text if len(text) <= SNIPPET else text[:SNIPPET - 1] + "…"
 
 
-def pr_check(diff: str, declared: m.RevalidationInput | None = None) -> dict:
+def pr_check(diff: str, declared: m.RevalidationInput | None = None, project_graph: m.ProjectGraph | None = None) -> dict:
     if len(diff.encode("utf-8", "replace")) > MAX_DIFF_BYTES:
         raise PRCheckError("capacity-exceeded")
     added, touched, files = parse_diff(diff)
@@ -353,9 +353,35 @@ def pr_check(diff: str, declared: m.RevalidationInput | None = None) -> dict:
             touchpoints.append({"concept": concept, "label": label, "families": FAMILIES[concept],
                                 "count": len(found[concept]), "examples": found[concept][:MAX_EXAMPLES],
                                 "declared": _mentioned(concept, vocabulary_declared)})
-    attention = sum(not item["declared"] for item in touchpoints) + len(pinned) + len(requirements)
+    flows = _touched_flows(added, declared, project_graph) if declared is not None and project_graph is not None else []
+    attention = sum(not item["declared"] for item in touchpoints) + len(pinned) + len(requirements) + len(flows)
     return {"files": files, "declarations": declared is not None, "touchpoints": touchpoints,
-            "pinned_evidence": pinned, "requirements_in_changed_files": requirements, "attention": attention}
+            "pinned_evidence": pinned, "requirements_in_changed_files": requirements, "flows": flows,
+            "graph": project_graph is not None, "attention": attention}
+
+
+def _touched_flows(added: dict, declared: m.RevalidationInput, project_graph: m.ProjectGraph) -> list[dict]:
+    """Data flows with an added line inside one of their functions, and the facts pinned on them."""
+    from . import graph
+    base = "" if declared.files_root == "project" else ".eu-compliance-guard/"
+    facts_by_evidence: dict[str, set[str]] = {}
+    for fact in m.scope_facts(declared.scope):
+        for evidence in fact.evidence_ids:
+            facts_by_evidence.setdefault(evidence, set()).add(fact.id)
+    touched = []
+    for flow in graph.flows(project_graph):
+        changed = []
+        for hop in flow["hops"]:
+            path, _, start = hop["location"].rpartition(":")
+            changed += [f"{base}{path}:{number}" for number, _ in added.get(base + path, [])
+                        if int(start) <= number <= hop["end_line"]]
+        if not changed:
+            continue
+        facts = sorted({fact for item in declared.evidence
+                        if graph.covers(flow, set(item.evidence.source_refs))
+                        for fact in facts_by_evidence.get(item.evidence.id, ())})
+        touched.append({"flow": graph.describe_flow(flow), "changed": changed[:MAX_EXAMPLES], "facts": facts})
+    return touched
 
 
 def format_markdown(report: dict) -> str:
@@ -379,6 +405,10 @@ def format_markdown(report: dict) -> str:
     if report["requirements_in_changed_files"]:
         lines += ["", "**Requirements declared in a changed file** (re-read their statements):"]
         lines += [f"- {item['requirement']} (`{_code(item['path'])}`)" for item in report["requirements_in_changed_files"]]
+    if report.get("flows"):
+        lines += ["", "**Data flows changed by this diff** (possible paths from static parsing; re-check the facts on them):"]
+        lines += [f"- `{_code(item['flow'])}`: " + (f"facts on it: {', '.join(item['facts'])}" if item["facts"]
+                  else "no fact covers this flow") for item in report["flows"]]
     if not report["declarations"]:
         lines += ["", "No `.eu-compliance-guard/declarations.json` found, so nothing is compared with declarations."]
     lines += ["", f"{report['attention']} item(s) need attention. Candidate families are screening hints, "
@@ -399,6 +429,9 @@ def format_text(report: dict) -> str:
         lines.append(f"- pinned evidence in changed {item['path']}: ground {', '.join(item['facts']) or item['evidence']} again")
     for item in report["requirements_in_changed_files"]:
         lines.append(f"- requirement {item['requirement']} is declared in changed {item['path']}")
+    for item in report.get("flows", []):
+        lines.append(f"- data flow changed: {item['flow']}; "
+                     + (f"re-check {', '.join(item['facts'])}" if item["facts"] else "no fact covers it"))
     if not report["declarations"]:
         lines.append("No declarations file found, so nothing is compared with declarations.")
     lines.append("Keyword screening only; not a compliance verdict.")

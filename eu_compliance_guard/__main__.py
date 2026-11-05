@@ -359,7 +359,15 @@ def _pr_check(args) -> int:
         if len(diff) > prcheck.MAX_DIFF_BYTES:
             raise prcheck.PRCheckError("capacity-exceeded")
         declared = load_input(args.input) if args.input is not None else _default_declarations()
-        report = prcheck.pr_check(diff.decode("utf-8", "replace"), declared)
+        project_graph = None
+        if declared is not None:
+            # The checked-out project, mapped by parsing only, shows which data flows the diff changes.
+            from pathlib import Path
+            from . import graph, grounding
+            location = Path(args.input or ".eu-compliance-guard/declarations.json")
+            _, root = grounding._declarations(location)
+            project_graph = graph.build_graph(root, grounding._own_files(location, root))
+        report = prcheck.pr_check(diff.decode("utf-8", "replace"), declared, project_graph)
     except KeyboardInterrupt:
         return 130
     except Exception as error:
