@@ -374,7 +374,10 @@ requirements that live in a changed file. It is deterministic and offline. Colou
 from `git diff --color` are ignored; input that names no changed file (prose or a
 `--stat` summary) or holds hunk lines a unified diff cannot (such as `--word-diff`
 output) exits 2 with `invalid-input` instead of passing unread. A merge's combined diff
-(`git show <merge>`) is screened too: a line added against any parent counts. To run it on
+(`git show <merge>`) is screened too: a line added against any parent counts. With
+declarations, it also maps the checked-out Python code (as `graph` does) and lists each
+data flow whose functions gained an added line, with the facts pinned on that flow, or
+says that no fact covers it. Each counts as an item needing attention. To run it on
 every pull request, copy [`examples/github/eu-compliance-guard-pr.yml`](examples/github/eu-compliance-guard-pr.yml)
 into `.github/workflows/`; it keeps one comment updated, and `--strict` can fail the
 check. It is keyword screening: a diff with no touchpoints is not a clean bill.
