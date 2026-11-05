@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Review progress: `score` shows separate meters for one run (Alignment, Law text,
+  Facts, Decisions, Mapping, Reviews), each points out of 10 for recorded review
+  steps, with a family screening line and unscored record hygiene. There is no total
+  and no verdict; see `docs/decisions/dashboard-review-progress.md`.
+- The HTML view leads with a Review progress section, and `view` also writes
+  `views/<run>.scorecard.json` (0600).
+- The band and panel show the meters in fixed format (one `score --json` call per run
+  replaces the `next` call).
+- `frontend/` has a local, offline dashboard page that renders a scorecard file.
+
+### Changed
+
+- Gap phrases that other modules read back and the provision pin checks are shared
+  constants and one helper in `revalidation.py`; recorded output is unchanged.
+
 ## 1.2.0 — 2026-11-05
 
 Licence change and the Great Auditor fixes: 83 confirmed defects found by an agent

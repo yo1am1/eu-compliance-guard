@@ -1,0 +1,36 @@
+:root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--line:#e4e1d8;--card:#fff;--warn:#9a5b00;--warnbg:#fff4df;--bad:#a1271b;--badbg:#fde9e6;--accent:#3d5a80;--cell:#e4e1d8}
+@media (prefers-color-scheme:dark){:root{--bg:#161614;--fg:#ecebe6;--muted:#a3a29b;--line:#34332f;--card:#1f1e1c;--warn:#f0b35a;--warnbg:#3a2a12;--bad:#f08a7e;--badbg:#3d1915;--accent:#9fb7d9;--cell:#3a3935}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:24px 16px 64px;min-height:100vh}
+h1{font-size:24px;margin:0 0 4px}
+.muted{color:var(--muted)}
+code{font-size:13px;overflow-wrap:anywhere}
+.pick{display:inline-block;padding:6px 12px;border:1px solid var(--accent);border-radius:8px;cursor:pointer;font-weight:600;margin:8px 0}
+.pick input{display:block;margin-top:6px;font:inherit}
+.error{color:var(--bad);background:var(--badbg);padding:8px 12px;border-radius:8px}
+.progress{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:16px 0}
+.progress h2{margin:0;font-size:18px}
+.head{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.run{margin:4px 0 0;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--muted)}
+.chip.status{color:var(--fg);border-color:var(--accent)}
+.chip.bad{background:var(--badbg);color:var(--bad);border-color:transparent}
+.chip.fiction{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.bar{display:inline-flex;gap:2px;vertical-align:middle}
+.bar i{display:inline-block;width:12px;height:12px;border-radius:2px;background:var(--cell)}
+.bar i.on{background:var(--accent)}
+.bar i.cap{background:repeating-linear-gradient(45deg,var(--cell) 0 2px,transparent 2px 4px);outline:1px solid var(--cell)}
+.hero{border:1px solid var(--line);border-radius:8px;padding:12px;margin:8px 0}
+.hero .pts{font-size:28px;font-weight:700;margin:0 8px}
+.cta{border-left:3px solid var(--accent);padding:6px 10px;margin:10px 0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px}
+.tile.focus,.hero.focus{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.tile h3{font-size:14px;margin:0;display:flex;justify-content:space-between;gap:8px}
+.tile p{margin:4px 0;font-size:13px}
+.tile li,.tile summary{font-size:13px}
+.notice{font-size:13px;color:var(--muted);margin:8px 0 0}
+details{margin:6px 0}
+summary{cursor:pointer;font-weight:600}

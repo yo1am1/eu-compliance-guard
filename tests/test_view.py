@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from eu_compliance_guard import models as m, revalidation as r, view as v
+from eu_compliance_guard import models as m, revalidation as r, scorecard as s, view as v
 from eu_compliance_guard.__main__ import main
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures/revalidation-synthetic.json"
@@ -54,7 +54,8 @@ class RunViewTests(unittest.TestCase):
             self.assertIn(f"<td>{family}</td>", html)
         self.assertEqual(len(re.findall(r'<span class="tag [a-z]*">family</span>', html)), 11)
         v.write_view(self.run)  # A later view replaces the derived file.
-        self.assertEqual(sorted(item.name for item in path.parent.iterdir()), [path.name])
+        self.assertEqual(sorted(item.name for item in path.parent.iterdir()),
+                         sorted([path.name, "run-20261025T000000Z.scorecard.json", "run-20261025T000000Z.dashboard.html"]))
 
     def test_article_text_and_suggestions_come_from_retained_source_bytes(self):
         text = ("FICTIONAL SOURCE — SYNTHETIC EXAMPLE ONLY\nArticle 1\nFictional review records\n"
@@ -164,6 +165,98 @@ class RunViewTests(unittest.TestCase):
             os.chdir(cwd)
         self.assertTrue(opened.call_args.args[0].startswith("file:///"))
         self.assertIn("no-browser", stderr.getvalue())
+
+    def test_review_progress_leads_the_view_with_the_score_command_numbers(self):
+        from test_scorecard import banned_words
+        before = self.snapshot()
+        html = v.write_view(self.run).read_text()
+        self.assertEqual(self.snapshot(), before)
+        start, end = html.index('<section class="progress"'), html.index("</section>")
+        section = html[start:end]
+        self.assertLess(start, html.index('<div class="cards">'))
+        self.assertLess(html.index('<div class="banner">'), start)
+        stdout = io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["score", "--run", str(self.run), "--json"]), 0)
+        card = m.parse_record(m.Scorecard, json.dumps(json.loads(stdout.getvalue())["scorecard"]))
+        for item in card.dimensions:
+            label = s.LABELS[item.key]
+            self.assertIn(f"{item.done} of {item.total} {s.UNITS[item.key]}", section)
+            self.assertIn(f'aria-label="{item.points} of 10 points"', section)
+            self.assertIn(label if item.key != "alignment" else label.upper(), section)
+        self.assertIn("0 of 11 families screened", section)
+        self.assertIn("Record hygiene", section)
+        self.assertIn(m.SCORE_NOTICE, section)
+        self.assertIn("▶ NEXT</b> Map requirement-unmapped to a candidate obligation", section)
+        # The hero, five meter tiles, screening and hygiene each carry the fictional marker.
+        self.assertEqual(section.count('<span class="chip fiction">fictional data</span>'), 8)
+        self.assertEqual(section.count('class="tile focus"'), 1)
+        self.assertEqual(banned_words(section.replace("compliance conclusion", "")), [])
+        self.assertNotIn("total", section.replace("not scored", "").replace("no total exists", "").lower())
+        for forbidden in ("<script", "<img", "<svg", "<link", "url(", "http://", "https://", "src="):
+            self.assertNotIn(forbidden, section.lower())
+
+    def test_view_writes_the_scorecard_json_privately_and_deterministically(self):
+        before = self.snapshot()
+        html = v.write_view(self.run)
+        path = html.with_name("run-20261025T000000Z.scorecard.json")
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        first = path.read_bytes()
+        self.assertEqual(m.parse_record(m.Scorecard, first), s.score(self.bundle))
+        self.assertEqual(first, s.to_json(s.score(self.bundle)))
+        first_html = html.read_bytes()
+        v.write_view(self.run)
+        self.assertEqual((path.read_bytes(), html.read_bytes()), (first, first_html))
+        self.assertEqual(self.snapshot(), before)
+        # A planted link is replaced, never followed.
+        outside = self.root / "outside.json"
+        outside.write_text("keep")
+        path.unlink()
+        path.symlink_to(outside)
+        v.write_view(self.run)
+        self.assertFalse(path.is_symlink())
+        self.assertEqual((outside.read_text(), path.read_bytes()), ("keep", first))
+        self.assertEqual(sorted(item.name for item in path.parent.iterdir()),
+                         sorted([html.name, path.name, "run-20261025T000000Z.dashboard.html"]))
+
+    def test_dashboard_is_one_static_private_page_opened_from_the_cli(self):
+        dashboard = v.write_view(self.run, dashboard=True)
+        self.assertEqual(dashboard.name, "run-20261025T000000Z.dashboard.html")
+        self.assertEqual(dashboard.stat().st_mode & 0o777, 0o600)
+        page = dashboard.read_text()
+        self.assertIn("default-src 'none'", page)
+        self.assertNotIn("<script", page.lower())
+        self.assertNotIn("http", page.replace("http-equiv", ""))
+        self.assertIn('href="run-20261025T000000Z.html"', page)
+        card = s.score(self.bundle)
+        # At a glance: one big number, the next step, one card per other meter, no detail blocks.
+        self.assertIn(f'<div class="big num">{card.dimensions[0].points}<small>/10</small></div>', page)
+        for item in card.dimensions[1:]:
+            self.assertIn(f'<div class="label">{s.LABELS[item.key]}</div>', page)
+        self.assertIn("Next step", page)
+        self.assertIn("Fictional sample data", page)
+        self.assertIn(s.NOTICE, page)
+        self.assertNotIn("<details", page)
+        self.assertNotIn("T00:00:00", page)
+        first = dashboard.read_bytes()
+        v.write_view(self.run)
+        self.assertEqual(dashboard.read_bytes(), first)
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch("webbrowser.open", return_value=True) as opened, redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(main(["view", "--run", str(self.run), "--dashboard", "--open"]), 0)
+        self.assertEqual(stdout.getvalue().strip(), str(dashboard))
+        opened.assert_called_once_with(dashboard.as_uri())
+
+    def test_review_progress_escapes_declared_text(self):
+        payload = json.loads(self.input.read_text())
+        payload["obligations"][1]["required_methods"] = ["<b onclick=x>method</b>"]
+        self.input.write_text(json.dumps(payload))
+        run = self.runs / "run-20261026T000000Z"
+        r.run(self.input, run)
+        html = v.write_view(run).read_text()
+        section = html[html.index('<section class="progress"'):html.index("</section>")]
+        self.assertIn("&lt;b onclick=x&gt;method&lt;/b&gt;", section)
+        self.assertNotIn("<b onclick", html)
 
     def test_view_leads_with_owner_questions_and_groups_attention_by_area(self):
         html = v.write_view(self.run).read_text()

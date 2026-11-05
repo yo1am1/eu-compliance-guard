@@ -237,6 +237,7 @@ SAME_RUN_RENEWAL = ("Reviews renewed in the same run as these changes do not cou
                     "to follow them; renew them again after this run.")
 WITHDRAWN_DECISION_RATIONALE = "Support withdrawn after the predecessor comparison; effective applicability awaits renewed accountable review."
 WITHDRAWN_MAPPING_RATIONALE = "Mapped obligation support withdrawn after the predecessor comparison; renew the mapped reviews."
+RENEW_REQUIREMENT_GAP = "Mapped historical dependencies changed or incomplete; renew review."
 
 
 def _reviewed_between(value, previous, started_at) -> bool:
@@ -442,7 +443,7 @@ def compare(previous, current, previous_digest):
             if assessment["state"] == "supported":
                 assessment["rationale"] = WITHDRAWN_MAPPING_RATIONALE
             assessment["state"] = "unresolved"
-            assessment["gaps"].append("Mapped historical dependencies changed or incomplete; renew review.")
+            assessment["gaps"].append(RENEW_REQUIREMENT_GAP)
             assessment["next_actions"].append("Obtain accountable review of the changed dependency comparison.")
     declared_families = {item.family for item in previous.declarations.family_screenings if item.applicability != "unresolved"}
     screened = {item.family: item.applicability for item in current.declarations.family_screenings}

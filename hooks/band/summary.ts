@@ -1,4 +1,4 @@
-import type { NextStep, NextSteps, RunSummary } from '../../types'
+import type { NextStep, NextSteps, RunSummary, ScoreMeter, Scores } from '../../types'
 
 const SAFE = /^[A-Za-z0-9][A-Za-z0-9_.:+-]{0,127}$/
 
@@ -111,7 +111,7 @@ export function parseSteps(dir: string, text: string): NextSteps | null {
     if (subject === null || !Number.isInteger(step.unblocks) || step.unblocks < 0 || step.unblocks > 100_000) return null
     steps.push({ kind: step.kind, subject, unblocks: step.unblocks })
   }
-  return { dir, steps }
+  return { dir, steps, scores: null }
 }
 
 // A safe id in words: "fact-accounts-basis" -> "accounts basis". Ids are validated, never free text.
@@ -136,4 +136,109 @@ export function describeStep(step: NextStep): string {
 export function progressBar(done: number, total: number, width = 10): string {
   const filled = total > 0 ? Math.round((done / total) * width) : 0
   return `${'█'.repeat(filled)}${'░'.repeat(width - filled)} ${done}/${total}`
+}
+
+// Closed sets of the generated contract (tests/test_plugin.py checks them against contract.schema.json).
+export const SCORE_KEYS = ['alignment', 'law_text', 'facts', 'decisions', 'mapping', 'reviews'] as const
+export const SCORE_STATUSES = ['declarations_incomplete', 'needs_attention', 'in_review', 'steps_closed'] as const
+export const SCORE_ATTENTION = ['reviewer_recorded_insufficient', 're_review_after_change', 'evidence_changed', 'origin_changed'] as const
+export const SCORE_NOTICE = 'Points count recorded review steps in this run. They are not a compliance score or verdict.'
+
+const LABELS: Record<ScoreMeter['key'], string> = {
+  alignment: 'Alignment', law_text: 'Law text', facts: 'Facts', decisions: 'Decisions', mapping: 'Mapping', reviews: 'Reviews',
+}
+const SHORT: Record<ScoreMeter['key'], string> = {
+  alignment: 'Alignment', law_text: 'Law', facts: 'Facts', decisions: 'Decisions', mapping: 'Mapping', reviews: 'Reviews',
+}
+const UNITS: Record<ScoreMeter['key'], string> = {
+  alignment: 'requirements', law_text: 'obligations', facts: 'facts', decisions: 'obligations', mapping: 'requirements',
+  reviews: 'methods',
+}
+const STATUS_WORDS: Record<Scores['status'], string> = {
+  declarations_incomplete: 'Declarations incomplete', needs_attention: 'Needs attention', in_review: 'In review',
+  steps_closed: 'Recorded steps closed',
+}
+
+const MAX_COUNT = 100_000
+const isCount = (value: unknown, max = MAX_COUNT): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= max
+const isPoints = (value: unknown): value is number | null => value === null || isCount(value, 10)
+
+// Parses `score --json` into numbers and closed words only; null when anything is off. No run text is kept.
+export function parseScores(text: string): Scores | null {
+  let value: any
+  try {
+    value = JSON.parse(text)
+  } catch {
+    return null
+  }
+  const card = value?.scorecard
+  if (card === null || typeof card !== 'object' || !SCORE_STATUSES.includes(card.status) || typeof card.synthetic !== 'boolean') return null
+  if (!Array.isArray(card.dimensions) || card.dimensions.length !== SCORE_KEYS.length) return null
+  const meters: ScoreMeter[] = []
+  for (const [index, item] of card.dimensions.entries()) {
+    if (item === null || typeof item !== 'object' || item.key !== SCORE_KEYS[index]) return null
+    const ceiling = item.ceiling === null || item.ceiling === undefined ? null : item.ceiling?.points
+    if (!isPoints(item.points) || !isCount(item.done) || !isCount(item.total) || item.done > item.total
+      || !isPoints(ceiling) || !isPoints(item.raise_points) || !(item.raise_by === null || isCount(item.raise_by))) return null
+    meters.push({ key: item.key, points: item.points, done: item.done, total: item.total, ceiling,
+      raisePoints: item.raise_points, raiseBy: item.raise_by })
+  }
+  if (!isCount(card.screening?.screened, 11) || !Array.isArray(card.attention) || card.attention.length > SCORE_ATTENTION.length) return null
+  const attention: Scores['attention'] = []
+  for (const item of card.attention) {
+    if (!SCORE_ATTENTION.includes(item?.key) || !isCount(item.count) || item.count < 1) return null
+    attention.push({ key: item.key, count: item.count })
+  }
+  let deltas: Scores['deltas'] = null
+  if (card.trend?.comparable === true) {
+    const items = card.trend.deltas
+    if (!Array.isArray(items) || items.length !== SCORE_KEYS.length) return null
+    deltas = []
+    for (const [index, item] of items.entries()) {
+      if (item?.key !== SCORE_KEYS[index] || !isPoints(item.points_before) || !isPoints(item.points_after)) return null
+      deltas.push({ key: item.key, before: item.points_before, after: item.points_after })
+    }
+  }
+  return { status: card.status, synthetic: card.synthetic, meters, screened: card.screening.screened, attention, deltas }
+}
+
+// "■■■■■□□□□□": filled to the points, hatched above a ceiling, dots when not scored.
+export function meterBar(points: number | null, ceiling: number | null = null): string {
+  if (points === null) return '·'.repeat(10)
+  const reachable = ceiling ?? 10
+  return `${'■'.repeat(points)}${'□'.repeat(reachable - points)}${'▨'.repeat(10 - reachable)}`
+}
+
+const pointsWord = (points: number | null) => (points === null ? '–' : String(points))
+
+export function statusWord(scores: Scores): string {
+  return STATUS_WORDS[scores.status]
+}
+
+// "Review progress · In review · Alignment ■■■■■□□□□□ 5/10 (1 of 2)": the main meter and the status.
+export function progressLine(scores: Scores): string {
+  const alignment = scores.meters[0]!
+  const ceiling = alignment.ceiling === null ? '' : ` · max ${alignment.ceiling}/10 this run`
+  const points = alignment.points === null ? 'not scored' : `${alignment.points}/10`
+  return `Review progress · ${STATUS_WORDS[scores.status]} · Alignment ${meterBar(alignment.points, alignment.ceiling)} ${points}`
+    + ` (${alignment.done} of ${alignment.total})${ceiling}`
+}
+
+// "Law 10 · Facts 3 (+3) · ... (points of 10)": the other meters, never summed.
+export function meterRow(scores: Scores): string {
+  const parts = scores.meters.slice(1).map(meter => {
+    const delta = scores.deltas?.find(item => item.key === meter.key)
+    const change = delta && delta.before !== null && delta.after !== null && delta.before !== delta.after
+      ? ` (${delta.after > delta.before ? '+' : '−'}${Math.abs(delta.after - delta.before)})` : ''
+    return `${SHORT[meter.key]} ${pointsWord(meter.points)}${change}`
+  })
+  return `${parts.join(' · ')} (points of 10)`
+}
+
+// "Facts      ■■■□□□□□□□  3/10  1 of 3 facts  +3: 1 more": one fixed-format panel line per meter.
+export function describeMeter(meter: ScoreMeter): string {
+  const points = meter.points === null ? 'not scored' : `${meter.points}/10`
+  const raise = meter.raisePoints === null ? '' : `  +${meter.raisePoints}: ${meter.raiseBy} more`
+  return `${LABELS[meter.key].padEnd(10)} ${meterBar(meter.points, meter.ceiling)} ${points.padStart(5)}  ${meter.done} of ${meter.total} ${UNITS[meter.key]}${raise}`
 }

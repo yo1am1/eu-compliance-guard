@@ -35,10 +35,12 @@ write files or run the CLI.
 ## Band and report view
 
 In Claude Code (terminal or desktop app), a band above the prompt shows the latest
-run: state, gaps, supported requirements, assessment age and the next best step. It
-has buttons for Next step, Audit, Review diff, Gaps, Open report, Panel and Help, plus `–` to fold it.
-Panel (or `/eucg-panel`) opens a side pane with the top three steps, the facts still to
-confirm and open gaps by area. Open report
+run: review progress (separate meters, points out of 10, no total and not a compliance
+score), state, assessment age and the next best step. It
+has buttons for Next step, Audit, Review diff, Gaps, Dashboard, Open report, Panel and Help, plus `–` to fold it.
+Panel (or `/eucg-panel`) opens a side pane with each meter, the top three steps, the facts still to
+confirm and open gaps by area. Dashboard opens a one-page static view of the meters, next steps and
+owner questions in your browser (no build, no server). Open report
 writes a static HTML view of the verified run and opens it in your browser.
 
 ## CLI
@@ -53,10 +55,11 @@ writes a static HTML view of the verified run and opens it in your browser.
 - Exit 0: report written, possibly partial. Exit 2: invalid input or output.
 - `ground [--apply <fact>=<path>:<line>]` finds code evidence for assumed facts with a local index and pins confirmed technical facts as observed.
 - `next [--run <run dir>] [--top N] [--json]` ranks the open steps of the newest (or given) run by how many open requirements each unblocks.
+- `score [--run <run dir>] [--against <run dir>] [--json]` shows review progress: separate meters (Alignment, Law text, Facts, Decisions, Mapping, Reviews), each points out of 10 for recorded review steps, plus a family screening line and unscored record hygiene. There is no total; the points are not a compliance score or verdict. Exit 0 whatever the points.
 - `pr-check [--diff <file>|-] [--input <file>] [--markdown|--json] [--strict]` screens a unified diff's added lines for legal touchpoints and compares them with the declarations.
 - `state-dir` prints (and creates, 0700) the private run storage for this project's `project_id`.
-- `view --run <run dir> [--open]` writes
-  `<parent>/views/<run>.html` from a verified run (the run itself is unchanged).
+- `view --run <run dir> [--dashboard] [--open]` writes
+  `<parent>/views/<run>.html`, `<run>.dashboard.html` and `<run>.scorecard.json` from a verified run (the run itself is unchanged).
 
 ## Fewer permission prompts
 

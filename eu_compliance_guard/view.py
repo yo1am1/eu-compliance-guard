@@ -14,7 +14,9 @@ from pathlib import Path
 import re
 import stat
 
-from . import articles, models as m, nextstep, revalidation as r
+from urllib.parse import quote
+
+from . import articles, models as m, nextstep, revalidation as r, scorecard
 
 CSS = """
 :root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--line:#e4e1d8;--card:#fff;--warn:#9a5b00;--warnbg:#fff4df;--bad:#a1271b;--badbg:#fde9e6;--ok:#2d6a3e;--okbg:#e6f3e9}
@@ -31,6 +33,19 @@ th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px soli
 .suggest{font-size:13px;margin-top:4px}.next{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 12px 12px 34px}.next li{margin:4px 0}.next b{font-weight:600}.tag.ok{background:var(--okbg);color:var(--ok)}.tag.bad{background:var(--badbg);color:var(--bad)}
 details{margin:10px 0}summary{cursor:pointer;font-weight:600;padding:6px 0}summary .count{display:inline-block;min-width:1.6em;padding:0 7px;margin-left:6px;border-radius:999px;background:var(--line);text-align:center;font-size:13px}
 details>.scroll{margin-top:6px}
+.progress{--accent:#3d5a80;--cell:#e4e1d8;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:16px 0}
+@media (prefers-color-scheme:dark){.progress{--accent:#9fb7d9;--cell:#3a3935}}
+.progress h2{margin:0;font-size:18px}.progress .head{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.chip{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--muted)}
+.chip.status{color:var(--fg);border-color:var(--accent)}.chip.bad{background:var(--badbg);color:var(--bad);border-color:transparent}.chip.fiction{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.bar{display:inline-flex;gap:2px;vertical-align:middle}.bar i{display:inline-block;width:12px;height:12px;border-radius:2px;background:var(--cell)}
+.bar i.on{background:var(--accent)}.bar i.cap{background:repeating-linear-gradient(45deg,var(--cell) 0 2px,transparent 2px 4px);outline:1px solid var(--cell)}
+.hero{border:1px solid var(--line);border-radius:8px;padding:12px;margin:8px 0}.hero .pts{font-size:28px;font-weight:700;margin:0 8px}
+.cta{border-left:3px solid var(--accent);padding:6px 10px;margin:10px 0}.cta b{font-weight:700}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px}.tile.focus{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.tile h3{font-size:14px;margin:0;display:flex;justify-content:space-between;gap:8px}.tile p{margin:4px 0;font-size:13px}.tile details{margin:4px 0}.tile summary{font-size:13px;font-weight:500}
+.tile li{font-size:13px}.notice{font-size:13px;color:var(--muted);margin:8px 0 0}
 ul{margin:0;padding-left:20px}code{font-size:13px;overflow-wrap:anywhere}td:first-child code{overflow-wrap:normal;word-break:normal}
 """
 
@@ -123,6 +138,94 @@ def _next_steps(bundle: m.RevalidationBundle) -> str:
     return f'<ol class="next">{items}</ol>'
 
 
+def _cells(item: m.ScoreDimension) -> str:
+    """Ten CSS cells; hatched above a ceiling. The label carries the number for screen readers."""
+    if item.points is None:
+        return '<span class="bar" role="img" aria-label="not scored">' + "<i></i>" * 10 + "</span>"
+    reachable = item.ceiling.points if item.ceiling else 10
+    cells = '<i class="on"></i>' * item.points + "<i></i>" * (reachable - item.points) + '<i class="cap"></i>' * (10 - reachable)
+    return f'<span class="bar" role="img" aria-label="{item.points} of 10 points">{cells}</span>'
+
+
+def _open_items(item: m.ScoreDimension) -> str:
+    rows = "".join(f"<li><code>{escape(entry.id)}</code>" + (f" · {escape(entry.method)}" if entry.method else "")
+                   + f' <span class="muted">{escape(", ".join(scorecard.TAG_LABELS[tag] for tag in entry.reasons))}</span></li>'
+                   for entry in item.open_items)
+    more = f'<li class="muted">and {item.open_total - len(item.open_items)} more</li>' if item.open_total > len(item.open_items) else ""
+    return (f'<details><summary>open items ({item.open_total})</summary><ul>{rows}{more}</ul></details>'
+            if item.open_total else "")
+
+
+def _counted(counts: list[m.ScoreCount]) -> str:
+    return " · ".join(escape(scorecard.tag_text(item)) for item in counts)
+
+
+def _review_progress(card: m.Scorecard) -> str:
+    """Top section: one status, the Alignment meter, the next step, then one tile per meter. No total."""
+    fiction = '<span class="chip fiction">fictional data</span>' if card.synthetic else ""
+    chips = [f'<span class="chip status">● {escape(scorecard.STATUS_LABELS[card.status])}</span>',
+             f'<span class="chip">assembly: {escape(card.run_state)} (processing state)</span>',
+             f'<span class="chip">{"offline" if card.offline else "official retrieval"}</span>']
+    if card.assessed_days_before_run is not None:
+        chips.append(f'<span class="chip">assessed {card.assessed_days_before_run} days before run</span>')
+    chips.append(f'<span class="chip">notes outside the meters: {card.notes_outside}</span>')
+    chips += [f'<span class="chip{" bad" if item.key == "reviewer_recorded_insufficient" else ""}">'
+              f"{escape(scorecard.ATTENTION_LABELS[item.key])} ×{item.count}</span>" for item in card.attention]
+    focus = card.next_step.focus if card.next_step else None
+    hero = card.dimensions[0]
+    hint = scorecard.raise_text(hero)
+    hero_html = (
+        f'<div class="hero{" focus" if focus == "alignment" else ""}"><b>{scorecard.LABELS[hero.key].upper()}</b>'
+        f'<span class="pts">{escape(scorecard.points_text(hero.points))}</span>{_cells(hero)} {fiction}'
+        f"<p>{hero.done} of {hero.total} {escape(scorecard.UNITS[hero.key])}"
+        + (f' · <span class="muted">{escape(hint)}</span>' if hint else "") + "</p>"
+        + (f'<p class="muted">blockers: {_counted(hero.reasons)}</p>' if hero.reasons else "")
+        + (f'<p class="muted">{escape(scorecard.ceiling_text(hero.ceiling, card.offline))}</p>' if hero.ceiling else "")
+        + (f"<p>{_counted(hero.counts)}</p>" if hero.counts else "") + _open_items(hero) + "</div>")
+    step = card.next_step
+    cta = (f'<div class="cta"><b>▶ NEXT</b> {escape(scorecard.describe_step(step))}<br>'
+           '<span class="muted">CLI: <code>eu-compliance-guard next</code> lists the ranked steps.</span></div>'
+           if step else '<div class="cta">No recorded step is open. That is not a compliance conclusion.</div>')
+    tiles = []
+    for item in card.dimensions[1:]:
+        hint = scorecard.raise_text(item)
+        tiles.append(
+            f'<div class="tile{" focus" if focus == item.key else ""}"><h3><span>{escape(scorecard.LABELS[item.key])}</span>'
+            f"<span>{escape(scorecard.points_text(item.points))}</span></h3>{_cells(item)} {fiction}"
+            f"<p>{item.done} of {item.total} {escape(scorecard.UNITS[item.key])}</p>"
+            + (f'<p class="muted">{_counted(item.counts)}</p>' if item.counts else "")
+            + (f'<p class="muted">open: {_counted(item.reasons)}</p>' if item.reasons else "")
+            + (f"<p>{escape(hint)}</p>" if hint else "")
+            + ('<p class="muted">focus of the next step</p>' if focus == item.key else "") + _open_items(item) + "</div>")
+    screening = card.screening
+    tiles.append(f'<div class="tile{" focus" if step and step.kind == "family" else ""}"><h3><span>Screening</span>'
+                 f'<span class="muted">not scored</span></h3> {fiction}'
+                 f"<p>{screening.screened} of {screening.total} families screened</p>"
+                 f'<p class="muted">applies {screening.applicable} · does not apply {screening.not_applicable}'
+                 f" · withdrawn {screening.withdrawn}</p></div>")
+    tiles.append('<div class="tile"><h3><span>Record hygiene</span><span class="muted">not scored</span></h3> ' + fiction
+                 + "".join(f"<p>{escape(scorecard.HYGIENE_LABELS[item.key])}: {item.done} of {item.total}</p>"
+                           for item in card.hygiene) + "</div>")
+    trend = ""
+    if card.trend is not None and card.trend.comparable:
+        trend = ('<p class="muted">Since the parent run: ' + " · ".join(
+            f"{escape(scorecard.LABELS[item.key])} {escape(scorecard.points_text(item.points_before))} → "
+            f"{escape(scorecard.points_text(item.points_after))}" for item in card.trend.deltas) + "</p>")
+    how = "".join(f"<li><b>{escape(scorecard.LABELS[key])}</b>: {escape(scorecard.UNITS[key])}. {escape(scorecard.HOW_TO_RAISE[key])}</li>"
+                  for key in m.SCORE_KEYS)
+    return (
+        '<section class="progress" aria-labelledby="review-progress">'
+        '<div class="head"><h2 id="review-progress">Review progress</h2>'
+        "<span class=\"muted\">points out of 10 · from this run's records</span></div>"
+        f'<div class="chips">{"".join(chips)}</div>{hero_html}{cta}'
+        f'<p class="notice">{escape(card.notice)}</p>'
+        f'<div class="tiles">{"".join(tiles)}</div>{trend}'
+        "<details><summary>How points work</summary><p>Each meter counts closed items of one kind: none closed is 0, all "
+        "closed is 10, otherwise ten times the closed share rounded down, kept between 1 and 9. A meter with nothing "
+        "declared is not scored. Meters are never added or averaged; no total exists.</p>"
+        f"<ul>{how}</ul></details></section>")
+
+
 def _digest(value: str | None) -> str:
     if value is None:
         return '<span class="muted">—</span>'
@@ -186,8 +289,10 @@ def _suggestions(statement: str, index: articles.ArticleIndex) -> str:
     return f'<div class="suggest">Articles to read: {names}<br><span class="muted">Text search suggestion, not a mapping.</span></div>'
 
 
-def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None = None) -> str:
+def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None = None,
+                card: m.Scorecard | None = None) -> str:
     """Every dynamic value passes through html.escape; nothing executes or loads."""
+    card = card or scorecard.score(bundle)
     acts = catalogue(bundle, contents or {})
     by_source = source_catalogue(bundle, contents or {})
     index = articles.ArticleIndex(acts)
@@ -260,6 +365,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
         f'<p class="muted">Project <code>{escape(bundle.project_id)}</code> · run <code>{escape(bundle.run.id)}</code> · '
         f'assessment date {escape(declared.scope.assessment_date)} · ended {escape(bundle.run.ended_at or "—")}</p>',
         f'<div class="banner">{escape(banner)}</div>',
+        _review_progress(card),
         '<div class="cards">' + "".join(f'<div class="card"><span class="muted">{escape(label)}</span><b>{escape(value)}</b></div>'
                                         for label, value in cards) + "</div>",
         "<h2>Next best steps</h2>",
@@ -289,6 +395,100 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
     return "\n".join(parts)
 
 
+DASH_CSS = """
+:root{--bg:#f7f6f2;--fg:#1b1b19;--muted:#6e6c66;--faint:#9a978f;--line:#e6e3da;--card:#fff;--track:#ece9e1;--accent:#3d5a80;--warn:#8a5a00;--warnbg:#fff3d9}
+@media (prefers-color-scheme:dark){:root{--bg:#0d0d0c;--fg:#f1f0eb;--muted:#9b9890;--faint:#6d6b64;--line:#24231f;--card:#151513;--track:#22211e;--accent:#9fb7d9;--warn:#f0c46a;--warnbg:#2a2312}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1040px;margin:0 auto;padding:32px 20px 56px}
+.num{font-variant-numeric:tabular-nums}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+h1{margin:0;font-size:26px;font-weight:650;text-wrap:balance}.sub{margin:4px 0 0;color:var(--muted);font-size:14px}.sub a{color:inherit}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600}
+.pill.warn{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 24px}
+.label{color:var(--muted);font-size:13px}
+.track{height:8px;border-radius:999px;background:var(--track);overflow:hidden;margin:12px 0 0}.track span{display:block;height:100%;background:var(--accent);border-radius:999px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:28px;align-items:center;margin-bottom:14px}
+.big{font-size:56px;font-weight:700;line-height:1.05}.big small{font-size:22px;color:var(--faint);font-weight:600}
+.step{border-radius:14px;background:var(--bg);padding:16px 18px}.step b{display:block;font-size:16px;margin:2px 0 4px;text-wrap:pretty}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.kpi{padding:16px 18px}.kpi .v{font-size:30px;font-weight:700;margin-top:2px}.kpi .v small{font-size:15px;color:var(--faint)}.kpi .note{color:var(--muted);font-size:13px;margin-top:8px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;margin-bottom:14px}
+h2{margin:0 0 12px;font-size:16px}ol,ul{margin:0;padding:0;list-style:none}
+li{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}li:first-child{border-top:0;padding-top:0}
+.n{color:var(--muted);white-space:nowrap}.hint{color:var(--muted);font-size:13px;margin:10px 0 0}
+footer{color:var(--faint);font-size:12px;margin-top:24px}
+@media (max-width:760px){.hero,.grid2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+"""
+
+
+def _ended(value: str | None) -> str:
+    """'2026-11-05T08:19:01.4Z' -> '2026-11-05 08:19 UTC': the same date form as the assessment date."""
+    return f"{value[:10]} {value[11:16]} UTC" if value and len(value) >= 16 else "not ended"
+
+
+def _track(points: int | None) -> str:
+    return f'<div class="track"><span style="width:{(points or 0) * 10}%"></span></div>'
+
+
+def _fraction(points: int | None) -> str:
+    return "—" if points is None else f'{points}<small>/10</small>'
+
+
+def render_dashboard(bundle: m.RevalidationBundle, card: m.Scorecard | None = None, report: str | None = None) -> str:
+    """One self-contained page that reads at a glance: status, one big number, the next step, five
+    meters, a short to-do list and owner questions. Details stay in the full report. No script, no request."""
+    card = card or scorecard.score(bundle)
+    hero, *meters = card.dimensions
+    status = escape(scorecard.STATUS_LABELS[card.status])
+    link = f' · <a href="{escape(quote(report))}">full report</a>' if report else ""
+    fiction = '<span class="pill warn">Fictional sample data</span> ' if bundle.synthetic else ""
+    step = card.next_step
+    step_html = (f'<div class="step"><span class="label">Next step</span><b>{escape(scorecard.STEP_TEXT[step.kind].replace("{subject}", step.subject or ""))}</b>'
+                 f'<span class="label num">unblocks {step.unblocks} open requirement{"" if step.unblocks == 1 else "s"}</span></div>'
+                 if step else '<div class="step"><span class="label">Next step</span><b>No recorded step is open</b>'
+                 '<span class="label">That is not a compliance conclusion.</span></div>')
+    kpis = "".join(
+        f'<div class="card kpi"><div class="label">{escape(scorecard.LABELS[item.key])}</div>'
+        f'<div class="v num">{_fraction(item.points)}</div>{_track(item.points)}'
+        f'<div class="note num">{item.done} of {item.total} {escape(scorecard.UNITS[item.key])}</div></div>'
+        for item in meters)
+    todo = "".join(f'<li><span>{escape(item["action"])}</span><span class="n num">unblocks {item["unblocks"]}</span></li>'
+                   for item in nextstep.next_steps(bundle, top=3)) or "<li><span>No recorded step is open.</span></li>"
+    screening = card.screening
+    coverage = [f'<li><span>Legal families screened</span><span class="n num">{screening.screened} of {screening.total}</span></li>']
+    coverage += [f'<li><span>{escape(scorecard.HYGIENE_LABELS[item.key]).capitalize()}</span><span class="n num">{item.done} of {item.total}</span></li>'
+                 for item in card.hygiene if item.total]
+    coverage_hint = ('<p class="hint">Next: screen the eleven legal families with /eucg-audit.</p>'
+                     if screening.screened < screening.total else "")
+    questions = [fact for fact in {item.id: item for item in m.scope_facts(bundle.declarations.scope)}.values()
+                 if fact.basis in ("assumed", "unknown") or fact.conflicts]
+    questions_html = ("" if not questions else
+        '<section class="card"><h2>Questions for the owner</h2><ul>'
+        + "".join(f'<li><span>{escape(fact.key)}</span><span class="n">{escape(fact.basis)} · ask {escape(fact.owner or "the project owner")}</span></li>'
+                  for fact in questions)
+        + "</ul></section>")
+    parts = [
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">",
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+        "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">",
+        f"<title>EU Compliance Guard dashboard</title><style>{DASH_CSS}</style></head><body><main>",
+        f'<div class="top"><div><h1>Review progress</h1><p class="sub">{escape(bundle.project_id)} · run ended '
+        f'<span class="num">{escape(_ended(bundle.run.ended_at))}</span>{link}</p></div>'
+        f'<div>{fiction}<span class="pill">{status}</span></div></div>',
+        f'<section class="card hero"><div><div class="label">{escape(scorecard.LABELS[hero.key])} · requirements supported</div>'
+        f'<div class="big num">{_fraction(hero.points)}</div>{_track(hero.points)}'
+        f'<div class="label num" style="margin-top:8px">{hero.done} of {hero.total} requirements</div></div>{step_html}</section>',
+        f'<section class="kpis">{kpis}</section>',
+        f'<div class="grid2"><section class="card"><h2>To do</h2><ol>{todo}</ol></section>'
+        f'<section class="card"><h2>Coverage</h2><ul>{"".join(coverage)}</ul>{coverage_hint}</section></div>',
+        questions_html,
+        f"<footer>{escape(scorecard.NOTICE)} Details are in the full report.</footer>",
+        "</main></body></html>",
+    ]
+    return "\n".join(parts)
+
+
 def verify_run(run_dir: str | os.PathLike, contents: dict[str, bytes] | None = None) -> m.RevalidationBundle:
     """Accept a run only when its marker and every listed artifact digest match."""
     from .history import load_run
@@ -298,13 +498,22 @@ def verify_run(run_dir: str | os.PathLike, contents: dict[str, bytes] | None = N
         raise ViewError(error.code) from None
 
 
-def write_view(run_dir: str | os.PathLike) -> Path:
-    """Write ``<parent>/views/<run>.html`` (0700 directory, 0600 file), replacing an older view."""
+def write_view(run_dir: str | os.PathLike, dashboard: bool = False) -> Path:
+    """Write ``<parent>/views/<run>.html`` and ``<run>.scorecard.json`` (0700 directory, 0600 files).
+
+    Each file is written to a temporary name and renamed into place, never through a symlink;
+    an older view of the same run is replaced. Returns the HTML path.
+    """
     if not os.fspath(run_dir):
         raise ViewError("unsafe-path")  # Path("") is ".": never fall back to the working directory.
     run_dir = Path(run_dir)
     contents: dict[str, bytes] = {}
-    html = render_html(verify_run(run_dir, contents), contents).encode("utf-8")
+    bundle = verify_run(run_dir, contents)
+    card = scorecard.score(bundle)
+    html = render_html(bundle, contents, card).encode("utf-8")
+    files = [(run_dir.name + ".scorecard.json", scorecard.to_json(card)),
+             (run_dir.name + ".dashboard.html", render_dashboard(bundle, card, run_dir.name + ".html").encode("utf-8")),
+             (run_dir.name + ".html", html)]
     try:
         with r._parent(run_dir) as (parent_fd, _):
             r._private_parent(parent_fd)
@@ -317,13 +526,14 @@ def write_view(run_dir: str | os.PathLike) -> Path:
                 info = os.fstat(views_fd)
                 if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077:
                     raise ViewError("privacy-unavailable")
-                name, temporary = run_dir.name + ".html", "." + run_dir.name + ".html.tmp"
-                try:
-                    os.unlink(temporary, dir_fd=views_fd)
-                except FileNotFoundError:
-                    pass
-                r._write(views_fd, temporary, html, float("inf"))
-                os.replace(temporary, name, src_dir_fd=views_fd, dst_dir_fd=views_fd)
+                for name, content in files:
+                    temporary = "." + name + ".tmp"
+                    try:
+                        os.unlink(temporary, dir_fd=views_fd)
+                    except FileNotFoundError:
+                        pass
+                    r._write(views_fd, temporary, content, float("inf"))
+                    os.replace(temporary, name, src_dir_fd=views_fd, dst_dir_fd=views_fd)
                 os.fsync(views_fd)
             finally:
                 os.close(views_fd)
@@ -331,4 +541,4 @@ def write_view(run_dir: str | os.PathLike) -> Path:
         raise ViewError(error.code) from None
     except OSError:
         raise ViewError("io-failed") from None
-    return run_dir.parent / "views" / (run_dir.name + ".html")
+    return run_dir.parent / "views" / (run_dir.name + (".dashboard.html" if dashboard else ".html"))

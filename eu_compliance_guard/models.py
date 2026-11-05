@@ -1829,3 +1829,234 @@ class RunCompletion(Record):
             if path not in required | {"comparison.json"} and path != "sources/" + file.digest.removeprefix("sha256:") + ".bin":
                 raise ValueError("completion marker contains a nongenerated artifact path")
         return self
+
+
+# Review progress (docs/decisions/dashboard-review-progress.md): separate meters, each points out of
+# 10 for recorded review steps of one run. There is deliberately no total, sum or average.
+SCORE_NOTICE = "Points count recorded review steps in this run. They are not a compliance score or verdict."
+NextStepKind = Literal["retrieve", "fact", "source", "applicability", "mapping", "review", "family"]
+ScoreKey = Literal["alignment", "law_text", "facts", "decisions", "mapping", "reviews"]
+SCORE_KEYS: tuple[ScoreKey, ...] = get_args(ScoreKey)
+ScoreStatus = Literal["declarations_incomplete", "needs_attention", "in_review", "steps_closed"]
+ScoreAttention = Literal["reviewer_recorded_insufficient", "re_review_after_change", "evidence_changed", "origin_changed"]
+# One closed vocabulary for state counts and open-item reasons; renderers map each to fixed words.
+ScoreTag = Literal[
+    "supported", "conflicting", "unresolved",
+    "no_mapping", "fact_open", "fact_evidence_changed", "requirement_evidence", "origin_changed",
+    "methods_open", "no_methods", "mapped_not_applicable", "renew_after_change", "other",
+    "no_pin", "target_only", "source_review_open", "locator_not_listed", "non_binding_for_duty", "overlay_open",
+    "sources_confirmable_by_fetch",
+    "observed", "declared", "assumed", "unknown", "fact_conflict", "evidence_changed", "ask_owner", "ground_in_code",
+    "applicable", "not_applicable", "missing", "declared_unresolved", "declared_not_accepted",
+    "unclaimed_obligations",
+    "review_complete", "reviewer_recorded_insufficient", "not_started", "incomplete", "technical_not_run",
+    "evidence_ready", "evidence_declared",
+]
+SCORE_TAGS: tuple[ScoreTag, ...] = get_args(ScoreTag)
+HygieneKey = Literal["requirements_located", "evidence_referenced", "origins_unchanged"]
+# The meter a next step raises; screening is a coverage line, not a meter.
+SCORE_FOCUS: dict[str, ScoreKey | None] = {
+    "retrieve": "law_text", "source": "law_text", "fact": "facts", "applicability": "decisions",
+    "mapping": "mapping", "review": "reviews", "family": None,
+}
+MAX_OPEN_ITEMS = 50
+Count = Annotated[int, Field(ge=0, le=MAX_SEQUENCE)]
+Points = Annotated[int, Field(ge=0, le=10)]
+
+
+def review_points(done: int, total: int) -> int | None:
+    """None when nothing is declared; 0 only when none and 10 only when all are closed."""
+    if total == 0:
+        return None
+    if done == 0:
+        return 0
+    if done == total:
+        return 10
+    return min(9, max(1, 10 * done // total))
+
+
+def raise_hint(done: int, total: int) -> tuple[int | None, int | None]:
+    """(points gained, items to close) for the smallest number of items that raises the points."""
+    points = review_points(done, total)
+    if points is None or points == 10:
+        return None, None
+    for more in range(1, total - done + 1):
+        after = review_points(done + more, total)
+        if after > points:
+            return after - points, more
+    raise AssertionError("unreachable: closing every item reaches 10")
+
+
+def _ordered(keys: list, order: tuple, what: str) -> None:
+    if len(set(keys)) != len(keys) or keys != sorted(keys, key=order.index):
+        raise ValueError(f"{what} must be unique and in contract order")
+
+
+class ScoreCount(Record):
+    key: ScoreTag
+    count: Annotated[int, Field(ge=1, le=MAX_SEQUENCE)]
+
+
+class ScoreOpenItem(Record):
+    id: Id
+    method: Name | None = None
+    reasons: Annotated[list[ScoreTag], Field(min_length=1, max_length=len(SCORE_TAGS))]
+
+    @model_validator(mode="after")
+    def ordered_reasons(self) -> ScoreOpenItem:
+        _ordered(self.reasons, SCORE_TAGS, "open item reasons")
+        return self
+
+
+class ScoreCeiling(Record):
+    """The most this run can reach for structural reasons, not for anything the project lacks."""
+    points: Points
+    technical: Count
+    unconfirmed_sources: Count
+
+
+class ScoreDimension(Record):
+    key: ScoreKey
+    points: Points | None
+    done: Count
+    total: Count
+    raise_points: Points | None
+    raise_by: Count | None
+    counts: Annotated[list[ScoreCount], Field(max_length=len(SCORE_TAGS))]
+    reasons: Annotated[list[ScoreCount], Field(max_length=len(SCORE_TAGS))]
+    open_items: Annotated[list[ScoreOpenItem], Field(max_length=MAX_OPEN_ITEMS)]
+    open_total: Count
+    ceiling: ScoreCeiling | None = None
+
+    @model_validator(mode="after")
+    def consistent_points(self) -> ScoreDimension:
+        if self.done > self.total or self.open_total != self.total - self.done:
+            raise ValueError("score counts disagree")
+        if self.points != review_points(self.done, self.total):
+            raise ValueError("points disagree with the recorded counts")
+        if (self.raise_points, self.raise_by) != raise_hint(self.done, self.total):
+            raise ValueError("raise hint disagrees with the recorded counts")
+        if len(self.open_items) != min(MAX_OPEN_ITEMS, self.open_total):
+            raise ValueError("open items must list the first items up to the cap")
+        keys = [(item.id, item.method or "") for item in self.open_items]
+        if len(set(keys)) != len(keys) or keys != sorted(keys):
+            raise ValueError("open items must be unique and sorted")
+        _ordered([item.key for item in self.counts], SCORE_TAGS, "counts")
+        _ordered([item.key for item in self.reasons], SCORE_TAGS, "reasons")
+        if self.ceiling is not None:
+            if self.key != "alignment" or self.points is None:
+                raise ValueError("only scored alignment has a ceiling")
+            if not self.points <= self.ceiling.points < 10:
+                raise ValueError("a ceiling lies between the points and 10")
+        return self
+
+
+class ScoreScreening(Record):
+    """Coverage of the eleven candidate legal families; not a meter."""
+    screened: Count
+    total: Literal[11]
+    applicable: Count
+    not_applicable: Count
+    withdrawn: Count
+
+    @model_validator(mode="after")
+    def consistent(self) -> ScoreScreening:
+        if self.applicable + self.not_applicable != self.screened or self.screened > self.total or self.withdrawn > self.total:
+            raise ValueError("screening counts disagree")
+        return self
+
+
+class ScoreHygiene(Record):
+    """Unscored record hygiene: never points, never part of a status."""
+    key: HygieneKey
+    done: Count
+    total: Count
+
+    @model_validator(mode="after")
+    def bounded(self) -> ScoreHygiene:
+        if self.done > self.total:
+            raise ValueError("hygiene counts disagree")
+        return self
+
+
+class ScoreAttentionCount(Record):
+    key: ScoreAttention
+    count: Annotated[int, Field(ge=1, le=MAX_SEQUENCE)]
+
+
+class ScoreNextStep(Record):
+    kind: NextStepKind
+    subject: Id | None
+    unblocks: Count
+    focus: ScoreKey | None
+
+    @model_validator(mode="after")
+    def focused(self) -> ScoreNextStep:
+        if self.focus != SCORE_FOCUS[self.kind]:
+            raise ValueError("next step focus disagrees with its kind")
+        return self
+
+
+class ScoreDelta(Record):
+    key: ScoreKey
+    points_before: Points | None
+    points_after: Points | None
+    total_before: Count
+    total_after: Count
+
+
+class ScoreTrend(Record):
+    """Display only: deltas against the recorded parent run; never feeds the status."""
+    previous_run_id: Id
+    comparable: bool
+    reason: Literal["not_parent", "different_project", "different_tool_version"] | None
+    deltas: Annotated[list[ScoreDelta], Field(max_length=len(SCORE_KEYS))]
+
+    @model_validator(mode="after")
+    def consistent(self) -> ScoreTrend:
+        if self.comparable != (self.reason is None):
+            raise ValueError("a trend is comparable exactly when no reason is given")
+        if [item.key for item in self.deltas] != (list(SCORE_KEYS) if self.comparable else []):
+            raise ValueError("deltas cover every meter of a comparable trend only")
+        return self
+
+
+class Scorecard(Record):
+    """Review progress of one verified run. No field combines meters; none is a verdict."""
+    schema_version: SchemaVersion
+    scorer_version: Literal[1]
+    project_id: Id
+    run_id: Id
+    parent_run_id: Id | None
+    synthetic: bool
+    run_state: RunState
+    ended_at: Timestamp | None
+    assessment_date: ISODate
+    assessed_days_before_run: Count | None
+    offline: bool
+    status: ScoreStatus
+    attention: Annotated[list[ScoreAttentionCount], Field(max_length=4)]
+    dimensions: Annotated[list[ScoreDimension], Field(min_length=6, max_length=6)]
+    screening: ScoreScreening
+    hygiene: Annotated[list[ScoreHygiene], Field(min_length=3, max_length=3)]
+    next_step: ScoreNextStep | None
+    notes_outside: Count
+    trend: ScoreTrend | None = None
+    notice: Literal[SCORE_NOTICE]
+
+    @model_validator(mode="after")
+    def consistent_status(self) -> Scorecard:
+        if tuple(item.key for item in self.dimensions) != SCORE_KEYS:
+            raise ValueError("meters must appear once each in contract order")
+        if tuple(item.key for item in self.hygiene) != get_args(HygieneKey):
+            raise ValueError("hygiene chips must appear once each in contract order")
+        _ordered([item.key for item in self.attention], get_args(ScoreAttention), "attention")
+        if (self.status == "needs_attention") != bool(self.attention) and self.status != "declarations_incomplete":
+            raise ValueError("needs_attention is the status exactly when attention is recorded")
+        scored = [item.points for item in self.dimensions if item.points is not None]
+        if self.status == "steps_closed" and (self.dimensions[0].points is None or any(points != 10 for points in scored)
+                                              or self.next_step is not None):
+            raise ValueError("steps_closed needs every scored meter at 10 and no open step")
+        if self.trend is not None and self.trend.comparable and self.trend.previous_run_id != self.parent_run_id:
+            raise ValueError("a comparable trend is against the recorded parent run only")
+        return self

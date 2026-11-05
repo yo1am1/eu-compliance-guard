@@ -8,7 +8,9 @@
     "types": "node scripts/contract.mjs",
     "check": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
-    "types:check": "node scripts/contract.mjs --check"
+    "types:check": "node scripts/contract.mjs --check",
+    "test": "node --experimental-strip-types --no-warnings --test src/dashboard/scorecard.checks.ts",
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "19.3.1",

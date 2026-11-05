@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import stat
+from typing import get_args
 
 from . import models as m, sources
 from .grounding import not_observable
@@ -20,7 +21,7 @@ class NoRun(LookupError):
 
 
 # Earlier kinds unblock later ones (facts feed decisions, reviewed text feeds provisions).
-KINDS = ("retrieve", "fact", "source", "applicability", "mapping", "review", "family")
+KINDS = get_args(m.NextStepKind)
 
 
 def _step(kind: str, subject: str, unblocks: set[str], action: str, command: str | None = None) -> dict:

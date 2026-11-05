@@ -58,6 +58,25 @@ FAMILY_DESCRIPTIONS = dict(zip(m.LEGAL_FAMILIES, (
     "Additional sector or national rules discovered from facts, including financial, health, employment, children and product-safety contexts; unsupported specialist review must be exposed.",
 )))
 NOT_ASSESSED = "Obligation reviewed as not applicable; this method was not assessed."
+# Recorded gap phrases other modules read back (the scorecard): one definition, never a copy.
+EVIDENCE_UNREADY_GAP = "availability, redaction or independent verification proof unresolved."
+OFFLINE_FRESHNESS_GAP = "offline real-source freshness is unverified"
+FETCH_UNCONFIRMED_GAP = "official retrieval did not confirm the declared bytes; current freshness is unknown"
+FACT_PINS_MISSING_GAP = "relied-on fact pins missing"
+FACT_OPEN_GAP = "relied-on fact assumption, uncertainty or conflict"
+FACT_EVIDENCE_GAP = "relied-on fact evidence unavailable"
+REQUIREMENT_EVIDENCE_GAP = "Declared requirement evidence unavailable or unverified."
+REQUIREMENT_ORIGIN_GAP = "Declared requirement origin unavailable or corrupt."
+NO_MAPPING_GAP = "No declared obligation mapping."
+MAPPED_NOT_APPLICABLE_GAP = "A mapped obligation was reviewed as not applicable; it cannot support this requirement."
+METHODS_OPEN_GAP = "Mapped obligations retain unresolved, insufficient or untested methods."
+# What a failing provision pin records, per pin_problems code.
+PIN_GAPS = {"no_pin": "source provision pins missing",
+            "target_only": "source provision or reviewed source support unresolved",
+            "source_review_open": "source provision or reviewed source support unresolved",
+            "locator_not_listed": "source provision or reviewed source support unresolved",
+            "non_binding_for_duty": "candidate authority cannot establish a binding duty"}
+BINDING_SOURCE_TYPES = ("eu_act", "national_act", "judgment", "synthetic_fixture")
 POLICY = {"workflow": "offline-declared-review-v1", "tool_version": __version__,
           "budget": "cooperative-only", "network": False, "technical_execution": False}
 LANGUAGE = re.compile(rb"<html\b[^>]{0,2048}?\blang\s*=\s*[\"']?([A-Za-z]{1,8})", re.I)
@@ -97,6 +116,28 @@ class ContentAdmission:
 def _after_run(value: str | None, timestamp: str) -> bool:
     """An attestation dated after the run that reads it cannot be an accountable review."""
     return bool(value) and datetime.fromisoformat(value) > datetime.fromisoformat(timestamp)
+
+
+def pin_problems(pins, sources: dict, source_gaps: dict, duty: bool = False) -> list[str]:
+    """Codes (keys of PIN_GAPS) for provision pins that cannot carry reviewed text, in pin order.
+
+    ``sources`` maps declared source ids to SelectedSource; ``source_gaps`` maps them to their
+    open problems. Pure: assemble and the scorecard apply the same checks.
+    """
+    problems = []
+    if not pins:
+        problems.append("no_pin")
+    for pin in pins:
+        selected = sources.get(pin.source_id)
+        if not selected:
+            problems.append("target_only")
+        elif source_gaps.get(pin.source_id):
+            problems.append("source_review_open")
+        elif pin.locator not in selected.source.provisions or not pin.locator.strip():
+            problems.append("locator_not_listed")
+        if selected and duty and selected.source.type not in BINDING_SOURCE_TYPES:
+            problems.append("non_binding_for_duty")
+    return problems
 
 
 def _check_budget(deadline: float | None) -> None:
@@ -514,7 +555,7 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
 
     for identity in evidence:
         if not evidence_ready(identity):
-            record_gap(f"Evidence {identity}: availability, redaction or independent verification proof unresolved.")
+            record_gap(f"Evidence {identity}: {EVIDENCE_UNREADY_GAP}")
     for fact in facts.values():
         if fact.basis in ("assumed", "unknown") or fact.conflicts:
             record_gap(f"Fact {fact.id}: assumed, unknown or conflicting declaration needs review.")
@@ -551,8 +592,7 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
         if outcome == "changed":
             problems.append("official retrieval returned different bytes; review the new candidate revision")
         if not source.synthetic and outcome != "confirmed":
-            problems.append("offline real-source freshness is unverified" if retrievals is None
-                            else "official retrieval did not confirm the declared bytes; current freshness is unknown")
+            problems.append(OFFLINE_FRESHNESS_GAP if retrievals is None else FETCH_UNCONFIRMED_GAP)
         source_gaps[source.id] = problems
         for problem in problems:
             record_gap(f"Source {source.id}: {problem}")
@@ -579,26 +619,17 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
     def fact_problems(pins):
         problems = []
         if not pins:
-            problems.append("relied-on fact pins missing")
+            problems.append(FACT_PINS_MISSING_GAP)
         for pin in pins:
             fact = facts[pin.id]
             if fact.basis in ("assumed", "unknown") or fact.conflicts:
-                problems.append("relied-on fact assumption, uncertainty or conflict")
+                problems.append(FACT_OPEN_GAP)
             if not all(evidence_ready(identity) for identity in fact.evidence_ids):
-                problems.append("relied-on fact evidence unavailable")
+                problems.append(FACT_EVIDENCE_GAP)
         return problems
 
     def provision_problems(pins, duty=False):
-        problems = []
-        if not pins:
-            problems.append("source provision pins missing")
-        for pin in pins:
-            selected = sources.get(pin.source_id)
-            if not selected or source_gaps.get(pin.source_id) or pin.locator not in selected.source.provisions or not pin.locator.strip():
-                problems.append("source provision or reviewed source support unresolved")
-            if selected and duty and selected.source.type not in ("eu_act", "national_act", "judgment", "synthetic_fixture"):
-                problems.append("candidate authority cannot establish a binding duty")
-        return problems
+        return [PIN_GAPS[code] for code in pin_problems(pins, sources, source_gaps, duty)]
 
     original_decisions = {item.obligation.id: item for item in declared.applicability_decisions}
     decisions = []
@@ -702,20 +733,20 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
         mapped = [dispositions_by_obligation[pin.id] for pin in requirement.obligation_refs]
         requirement_gaps = fact_problems(requirement.fact_refs) if requirement.fact_refs else []
         if not all(evidence_ready(identity) for identity in requirement.evidence_ids):
-            requirement_gaps.append("Declared requirement evidence unavailable or unverified.")
+            requirement_gaps.append(REQUIREMENT_EVIDENCE_GAP)
         if requirement.origin:
             observation = observations.get(requirement.origin.path)
             if not observation or observation.availability != "available" or observation.digest != requirement.origin.digest:
-                requirement_gaps.append("Declared requirement origin unavailable or corrupt.")
+                requirement_gaps.append(REQUIREMENT_ORIGIN_GAP)
         if not mapped:
-            requirement_gaps.append("No declared obligation mapping.")
+            requirement_gaps.append(NO_MAPPING_GAP)
         if any(item.applicability == "not_applicable" for item in mapped):
-            requirement_gaps.append("A mapped obligation was reviewed as not applicable; it cannot support this requirement.")
+            requirement_gaps.append(MAPPED_NOT_APPLICABLE_GAP)
         # Blame the mapped obligations only when one of them is open, not for the requirement's own gaps.
         if not all(item.manual_review == "supported" and item.applicability == "applicable"
                    and item.required_method_dispositions and all(method.outcome == "passed" for method in item.required_method_dispositions)
                    for item in mapped if item.applicability != "not_applicable"):
-            requirement_gaps.append("Mapped obligations retain unresolved, insufficient or untested methods.")
+            requirement_gaps.append(METHODS_OPEN_GAP)
         supported = not requirement_gaps
         state = "supported" if supported else "conflicting" if any(item.manual_review == "unsupported" for item in mapped) else "unresolved"
         for problem in requirement_gaps:

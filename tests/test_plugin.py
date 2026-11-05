@@ -34,6 +34,38 @@ def frontmatter(path: Path) -> dict:
     return fields
 
 
+BAND_FIXTURE = ROOT / "hooks/band/scorecard.fixture.ts"
+BAND_FIXTURE_HEAD = ("// Generated from fixtures/scorecard-synthetic.json by tests/test_plugin.py "
+                     "(EUCG_UPDATE_FIXTURES=1); do not edit.\n// The band may import code files only.\n"
+                     "export const SYNTHETIC_CARD = ")
+
+
+class BandContractTests(unittest.TestCase):
+    """The band reads `score --json` with its own closed sets; they must be the generated contract's."""
+
+    def test_band_closed_sets_match_the_contract_schema(self):
+        definitions = json.loads((ROOT / "eu_compliance_guard/contract.schema.json").read_text())["$defs"]
+        summary = (ROOT / "hooks/band/summary.ts").read_text()
+        types = (ROOT / "types/index.d.ts").read_text()
+        for name, values in (
+            ("SCORE_KEYS", definitions["ScoreDimension"]["properties"]["key"]["enum"]),
+            ("SCORE_STATUSES", definitions["Scorecard"]["properties"]["status"]["enum"]),
+            ("SCORE_ATTENTION", definitions["ScoreAttentionCount"]["properties"]["key"]["enum"]),
+        ):
+            with self.subTest(name=name):
+                listed = ", ".join(f"'{value}'" for value in values)
+                self.assertIn(f"export const {name} = [{listed}] as const", summary)
+                self.assertIn(" | ".join(f"'{value}'" for value in values), types)
+        from eu_compliance_guard.models import SCORE_NOTICE
+        self.assertIn(f"export const SCORE_NOTICE = '{SCORE_NOTICE}'", summary)
+
+    def test_band_fixture_is_the_synthetic_scorecard(self):
+        expected = BAND_FIXTURE_HEAD + (ROOT / "fixtures/scorecard-synthetic.json").read_text().rstrip("\n") + " as const\n"
+        if os.environ.get("EUCG_UPDATE_FIXTURES") == "1":
+            BAND_FIXTURE.write_text(expected)
+        self.assertEqual(BAND_FIXTURE.read_text(), expected)
+
+
 class PluginLayoutTests(unittest.TestCase):
     def test_manifests_name_one_local_plugin_with_package_version(self):
         plugin = json.loads((ROOT / ".claude-plugin/plugin.json").read_text())

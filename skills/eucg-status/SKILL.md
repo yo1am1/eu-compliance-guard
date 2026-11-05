@@ -37,6 +37,10 @@ sources: <r> retrieved (<same> same bytes, <changed> changed) · <f> failed · <
 gaps: <N> · declarations changed since run: <yes|no>
 ```
 
+Then run `<cli> score --run <run dir>` and show its meter lines as printed: review
+progress, points out of 10 per meter, never a total. Do not add, average or restate
+them as a compliance score.
+
 If the user wants the full picture, offer the browser view:
 `<cli> view --run <run dir> --open` (or the band's Open report button).
 

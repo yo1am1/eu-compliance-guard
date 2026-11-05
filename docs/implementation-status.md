@@ -46,6 +46,17 @@ browser checks, provider bridge, remediation loop, dashboard, Graphify integrati
 global host installation, or completed legal audit exists yet. These obligations
 remain pending. Research links are a starting register, not a current vetted corpus.
 
+## Review-progress dashboard (2026-11-04)
+
+Owner decision recorded in `docs/decisions/dashboard-review-progress.md`: separate
+meters, points out of 10, no total, never a compliance score. Implemented: the pure
+`eu_compliance_guard/scorecard.py` (`Scorecard` contract in `models.py`), the `score`
+command, a Review progress section at the top of the HTML view, `views/<run>.scorecard.json`
+written by `view`, meter lines in the band and panel, and a local React dashboard page
+in `frontend/` (`npm test` covers its parsing and wording; `npm run build` its bundle).
+Screening is a coverage line and "style" is unscored record hygiene. All tests use the
+synthetic fixture; a scorecard says nothing about real compliance.
+
 ## Verification for this extraction
 
 - `make check`: all 61 synthetic tests passed; JSON Schema and generated TypeScript
