@@ -258,7 +258,7 @@ test('a malformed or free-text step is not shown', async ($, on) => {
 })
 
 test('the side panel shows ranked steps, owner questions and gaps by area, never run text', async ($, on) => {
-  const { commands } = host(on)
+  const { commands, processes } = host(on)
   await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
@@ -278,6 +278,9 @@ test('the side panel shows ranked steps, owner questions and gaps by area, never
   await eventually(() => ui.find({ key: 'next' }))
   await ui.press({ key: 'next' })
   expect(commands).toContain('eu-compliance-guard:eucg-next')
+  await ui.press({ key: 'graph' })
+  const graph = processes.find(argv => argv.includes('graph'))
+  expect(graph?.slice(-5)).toEqual(['graph', '--input', `${PROJECT}/.eu-compliance-guard/declarations.json`, '--view', '--open'])
   await ui.unmount()
 })
 

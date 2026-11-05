@@ -10,7 +10,9 @@ from typing import get_args
 
 from pydantic import ValidationError
 
-from eu_compliance_guard import authoring as a, graph as g, grounding, models as m
+from unittest.mock import patch
+
+from eu_compliance_guard import authoring as a, graph as g, graph_view, grounding, models as m
 from eu_compliance_guard.__main__ import main
 from eu_compliance_guard.notice import LEGAL_NOTICE
 
@@ -130,6 +132,39 @@ class GraphTests(unittest.TestCase):
                        "@@ -2,0 +2,1 @@\n+    pass\n")
         self.assertEqual(report["flows"], [])
         self.assertTrue(report["graph"])
+
+    def test_graph_view_is_a_private_static_page_linking_law_to_code(self):
+        declarations = a.init(self.root / ".eu-compliance-guard/declarations.json", "demo", synthetic=True)
+        data = json.loads(declarations.read_text())
+        data["scope"]["roles"] = [{"id": "fact-weight-llm", "revision": 0, "key": "Member weight is sent to the model",
+                                   "value": True, "basis": "assumed", "evidence_ids": [], "owner": "Fictional owner",
+                                   "observed_at": "2026-11-05T00:00:00Z", "conflicts": []}]
+        data["requirements"] = [{"id": "req-ai", "revision": 0, "project_id": "demo", "synthetic": True,
+                                 "statement": "Fictional AI requirement.", "origin": None, "locator": None, "activity_ids": [],
+                                 "fact_refs": [{"id": "fact-weight-llm", "revision": 0}], "obligation_refs": [], "evidence_ids": []}]
+        declarations.write_text(json.dumps(data))
+        (self.root / "app/<odd>&name.py").write_text("def health_upload(weight, llm):\n    return llm.complete(weight)\n")
+        state = Path(self.temporary.name) / "state"
+        state.mkdir(mode=0o700)
+        with patch.dict("os.environ", {"XDG_STATE_HOME": str(state)}):
+            stdout = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(io.StringIO()):
+                self.assertEqual(main(["ground", "--input", str(declarations), "--apply", "fact-weight-llm=app/coach.py:7"]), 0)
+                self.assertEqual(main(["graph", "--input", str(declarations), "--view"]), 0)
+            page = Path(stdout.getvalue().strip().splitlines()[-1])
+            first = page.read_bytes()
+            graph_view.write(declarations)
+            self.assertEqual(page.read_bytes(), first)
+        self.assertEqual((page.name, page.parent.name, page.stat().st_mode & 0o777), ("graph.html", "views", 0o600))
+        html = first.decode()
+        self.assertNotIn("<script", html.lower())
+        self.assertNotIn("http", html.replace("http-equiv", "").replace("http://www.w3.org", ""))
+        self.assertIn("&lt;odd&gt;&amp;name.py", html)
+        self.assertNotIn("<odd>", html)
+        self.assertIn("fact-weight-llm", html)
+        self.assertIn("requirement req-ai", html)  # law to code
+        self.assertIn("possible paths", html)
+        self.assertIn(LEGAL_NOTICE, html)
 
     def test_the_contract_rejects_dangling_or_unsorted_edges(self):
         graph = g.build_graph(self.root)

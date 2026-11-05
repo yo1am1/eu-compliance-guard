@@ -159,6 +159,19 @@ async function openReport($: EngineInterface, linked: string, dashboard = false)
   $.ui.toast(result?.stderr.includes('no-browser') ? `${what} written: ${path}` : `${what} opened in your browser`)
 }
 
+// The project graph is one static page in the state folder, written from the checked-out code.
+async function openGraph($: EngineInterface) {
+  const project = await $.session.root()
+  const declarations = await resolve($, `${project}/.eu-compliance-guard/declarations.json`)
+  const result = await cli($, ['graph', '--input', declarations, '--view', '--open'])
+  const path = result?.exitCode === 0 ? result.stdout.trim().split('\n').pop() ?? '' : ''
+  if (path === '') {
+    $.ui.toast(`EU Compliance Guard: graph view failed (${errorCode(result?.stderr) ?? 'graph-failed'})`)
+    return
+  }
+  $.ui.toast(result?.stderr.includes('no-browser') ? `Graph written: ${path}` : 'Graph opened in your browser')
+}
+
 // "▓▓▓░░░ 3/12 requirements supported · 94 open items (−7 since last run)": progress first, never a verdict.
 function summaryLine(run: NonNullable<Band['run']>, previousGaps: number | null): string {
   const delta = previousGaps === null ? '' : run.gaps < previousGaps ? ` (−${previousGaps - run.gaps} since last run)`
@@ -242,6 +255,7 @@ export const register: Register = on => {
         </Box>
         <Box flexDirection="row" gap={1}>
           <Button key="dashboard" label="Dashboard" variant="primary" onPress={() => openReport($, run.dir, true)} />
+          <Button key="graph" label="Graph" onPress={() => openGraph($)} />
           <Button key="report" label="Open report" onPress={() => openReport($, run.dir)} />
           <Button key="gaps" label="Gaps" onPress={() => runSkill($, 'eucg-gaps')} />
           <Button key="refresh" label="Refresh" onPress={() => refresh($, true)} />
