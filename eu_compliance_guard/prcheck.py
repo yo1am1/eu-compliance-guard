@@ -7,7 +7,6 @@ changed file. It never decides what the law requires; "no touchpoints" is not a 
 """
 from __future__ import annotations
 
-import re
 
 from . import models as m
 from .grounding import CONCEPTS, SKIP_DIRS, TEXT_NAMES, TEXT_SUFFIXES, tokens
@@ -293,7 +292,16 @@ def concepts_in(line: str) -> list[str]:
 
 def _code(text: str) -> str:
     """Text safe inside a markdown code span: no backticks or line breaks to break out with."""
-    return re.sub(r"[\r\n]+", " ", text.replace("`", "'"))
+    parts, broken = [], False
+    for char in text.replace("`", "'"):
+        if char in "\r\n":
+            if not broken:
+                parts.append(" ")
+            broken = True
+        else:
+            parts.append(char)
+            broken = False
+    return "".join(parts)
 
 
 def _mentioned(concept: str, declared_terms: set[str]) -> bool:
@@ -303,7 +311,7 @@ def _mentioned(concept: str, declared_terms: set[str]) -> bool:
 
 
 def _snippet(text: str) -> str:
-    text = re.sub(r"\s+", " ", text.replace("`", "'")).strip()
+    text = " ".join(text.replace("`", "'").split())
     return text if len(text) <= SNIPPET else text[:SNIPPET - 1] + "…"
 
 

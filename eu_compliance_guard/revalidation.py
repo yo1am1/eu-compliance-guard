@@ -14,7 +14,6 @@ import json
 import math
 import os
 from pathlib import Path
-import re
 import stat
 import time
 from typing import get_args
@@ -79,7 +78,80 @@ PIN_GAPS = {"no_pin": "source provision pins missing",
 BINDING_SOURCE_TYPES = ("eu_act", "national_act", "judgment", "synthetic_fixture")
 POLICY = {"workflow": "offline-declared-review-v1", "tool_version": __version__,
           "budget": "cooperative-only", "network": False, "technical_execution": False}
-LANGUAGE = re.compile(rb"<html\b[^>]{0,2048}?\blang\s*=\s*[\"']?([A-Za-z]{1,8})", re.I)
+_SPACE = frozenset(b" \t\n\r\f\v")
+
+
+def _word_byte(value: int) -> bool:
+    return value == 95 or 48 <= value <= 57 or 65 <= value <= 90 or 97 <= value <= 122
+
+
+def _html_lang(head: bytes) -> str | None:
+    """The primary subtag of the first `<html ... lang=xx>` attribute, read without a regex.
+
+    The attribute must start within 2048 bytes of the tag name and before its closing `>`.
+    """
+    lower = head.lower()
+    start = 0
+    while (tag := lower.find(b"<html", start)) != -1:
+        start = tag + 1
+        body = tag + 5
+        if body < len(lower) and _word_byte(lower[body]):
+            continue
+        close = lower.find(b">", body)
+        limit = min(body + 2048, len(lower) if close == -1 else close)
+        at = body
+        while (at := lower.find(b"lang", at, len(lower) if close == -1 else close)) != -1 and at <= limit:
+            cursor = at + 4
+            at += 1
+            if _word_byte(lower[cursor - 5]):
+                continue
+            while cursor < len(lower) and lower[cursor] in _SPACE:
+                cursor += 1
+            if cursor >= len(lower) or lower[cursor] != 61:  # "="
+                continue
+            cursor += 1
+            while cursor < len(lower) and lower[cursor] in _SPACE:
+                cursor += 1
+            if cursor < len(lower) and lower[cursor] in b"\"'":
+                cursor += 1
+            end = cursor
+            while end < len(lower) and end - cursor < 8 and 97 <= lower[end] <= 122:
+                end += 1
+            if end > cursor:
+                return lower[cursor:end].decode("ascii")
+    return None
+
+
+def _has_word(text: str, phrase: str) -> bool:
+    """`phrase` occurs with no letter, digit or underscore directly before or after it."""
+    index = 0
+    while (index := text.find(phrase, index)) != -1:
+        before = text[index - 1] if index else " "
+        after = text[index + len(phrase)] if index + len(phrase) < len(text) else " "
+        if not (before.isalnum() or before == "_") and not (after.isalnum() or after == "_"):
+            return True
+        index += 1
+    return False
+
+
+def _looks_like_markup(text: str) -> bool:
+    """A tag opener: `<` and optional space, then `!doctype`, `?xml` or a name ending in space, `>` or `/`."""
+    index = 0
+    while (index := text.find("<", index)) != -1:
+        index += 1
+        cursor = index
+        while cursor < len(text) and text[cursor].isspace():
+            cursor += 1
+        rest = text[cursor:cursor + 8].lower()
+        if rest.startswith(("!doctype", "?xml")):
+            return True
+        if cursor < len(text) and text[cursor].isascii() and text[cursor].isalpha():
+            cursor += 1
+            while cursor < len(text) and (text[cursor].isalnum() or text[cursor] in "_:-"):
+                cursor += 1
+            if cursor < len(text) and (text[cursor].isspace() or text[cursor] in ">/"):
+                return True
+    return False
 
 
 class RevalidationError(ValueError):
@@ -358,7 +430,7 @@ def admit_source_content(content: bytes, media_type: str, charset: str | None = 
         return ContentAdmission("needs_review", "invalid-utf8")
     if not text.strip() or content.startswith(b"%PDF-") or any(ord(char) < 32 and char not in "\n\r\t" for char in text):
         return ContentAdmission("needs_review", "format-mismatch")
-    markup = bool(re.search(r"<\s*(?:!doctype|\?xml|[a-z][\w:-]*(?:\s|>|/))", text, re.I))
+    markup = _looks_like_markup(text)
     signals = _HTMLSignals()
     if markup:
         try:
@@ -376,7 +448,7 @@ def admit_source_content(content: bytes, media_type: str, charset: str | None = 
                   "please sign in", "sign in to access", "log in to access", "login required", "authentication required")
     is_short = len(lowered) < SHORT_PAGE_CHARS
     # Whole words only: "terrorist" is no "error", and "2021/2403" is no HTTP 403.
-    title_marker = re.search(r"\b(?:login|log in|sign in|challenge|error|403|404|503)\b", title)
+    title_marker = any(_has_word(title, word) for word in ("login", "log in", "sign in", "challenge", "error", "403", "404", "503"))
     if (signals.password or any(marker in lowered for marker in always)
             or (is_short and any(marker in lowered for marker in short_only))
             or title_marker
@@ -440,8 +512,8 @@ def _retrieval_review(content: bytes, media_type: str, target: m.SourceTarget) -
     reasons = []
     if target.intended_identifier and target.intended_identifier.lower().encode("utf-8") not in content.lower():
         reasons.append("intended-identifier-not-found")
-    declared = LANGUAGE.search(content[:CHUNK_BYTES]) if media_type != "text/plain" else None
-    if declared and declared.group(1).decode("ascii").lower() != target.language.split("-")[0].lower():
+    declared = _html_lang(content[:CHUNK_BYTES]) if media_type != "text/plain" else None
+    if declared and declared != target.language.split("-")[0].lower():
         reasons.append("declared-language-unverified")
     return reasons
 

@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Band, NextSteps } from '../../types'
 import {
   daysOld, describeMeter, describeStep, meterRow, parseScores, parseSteps, progressBar, progressLine, SCORE_NOTICE, statusWord,
-  summarize, words,
+  summarize, words, errorCode, baseName,
 } from './summary'
 
 const LEVELS = ['lite', 'full', 'strict', 'off']
@@ -150,7 +150,7 @@ async function openReport($: EngineInterface, linked: string, dashboard = false)
   const path = result?.exitCode === 0 ? result.stdout.trim().split('\n').pop() ?? '' : ''
   if (path === '') {
     // stderr carries only the CLI's fixed safe code.
-    const code = result?.stderr.match(/eu-compliance-guard: ([a-z-]+):/)?.[1] ?? 'view-failed'
+    const code = errorCode(result?.stderr) ?? 'view-failed'
     $.ui.toast(`EU Compliance Guard: report view failed (${code})`)
     return
   }
@@ -293,7 +293,7 @@ export const register: Register = on => {
       </Text>
     ) : null
     // A view written for an older run must not stand for the newest run the band summarizes.
-    const runName = run ? run.dir.replace(/\/+$/, '').split('/').pop() : null
+    const runName = run ? baseName(run.dir) : null
     const viewForRun = view && runName && view.endsWith(`/views/${runName}.html`) ? view : null
     return (
       <Box flexDirection="column">

@@ -327,7 +327,7 @@ def fetch(request: TargetRequest, transport, *, limit: int, deadline: float,
                 state["media_type"], state["charset"] = _media_type(headers)
                 lengths = [value.strip() for name, value in headers if name.lower() == "content-length"]
                 # ASCII digits only: str.isdigit() also accepts other scripts' digits.
-                if len(set(lengths)) > 1 or (lengths and not re.fullmatch(r"[0-9]{1,20}", lengths[0])):
+                if len(set(lengths)) > 1 or (lengths and not (lengths[0].isascii() and lengths[0].isdigit() and len(lengths[0]) <= 20)):
                     raise RetrievalFailure("invalid-response")
                 if lengths and int(lengths[0]) > limit:
                     raise RetrievalFailure("response-too-large")

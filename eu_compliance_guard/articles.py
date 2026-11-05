@@ -12,7 +12,6 @@ from collections import Counter
 from html.parser import HTMLParser
 import itertools
 import math
-import re
 
 from .grounding import tokens
 
@@ -241,8 +240,20 @@ def parse(content: bytes, media_type: str) -> dict[str, dict]:
 
 def article_key(locator: str) -> str | None:
     """'Article 9(2)(a)', 'Art. 9' or 'article 9' -> 'Article 9'."""
-    match = re.match(r"^\s*(?:Article|Art\.?)\s*(\d+[a-z]?)", locator, re.I)
-    return f"Article {match.group(1)}" if match else None
+    rest = locator.lstrip()
+    for prefix in ("article", "art.", "art"):
+        if rest[:len(prefix)].lower() == prefix:
+            rest = rest[len(prefix):].lstrip()
+            break
+    else:
+        return None
+    digits = 0
+    while digits < len(rest) and rest[digits].isdecimal():
+        digits += 1
+    if not digits:
+        return None
+    suffix = rest[digits:digits + 1]
+    return f"Article {rest[:digits]}{suffix if suffix.isascii() and suffix.isalpha() else ''}"
 
 
 def _stem(term: str) -> str:
@@ -265,9 +276,21 @@ def _inflections(word: str) -> set[str]:
 INFLECTED_TERMS = {form: value for key, value in LEGAL_TERMS.items() for form in _inflections(key)}
 
 
+def _without_code_spans(text: str) -> str:
+    """Replace each '(code: ...)' span with a space; an unclosed span is kept as text."""
+    parts, index = [], 0
+    while (start := text.find("(code:", index)) != -1:
+        end = text.find(")", start + 6)
+        if end == -1:
+            break
+        parts += [text[index:start], " "]
+        index = end + 1
+    return "".join(parts) + text[index:]
+
+
 def _query(statement: str) -> dict[str, float]:
     """Statement terms at 1.0 plus their legal-vocabulary counterparts at 0.8, all stemmed."""
-    query = [term for term in tokens(re.sub(r"\(code:[^)]*\)", " ", statement)) if term not in NOISE]
+    query = [term for term in tokens(_without_code_spans(statement)) if term not in NOISE]
     weights: dict[str, float] = {}
     for term in query:
         weights[_stem(term)] = 1.0
