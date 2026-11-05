@@ -161,6 +161,15 @@ class NextStepTests(unittest.TestCase):
             self.assertEqual(main(["next"]), 2)
         self.assertEqual(err.getvalue(), "eu-compliance-guard: no-run: next step failed\n")
 
+    def test_the_newest_run_is_the_last_completed_not_the_last_named(self):
+        named_later = self.run_bundle("run-zzz-first")
+        completed_later = self.run_bundle("run-aaa-second")
+        os.utime(named_later / "complete.json", ns=(1_000_000_000, 1_000_000_000))
+        os.utime(completed_later / "complete.json", ns=(2_000_000_000, 2_000_000_000))
+        self.assertEqual(n.latest_run(named_later.parent), completed_later)
+        os.utime(named_later / "complete.json", ns=(2_000_000_000, 2_000_000_000))
+        self.assertEqual(n.latest_run(named_later.parent), named_later)  # same time: the later name
+
     def test_unreadable_run_storage_is_unsafe_path_never_no_run(self):
         older = self.run_bundle("run-20261025T000000Z")
         newer = self.run_bundle("run-20261026T000000Z")

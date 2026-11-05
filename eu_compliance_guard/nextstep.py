@@ -177,20 +177,26 @@ def format_steps(steps: list[dict]) -> str:
 
 
 def latest_run(state: str | Path) -> Path | None:
-    """Newest run directory (by its timestamped name) that has a completion marker.
+    """Newest completed run: the run whose completion marker was written last, then the later name.
 
-    None only when no completed run exists. Storage that cannot be read is `unsafe-path`, as
-    `next --run` reports for the same directory, never a missing run and never an older run.
+    A run directory's name is chosen by whoever starts the run, so it does not order runs; the
+    marker, written last and once, does. None only when no completed run exists. Storage that
+    cannot be read is `unsafe-path`, as `next --run` reports for the same directory, never a
+    missing run and never an older run.
     """
     try:
-        names = sorted((item for item in Path(state).iterdir()
-                        if item.name.startswith("run-") and item.is_dir() and not item.is_symlink()), reverse=True)
-        for item in names:
+        completed = []
+        for item in Path(state).iterdir():
+            if not item.name.startswith("run-") or not item.is_dir() or item.is_symlink():
+                continue
             try:
-                if stat.S_ISREG(os.stat(item / "complete.json").st_mode):
-                    return item
+                marker = os.stat(item / "complete.json", follow_symlinks=False)
             except FileNotFoundError:
                 continue
+            if stat.S_ISREG(marker.st_mode):
+                completed.append((marker.st_mtime_ns, item.name, item))
+        if completed:
+            return max(completed)[2]
     except FileNotFoundError:
         return None
     except OSError:
