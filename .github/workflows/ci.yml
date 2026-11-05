@@ -1,0 +1,45 @@
+name: CI
+
+# Runs the project's own checks on every pull request and on main. Read-only; third-party
+# actions are pinned to commit SHAs at least 14 days old (supply-chain cooldown).
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Install the locked frontend dependencies
+        run: npm --prefix frontend ci --ignore-scripts
+      - name: make check
+        run: make check
+
+  pr-check:
+    # The tool screens its own pull requests; the result goes to the job summary only.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - name: Screen this pull request's diff
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git -c core.quotePath=false diff "origin/${BASE_REF}...HEAD" > "$RUNNER_TEMP/change.diff"
+          uv run --locked --no-dev python -P -m eu_compliance_guard pr-check --diff "$RUNNER_TEMP/change.diff" --markdown \
+            >> "$GITHUB_STEP_SUMMARY"
