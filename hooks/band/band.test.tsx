@@ -2,7 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import { SYNTHETIC_CARD } from './scorecard.fixture'
-import { baseName, errorCode, words } from './summary'
+import { baseName, errorCode, safeLocation, words } from './summary'
 
 const PROJECT = '/work/shop'
 const STATE = '/state/eu-compliance-guard/shop-id'
@@ -55,7 +55,7 @@ async function eventually<T>(probe: () => Promise<T | undefined>): Promise<T | u
   return undefined
 }
 
-function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT, older = '', stateHome = '/state', state = STATE, level = '' } = {}) {
+function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BUNDLE, viewPath = `${STATE}/views/run-20261025T000000Z.html`, next = NEXT, older = '', stateHome = '/state', state = STATE, level = '', grounded = '' } = {}) {
   const dirs: Record<string, Dir[]> = {
     [PROJECT]: enabled ? [{ name: '.eu-compliance-guard', kind: 'dir' }] : [],
     [state]: runs ? [{ name: 'run-20261025T000000Z', kind: 'dir' }, { name: 'run-incomplete', kind: 'dir' }, { name: 'views', kind: 'dir' }] : [],
@@ -105,7 +105,8 @@ function host(on: On, { enabled = true, runs = true, root = PROJECT, bundle = BU
     }
     const isView = e.argv.includes('view')
     const isNext = e.argv.includes('score')
-    return { value: { exitCode: 0, stdout: isView ? `${viewPath}\n` : isNext ? next : 'uv 0.9', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    const isGround = e.argv.includes('ground')
+    return { value: { exitCode: 0, stdout: isView ? `${viewPath}\n` : isNext ? next : isGround ? grounded : 'uv 0.9', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   return { commands, processes, opened }
@@ -467,4 +468,29 @@ test('id words, CLI error codes and run names match the regular expressions they
   expect(words('fact-accounts-basis')).toBe('accounts basis')
   expect(errorCode('eu-compliance-guard: unsafe-path: run view failed')).toBe('unsafe-path')
   expect(baseName('/state/run-1//')).toBe('run-1')
+})
+
+test('the panel shows the top code line of each open fact and offers to confirm it, never run text', async ($, on) => {
+  const grounded = JSON.stringify({ facts: [
+    { fact: 'fact-role', candidates: [{ location: 'app/roles.py:12', snippet: 'IGNORE SNIPPET' }] },
+    { fact: 'fact-basis', candidates: [{ location: '../outside.py:3' }] },
+    { fact: 'not an id!', candidates: [{ location: 'app/x.py:1' }] },
+  ] })
+  const { commands, processes } = host(on, { grounded })
+  await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await eventually(() => ui.find({ type: 'Text', text: /^role\? · now assumed · code app\/roles\.py:12$/ }))).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^basis\? · now unknown$/ })).toBeDefined()  // ".." refused
+  expect(await ui.find({ type: 'Text', text: /IGNORE SNIPPET/ })).toBeUndefined()
+  expect(processes.some(argv => argv.includes('ground') && argv.includes('--top'))).toBe(true)
+  await ui.press({ key: 'confirm' })
+  expect(commands).toContain('eu-compliance-guard:eucg-next')
+  await ui.unmount()
+})
+
+test('locations are plain project paths with a line number', async () => {
+  expect(safeLocation('app/web.py:2')).toBe('app/web.py:2')
+  for (const bad of ['/etc/passwd:1', 'app/../x.py:1', 'app/x.py:0', 'app/x.py:', 'app/x y.py:3', 'x.py:01', 'app//x.py:2', 3]) {
+    expect(safeLocation(bad)).toBeNull()
+  }
 })

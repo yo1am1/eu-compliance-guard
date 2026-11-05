@@ -4,6 +4,10 @@
 
 ### Added
 
+- Panel grounding (1.5 bolt 010): each fact the owner still has to confirm shows its top
+  code line (`code app/roles.py:12`), and a **Confirm code evidence** button opens
+  `/eucg-next`, which asks the owner before pinning anything. Locations are validated
+  (plain path segments, no `..`, a line number), and no run text is shown.
 - Real repositories (1.5 bolt 009):
   - `ground` searches through an inverted index. 300 facts over about 60,000 lines of
     real Python now take 0.6 s instead of 33 s, with identical results (checked on 400

@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Band, NextSteps } from '../../types'
 import {
   daysOld, describeMeter, describeStep, meterRow, parseScores, parseSteps, progressBar, progressLine, SCORE_NOTICE, statusWord,
-  summarize, words, errorCode, baseName,
+  summarize, words, errorCode, baseName, parseCandidates,
 } from './summary'
 
 const LEVELS = ['lite', 'full', 'strict', 'off']
@@ -14,7 +14,7 @@ const EMPTY: Band = { isActive: false, level: 'full', stateDir: '', run: null, p
 const band = atom({ plugin: 'eu-compliance-guard', key: 'band' } as const, EMPTY, { shape: 'band-3' })
 const isFolded = atom({ plugin: 'eu-compliance-guard', key: 'isFolded' } as const, false)
 const lastView = atom({ plugin: 'eu-compliance-guard', key: 'lastView' } as const, null)
-const nextSteps = atom({ plugin: 'eu-compliance-guard', key: 'next' } as const, null as NextSteps | null, { shape: 'next-4' })
+const nextSteps = atom({ plugin: 'eu-compliance-guard', key: 'next' } as const, null as NextSteps | null, { shape: 'next-5' })
 // Run directories being ranked now, so turns that end while the CLI runs start no second process.
 const ranking = new Set<string>()
 const PANE = 'eucg-panel'
@@ -124,7 +124,13 @@ async function rankScore($: EngineInterface, dir: string, previousDir: string | 
     const against = previousDir === null ? [] : ['--against', await resolve($, previousDir)]
     const result = await cli($, ['score', '--run', await resolve($, dir), '--json', '--top', '3', ...against], 60_000)
     const ok = result?.exitCode === 0
-    const ranked = { dir, steps: (ok ? parseSteps(dir, result.stdout)?.steps : null) ?? null, scores: ok ? parseScores(result.stdout) : null }
+    // Each open fact's best code line, for the panel; the CLI validates nothing here, the parser does.
+    const project = await $.session.root()
+    const grounded = await cli($, ['ground', '--input', await resolve($, `${project}/.eu-compliance-guard/declarations.json`),
+      '--json', '--top', '1'], 60_000)
+    const candidates = grounded?.exitCode === 0 ? parseCandidates(grounded.stdout) : null
+    const ranked = { dir, steps: (ok ? parseSteps(dir, result.stdout)?.steps : null) ?? null, scores: ok ? parseScores(result.stdout) : null,
+      candidates }
     // A slow ranking of an older run never replaces the newest run's.
     if ((await read($, band))?.run?.dir === dir) await update($, nextSteps, () => ranked)
   } finally {
@@ -245,8 +251,13 @@ export const register: Register = on => {
         <Box flexDirection="column">
           <Text bold>Questions for the owner ({questionsTotal})</Text>
           {questions.length === 0 ? <Text dimColor>Every declared fact is declared or observed.</Text> : null}
-          {questions.slice(0, 12).map(item => <Text>{`${words(item.id)}? · now ${item.basis}`}</Text>)}
+          {questions.slice(0, 12).map(item => {
+            const code = (isRanked ? ranked.candidates ?? [] : []).find(candidate => candidate.fact === item.id)
+            return <Text>{`${words(item.id)}? · now ${item.basis}${code ? ` · code ${code.location}` : ''}`}</Text>
+          })}
           {questionsTotal > 12 ? <Text dimColor>{`and ${questionsTotal - 12} more in the report`}</Text> : null}
+          {isRanked && (ranked.candidates ?? []).some(candidate => questions.some(item => item.id === candidate.fact))
+            ? <Button key="confirm" label="Confirm code evidence" onPress={() => runSkill($, 'eucg-next')} /> : null}
         </Box>
         <Box flexDirection="column">
           <Text bold>Open gaps by area</Text>

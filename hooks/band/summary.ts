@@ -280,3 +280,34 @@ export function describeMeter(meter: ScoreMeter): string {
   const raise = meter.raisePoints === null ? '' : `  +${meter.raisePoints}: ${meter.raiseBy} more`
   return `${LABELS[meter.key].padEnd(10)} ${meterBar(meter.points, meter.ceiling)} ${points.padStart(5)}  ${meter.done} of ${meter.total} ${UNITS[meter.key]}${raise}`
 }
+
+// "app/web.py:12": plain path segments (letters, digits, _ . -), no "..", no leading slash, a line number.
+export function safeLocation(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 200) return null
+  const cut = value.lastIndexOf(':')
+  const path = value.slice(0, cut)
+  const line = value.slice(cut + 1)
+  if (cut <= 0 || line === '' || line.length > 9 || [...line].some(char => char < '0' || char > '9') || line[0] === '0') return null
+  const segments = path.split('/')
+  const plain = (segment: string) => segment !== '' && segment !== '..' && segment !== '.'
+    && [...segment].every(char => (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || '_.-'.includes(char))
+  return segments.every(plain) ? value : null
+}
+
+// Parses `ground --json`: each open fact's top code candidate, ids and locations validated; nothing else is kept.
+export function parseCandidates(text: string): { fact: string; location: string }[] | null {
+  let value: any
+  try {
+    value = JSON.parse(text)
+  } catch {
+    return null
+  }
+  if (!Array.isArray(value?.facts)) return null
+  const found: { fact: string; location: string }[] = []
+  for (const fact of value.facts.slice(0, 200)) {
+    const id = typeof fact?.fact === 'string' && SAFE.test(fact.fact) ? fact.fact : null
+    const location = Array.isArray(fact?.candidates) ? safeLocation(fact.candidates[0]?.location) : null
+    if (id !== null && location !== null) found.push({ fact: id, location })
+  }
+  return found
+}

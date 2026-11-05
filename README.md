@@ -85,7 +85,9 @@ fixed-format fields only, never gap text.
 
 **Side panel.** **Panel** (or `/eucg-panel`) opens a pane beside the chat, docked in
 the desktop app and in a wide fullscreen terminal. It shows the top three next steps,
-the facts the owner still has to confirm (by id), and open gaps counted by area, with
+the facts the owner still has to confirm (by id, with each one's best code line from
+`ground` and a **Confirm code evidence** button that opens `/eucg-next`), and open gaps
+counted by area, with
 buttons to work on step 1, open the report, list gaps or refresh.
 
 **Dashboard** opens a one-page view of review progress: the meters, the next best

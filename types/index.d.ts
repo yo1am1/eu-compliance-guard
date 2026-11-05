@@ -46,7 +46,8 @@ export type Scores = {
 }
 
 // The ranked steps and review progress of one run directory; null when that part failed for that run.
-export type NextSteps = { dir: string; steps: NextStep[] | null; scores: Scores | null }
+export type CodeCandidate = { fact: string; location: string }
+export type NextSteps = { dir: string; steps: NextStep[] | null; scores: Scores | null; candidates?: CodeCandidate[] | null }
 
 export type Band = {
   isActive: boolean
