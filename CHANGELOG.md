@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Law in force (1.5 bolt 008, part one): CELEX numbers are read from target identifiers
+  and Cellar or EUR-Lex URLs without a regular expression. `check` warns when an act
+  target uses a base CELEX (the act as first published) and lists each target's
+  version. Each article excerpt in the report names the consolidation date or says the
+  text is as first published.
+
 ## 1.3.0 — 2026-11-05
 
 Review progress at a glance, a project graph that follows data through the code,
