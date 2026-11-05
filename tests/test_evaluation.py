@@ -15,6 +15,8 @@ class EvaluationTests(unittest.TestCase):
         for name in ("articles_tune", "articles_held_out", "grounding"):
             for metric in ("top1", "top3"):
                 self.assertGreaterEqual(result[name][metric], floor[name][metric], f"{name} {metric}")
+        self.assertGreaterEqual(result["flows"]["found"], floor["flows"]["found"])
+        self.assertLessEqual(len(result["flows"]["unexpected"]), floor["flows"]["unexpected_max"])
 
     def test_evaluation_is_deterministic_and_says_what_it_measures(self):
         first = e.evaluate()
