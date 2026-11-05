@@ -214,6 +214,8 @@ source targets, and only to six exact hosts: `eur-lex.europa.eu`, `curia.europa.
 `publications.europa.eu` (the Publications Office's machine endpoint, Cellar). For
 Cellar alone, its own same-host `http://` redirect is upgraded to https; every other
 downgrade is refused. Requests carry the target's language as `Accept-Language`.
+[docs/official-hosts.md](docs/official-hosts.md) names each host's operator and purpose
+and the last reachability check; `make verify-hosts` repeats that check with consent.
 A base CELEX (`resource/celex/32002L0058`) returns the act as first published; for the
 law in force use a consolidated CELEX such as `02002L0058-20091219`, and have a reviewer
 confirm that it is the latest consolidation.
