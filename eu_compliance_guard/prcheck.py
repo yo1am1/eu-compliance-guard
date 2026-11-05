@@ -315,7 +315,19 @@ def _snippet(text: str) -> str:
     return text if len(text) <= SNIPPET else text[:SNIPPET - 1] + "…"
 
 
-def pr_check(diff: str, declared: m.RevalidationInput | None = None, project_graph: m.ProjectGraph | None = None) -> dict:
+def _base(declared: m.RevalidationInput, root_prefix: str | None) -> str:
+    """Diff paths are relative to where the diff was made; declared paths to the files root.
+
+    `root_prefix` is the files root relative to that place ("services/api" in a monorepo, "" at
+    the top). Without it, the files root is assumed to be the top of the diff, as before.
+    """
+    if root_prefix is None:
+        return "" if declared.files_root == "project" else ".eu-compliance-guard/"
+    return root_prefix.rstrip("/") + "/" if root_prefix not in ("", ".") else ""
+
+
+def pr_check(diff: str, declared: m.RevalidationInput | None = None, project_graph: m.ProjectGraph | None = None,
+             root_prefix: str | None = None) -> dict:
     if len(diff.encode("utf-8", "replace")) > MAX_DIFF_BYTES:
         raise PRCheckError("capacity-exceeded")
     added, touched, files = parse_diff(diff)
@@ -329,7 +341,7 @@ def pr_check(diff: str, declared: m.RevalidationInput | None = None, project_gra
     vocabulary_declared: set[str] = set()
     pinned, requirements = [], []
     if declared is not None:
-        base = "" if declared.files_root == "project" else ".eu-compliance-guard/"
+        base = _base(declared, root_prefix)
         touched_declared = {path.removeprefix(base) for path in touched if path.startswith(base)}
         texts = [item.statement for item in declared.requirements]
         texts += [f"{fact.key} {fact.value}" for fact in m.scope_facts(declared.scope)]
@@ -353,17 +365,19 @@ def pr_check(diff: str, declared: m.RevalidationInput | None = None, project_gra
             touchpoints.append({"concept": concept, "label": label, "families": FAMILIES[concept],
                                 "count": len(found[concept]), "examples": found[concept][:MAX_EXAMPLES],
                                 "declared": _mentioned(concept, vocabulary_declared)})
-    flows = _touched_flows(added, declared, project_graph) if declared is not None and project_graph is not None else []
+    flows = (_touched_flows(added, declared, project_graph, root_prefix)
+             if declared is not None and project_graph is not None else [])
     attention = sum(not item["declared"] for item in touchpoints) + len(pinned) + len(requirements) + len(flows)
     return {"files": files, "declarations": declared is not None, "touchpoints": touchpoints,
             "pinned_evidence": pinned, "requirements_in_changed_files": requirements, "flows": flows,
             "graph": project_graph is not None, "attention": attention}
 
 
-def _touched_flows(added: dict, declared: m.RevalidationInput, project_graph: m.ProjectGraph) -> list[dict]:
+def _touched_flows(added: dict, declared: m.RevalidationInput, project_graph: m.ProjectGraph,
+                   root_prefix: str | None = None) -> list[dict]:
     """Data flows with an added line inside one of their functions, and the facts pinned on them."""
     from . import graph
-    base = "" if declared.files_root == "project" else ".eu-compliance-guard/"
+    base = _base(declared, root_prefix)
     facts_by_evidence: dict[str, set[str]] = {}
     for fact in m.scope_facts(declared.scope):
         for evidence in fact.evidence_ids:
