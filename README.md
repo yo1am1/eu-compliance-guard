@@ -354,7 +354,9 @@ git diff origin/main...HEAD | eu-compliance-guard pr-check --markdown
 ## Limits
 
 - No output is a compliance verdict, legal advice or an exhaustive search of EU
-  law. The eleven candidate families are screening keys, not a corpus.
+  law. The eleven candidate families are screening keys, not a corpus. Every text,
+  markdown and HTML output ends with the same notice: the named reviewer decides and
+  is responsible, and the tool comes without warranty (see `LICENSE` and `NOTICE`).
 - Reviewer names are self-attested, not authenticated.
 - Retrieval checks cannot prove a document's identity or currency; a reviewer must.
   National hosts and PDFs need manual review.

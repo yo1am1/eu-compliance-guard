@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from pydantic import ValidationError
 
+from eu_compliance_guard.notice import LEGAL_NOTICE
 from eu_compliance_guard import history as h, models as m, revalidation as r, scorecard as s
 from eu_compliance_guard.__main__ import main
 
@@ -328,7 +329,7 @@ class ScoreCliTests(unittest.TestCase):
         self.assertIn("Alignment  ■■■■■□□□□□  5/10  1 of 2 requirements supported  +5 pts: close 1 more", out)
         self.assertIn("Screening: 0 of 11 families screened (not scored)", out)
         self.assertTrue(out.startswith("FICTIONAL DATA"))
-        self.assertTrue(out.rstrip().endswith(m.SCORE_NOTICE))
+        self.assertTrue(out.rstrip().endswith(m.SCORE_NOTICE + "\n" + LEGAL_NOTICE))
         self.assertEqual(banned_words(out), [])
         code, out, err = self.cli("--json", "--top", "2")
         self.assertEqual(code, 0)

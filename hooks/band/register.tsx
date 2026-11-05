@@ -246,7 +246,7 @@ export const register: Register = on => {
           <Button key="gaps" label="Gaps" onPress={() => runSkill($, 'eucg-gaps')} />
           <Button key="refresh" label="Refresh" onPress={() => refresh($, true)} />
         </Box>
-        <Text dimColor>Workflow guidance from the recorded run; not a compliance verdict.</Text>
+        <Text dimColor>Workflow guidance from the recorded run; not a compliance verdict or legal advice.</Text>
       </Box>
     )
   })

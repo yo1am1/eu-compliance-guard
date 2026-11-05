@@ -15,6 +15,7 @@ import stat
 
 from urllib.parse import quote
 
+from .notice import LEGAL_NOTICE
 from . import articles, models as m, nextstep, revalidation as r, scorecard
 
 CSS = """
@@ -395,6 +396,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
         _table(["Family", "Applicability", "Reviewer", "Gaps"], family_rows, ""),
         '<p class="muted">Generated from the verified run bundle. Processing state describes report assembly only; '
         "no compliance verdict, legal approval or exhaustive law search is established.</p>",
+        f'<p class="muted">{escape(LEGAL_NOTICE)}</p>',
         "</main></body></html>",
     ]
     return "\n".join(parts)
@@ -488,7 +490,7 @@ def render_dashboard(bundle: m.RevalidationBundle, card: m.Scorecard | None = No
         f'<div class="grid2"><section class="card"><h2>To do</h2><ol>{todo}</ol></section>'
         f'<section class="card"><h2>Coverage</h2><ul>{"".join(coverage)}</ul>{coverage_hint}</section></div>',
         questions_html,
-        f"<footer>{escape(scorecard.NOTICE)} Details are in the full report.</footer>",
+        f"<footer>{escape(scorecard.NOTICE)} Details are in the full report.<br>{escape(LEGAL_NOTICE)}</footer>",
         "</main></body></html>",
     ]
     return "\n".join(parts)
