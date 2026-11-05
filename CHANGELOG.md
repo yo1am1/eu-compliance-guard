@@ -23,6 +23,11 @@
   and grounding, with a baseline floor enforced by a test. Baseline: articles top-1
   15/20 and top-3 18/20 on tuning, 14/20 and 17/20 held out; grounding top-1 7/10 and
   top-3 8/10.
+- Graph view (2.0 bolt 016): `graph --view [--open]` and the panel's **Graph** button
+  open a static, script-free page. It shows a fixed-layout picture of the functions on
+  data flows or touching a concept, with flows highlighted and ambiguous calls dashed.
+  It also lists each flow with its pinned facts, and law to code: fact, then the
+  requirements and obligations relying on it.
 - Graph-aware `pr-check` (2.0 bolt 015): with declarations, a diff that adds lines inside
   a function on a data flow lists that flow and the facts pinned on it, or says no
   fact covers it. The graph comes from the checked-out code; `revalidate` still reads

@@ -124,6 +124,9 @@ def _command(argv: list[str] | None) -> int:
     graph.add_argument("--input", default=".eu-compliance-guard/declarations.json",
                        help="Declarations file; its files root is the project that is mapped")
     graph.add_argument("--json", action="store_true", help="Print the whole graph as JSON")
+    graph.add_argument("--view", action="store_true",
+                       help="Write a static graph page to <state-dir>/views/graph.html and print its path")
+    graph.add_argument("--open", action="store_true", help="With --view, open the page in the default browser")
     ground = commands.add_parser("ground", help="Find code evidence for assumed facts; --apply pins one as observed",
                                  allow_abbrev=False)
     ground.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
@@ -243,6 +246,20 @@ def _check(path: str, as_json: bool, previous: str | None = None) -> int:
 def _graph(args) -> int:
     from pathlib import Path
     from . import graph, grounding
+    if args.view or args.open:
+        try:
+            from .graph_view import write
+            page = write(args.input)
+        except KeyboardInterrupt:
+            return 130
+        except Exception as error:
+            code = getattr(error, "code", None)
+            print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'graph-failed'}: graph failed", file=sys.stderr)
+            return 2
+        _emit(str(page))
+        if args.open:
+            _open_in_browser(page)
+        return 0
     try:
         path = Path(args.input)
         _, root = grounding._declarations(path)
@@ -408,16 +425,20 @@ def _view(run_dir: str, open_browser: bool, dashboard: bool = False) -> int:
         return 2
     _emit(str(path))
     if open_browser:
-        import os
-        import webbrowser
-        from pathlib import Path
-        try:
-            opened = webbrowser.open(Path(os.path.abspath(path)).as_uri())
-        except Exception:
-            opened = False
-        if not opened:
-            print("eu-compliance-guard: no-browser: open the file above manually", file=sys.stderr)
+        _open_in_browser(path)
     return 0
+
+
+def _open_in_browser(path) -> None:
+    import os
+    import webbrowser
+    from pathlib import Path
+    try:
+        opened = webbrowser.open(Path(os.path.abspath(path)).as_uri())
+    except Exception:
+        opened = False
+    if not opened:
+        print("eu-compliance-guard: no-browser: open the file above manually", file=sys.stderr)
 
 
 if __name__ == "__main__":
