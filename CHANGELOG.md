@@ -23,6 +23,10 @@
   and grounding, with a baseline floor enforced by a test. Baseline: articles top-1
   15/20 and top-3 18/20 on tuning, 14/20 and 17/20 held out; grounding top-1 7/10 and
   top-3 8/10.
+- Hybrid search (2.0 bolt 014) was measured and not adopted. Re-ranking code
+  candidates by graph closeness gave no gain on either grounding set (7/10 and 5/6
+  top-1 with or without it); see `docs/decisions/hybrid-search.md`. Six multi-file
+  grounding cases now join `make eval`.
 - Path evidence (2.0 bolt 013): `ground` follows data through the project graph.
   Candidates inside a flow show the call path, for example `plan_meals → ask_model`,
   with each hop's `file:line`. Flows from personal, health or children's data to AI,
