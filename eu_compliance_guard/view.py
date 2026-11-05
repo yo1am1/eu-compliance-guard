@@ -506,24 +506,14 @@ def verify_run(run_dir: str | os.PathLike, contents: dict[str, bytes] | None = N
         raise ViewError(error.code) from None
 
 
-def write_view(run_dir: str | os.PathLike, dashboard: bool = False) -> Path:
-    """Write ``<parent>/views/<run>.html`` and ``<run>.scorecard.json`` (0700 directory, 0600 files).
+def publish_views(anchor: Path, files: list[tuple[str, bytes]]) -> None:
+    """Write files into `<anchor's parent>/views/` (0700 folder, 0600 files).
 
-    Each file is written to a temporary name and renamed into place, never through a symlink;
-    an older view of the same run is replaced. Returns the HTML path.
+    Each file goes to a temporary name and is renamed into place, never through a symlink;
+    the parent must be private. Failures surface as ViewError codes.
     """
-    if not os.fspath(run_dir):
-        raise ViewError("unsafe-path")  # Path("") is ".": never fall back to the working directory.
-    run_dir = Path(run_dir)
-    contents: dict[str, bytes] = {}
-    bundle = verify_run(run_dir, contents)
-    card = scorecard.score(bundle)
-    html = render_html(bundle, contents, card).encode("utf-8")
-    files = [(run_dir.name + ".scorecard.json", scorecard.to_json(card)),
-             (run_dir.name + ".dashboard.html", render_dashboard(bundle, card, run_dir.name + ".html").encode("utf-8")),
-             (run_dir.name + ".html", html)]
     try:
-        with r._parent(run_dir) as (parent_fd, _):
+        with r._parent(anchor) as (parent_fd, _):
             r._private_parent(parent_fd)
             try:
                 os.mkdir("views", 0o700, dir_fd=parent_fd)
@@ -549,4 +539,23 @@ def write_view(run_dir: str | os.PathLike, dashboard: bool = False) -> Path:
         raise ViewError(error.code) from None
     except OSError:
         raise ViewError("io-failed") from None
+
+
+def write_view(run_dir: str | os.PathLike, dashboard: bool = False) -> Path:
+    """Write ``<parent>/views/<run>.html`` and ``<run>.scorecard.json`` (0700 directory, 0600 files).
+
+    Each file is written to a temporary name and renamed into place, never through a symlink;
+    an older view of the same run is replaced. Returns the HTML path.
+    """
+    if not os.fspath(run_dir):
+        raise ViewError("unsafe-path")  # Path("") is ".": never fall back to the working directory.
+    run_dir = Path(run_dir)
+    contents: dict[str, bytes] = {}
+    bundle = verify_run(run_dir, contents)
+    card = scorecard.score(bundle)
+    html = render_html(bundle, contents, card).encode("utf-8")
+    files = [(run_dir.name + ".scorecard.json", scorecard.to_json(card)),
+             (run_dir.name + ".dashboard.html", render_dashboard(bundle, card, run_dir.name + ".html").encode("utf-8")),
+             (run_dir.name + ".html", html)]
+    publish_views(run_dir, files)
     return run_dir.parent / "views" / (run_dir.name + (".dashboard.html" if dashboard else ".html"))
