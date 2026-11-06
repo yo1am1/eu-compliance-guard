@@ -10,7 +10,7 @@ the citations and quotations match the retained text; it says nothing about thei
 """
 from __future__ import annotations
 
-from . import articles
+from . import articles, jurisdictions as _jurisdictions
 
 OPEN, CLOSE = "\"“„«", "\"”“»"  # “ closes a German „quotation“
 MIN_QUOTE_WORDS = 3  # shorter quotations are usually defined terms, which are not checked
@@ -22,21 +22,9 @@ def _normal(text: str) -> str:
     return " ".join(text.translate(table).split()).casefold()
 
 
-# Common names of acts, by the CELEX number of the act as first published. A citation followed by
-# one of these names, or by the act's number ("Regulation (EU) 2016/679"), is checked in that act.
-KNOWN_ACTS = {
-    "32016R0679": ("GDPR", "General Data Protection Regulation"),
-    "32024R1689": ("AI Act", "Artificial Intelligence Act"),
-    "32002L0058": ("ePrivacy Directive", "ePrivacy", "Directive on privacy and electronic communications"),
-    "32022R2065": ("DSA", "Digital Services Act"),
-    "32022R1925": ("DMA", "Digital Markets Act"),
-    "32023R2854": ("Data Act",),
-    "32022L2555": ("NIS2", "NIS 2 Directive"),
-    "32024R2847": ("CRA", "Cyber Resilience Act"),
-    "32019L0882": ("European Accessibility Act", "EAA"),
-    "32011L0083": ("Consumer Rights Directive",),
-    "32018R1725": ("EUDPR",),
-}
+# Common names of acts, per jurisdiction (jurisdictions.py). A citation followed by one of these
+# names, or by an EU act's number ("Regulation (EU) 2016/679"), is checked in that act.
+KNOWN_ACTS = _jurisdictions.EU.known_acts
 ACT_WINDOW = 120  # characters after a citation in which an act's name is looked for
 
 
@@ -45,14 +33,16 @@ def _tokens(text: str) -> list[str]:
 
 
 def act_names(targets) -> dict[str, list[list[str]]]:
-    """Name token sequences per source target: its id, its CELEX number and the act's common names."""
-    from .sources import celex_version
+    """Name token sequences per source target: its id, its EU act number and the act's common names."""
     names: dict[str, list[list[str]]] = {}
     declared = set()
     for target in targets:
         found = [_tokens(target.id)]
-        version = celex_version(target.intended_identifier, target.intended_url)
-        if version:
+        version = _jurisdictions.version(target.intended_identifier, target.intended_url)
+        if version and version["jurisdiction"] == "UK":
+            found += [_tokens(name) for name in _jurisdictions.UK.known_acts.get(version["id"], ())]
+            declared.add(version["id"])
+        elif version:
             celex = version["celex"].split("-", 1)[0]
             base = "3" + celex[1:] if celex[0] == "0" else celex
             year, number = base[1:5], base[6:].lstrip("0") if len(base) > 6 else ""
@@ -66,6 +56,9 @@ def act_names(targets) -> dict[str, list[list[str]]]:
     for base, known in KNOWN_ACTS.items():
         if base not in declared:
             names[f"{known[0]} (not declared)"] = [_tokens(name) for name in known] + [[base[1:5], base[6:].lstrip("0")]]
+    for identity, known in _jurisdictions.UK.known_acts.items():
+        if identity not in declared:
+            names[f"{known[0]} (not declared)"] = [_tokens(name) for name in known]
     return names
 
 
@@ -83,8 +76,17 @@ def _names_act(window: str, names: dict[str, list[list[str]]]) -> str | None:
     return best[1] if best else None
 
 
+# Words that cite provisions: singular ones cite one, plural ones a list ("Sections 5 and 6").
+CITING = {"article": ("Article", False), "art.": ("Article", False), "art": ("Article", False),
+          "articles": ("Article", True), "arts.": ("Article", True),
+          "section": ("Section", False), "s.": ("Section", False), "sections": ("Section", True), "ss.": ("Section", True),
+          "regulation": ("Regulation", False), "reg.": ("Regulation", False), "regulations": ("Regulation", True),
+          "regs.": ("Regulation", True)}
+
+
 def _citations(text: str) -> list[tuple[int, str]]:
-    """(position, 'Article N') for each 'Article N', 'Art. N' or 'Articles N and M' in the text."""
+    """(position, key) for each 'Article N', 'Art. N', 'section 170', 's. 170', 'regulation 6',
+    'reg. 6' or plural list ('Articles N and M') in the text."""
     found, words, position = [], [], 0
     for word in text.split():
         position = text.index(word, position)
@@ -92,16 +94,18 @@ def _citations(text: str) -> list[tuple[int, str]]:
         position += len(word)
     for index, (position, word) in enumerate(words):
         lowered = word.lower()
-        if lowered not in ("article", "articles", "art.", "art", "arts."):
+        if lowered not in CITING:
             continue
+        name, plural = CITING[lowered]
         for _, following in words[index + 1:index + 8]:
-            key = articles.article_key("Article " + following.strip("(),;:.'\"“”"))
+            number = following.strip("(),;:.'\"“”")
+            key = articles.article_key(f"{name} {number}") if following[:1] != "(" else None
             if key is None:
                 if following.lower() in ("and", "or", "to", "&"):
                     continue
                 break
             found.append((position, key))
-            if not following.endswith(",") and lowered in ("article", "art.", "art"):
+            if not following.endswith(",") and not plural:
                 break
     return found
 
