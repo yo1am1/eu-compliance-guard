@@ -85,11 +85,15 @@ def read(path: str | os.PathLike) -> m.LawLock:
 
 def impact(old: m.LawLock, new: m.LawLock, declared: m.RevalidationInput) -> dict:
     """Articles that changed between two locks, and the declared records that cite them."""
+    if old.project_id != new.project_id:
+        raise r.RevalidationError("wrong-project")
     before = {item.target_id: item for item in old.entries}
     after = {item.target_id: item for item in new.entries}
     changes = []
     touched: dict[str, set[str]] = {}
-    for target_id in sorted(set(before) | set(after)):
+    # A locked act whose text the newer run did not retain cannot be compared: that is no law change.
+    unchecked = sorted(set(before) - set(after))
+    for target_id in sorted(set(after)):
         a = {x.key: x.digest for x in before[target_id].articles} if target_id in before else {}
         b = {x.key: x.digest for x in after[target_id].articles} if target_id in after else {}
         changed = sorted(key for key in set(a) & set(b) if a[key] != b[key])
@@ -106,16 +110,24 @@ def impact(old: m.LawLock, new: m.LawLock, declared: m.RevalidationInput) -> dic
                         if articles.article_key(pin.locator) in touched.get(pin.source_target_id, set())})
         if cited:
             obligations.append({"obligation": obligation.id, "cites": cited})
+    not_compared = sorted(obligation.id for obligation in declared.obligations
+                          if any(pin.source_target_id in unchecked for pin in obligation.source_provisions))
     affected = {item["obligation"] for item in obligations}
     decisions = sorted(item.id for item in declared.applicability_decisions if item.obligation.id in affected)
     requirements = sorted(item.id for item in declared.requirements if any(ref.id in affected for ref in item.obligation_refs))
     return {"lock_run": old.run_id, "new_run": new.run_id, "changes": changes, "obligations": obligations,
-            "decisions_to_review": decisions, "requirements_to_review": requirements}
+            "decisions_to_review": decisions, "requirements_to_review": requirements,
+            "not_retained": unchecked, "obligations_not_compared": not_compared}
 
 
 def format_impact(report: dict) -> str:
+    unchecked = []
+    if report["not_retained"]:
+        unchecked.append(f"Not compared: the newer run did not retain the text of {', '.join(report['not_retained'])}"
+                         + (f"; obligations citing it ({', '.join(report['obligations_not_compared'])}) were not checked."
+                            if report["obligations_not_compared"] else "."))
     if not report["changes"]:
-        return f"No locked article changed between {report['lock_run']} and {report['new_run']}."
+        return "\n".join([f"No locked article changed between {report['lock_run']} and {report['new_run']}.", *unchecked])
     lines = [f"Law changes since the lock ({report['lock_run']} → {report['new_run']}):"]
     for item in report["changes"]:
         version = (f" (version {item['version_before']} → {item['version_after']})"
@@ -133,5 +145,6 @@ def format_impact(report: dict) -> str:
             lines.append(f"- requirements: {', '.join(report['requirements_to_review'])}")
     else:
         lines.append("No declared obligation cites a changed or removed article.")
+    lines += unchecked
     lines.append("Nothing was reopened or decided; a reviewer re-reads the changed text and records the outcome.")
     return "\n".join(lines)
