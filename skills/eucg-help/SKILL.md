@@ -60,7 +60,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 - `sign --decision <id> --key <ssh key> --principal <you>` signs a reviewed decision against the locked law and its evidence; `verify --allowed-signers <file>` says which signatures are valid and which decisions changed since.
 - `pack build|sign|verify|import` drafts, SSH-signs, verifies and imports reusable obligation packs; import adds candidate obligations only, never a mapping or a decision.
 - `import-evidence --kind wec|sarif <file>` keeps an EDPS Website Evidence Collector or SARIF result as untrusted evidence under `imports/`, summarised by concept; the declarations are never changed.
-- `cite-check <file|->` checks that cited articles exist and quotations are verbatim in the retained text; `mcp` serves it, `article_search` and `next_steps` as read-only MCP tools.
+- `cite-check <file|->` checks that cited articles exist and quotations are verbatim in the retained text; `mcp` serves it, `article_search`, `ground`, `pr_check` and `next_steps` as read-only MCP tools.
 - `accept <requirement>=<target>:<Article N> [--input <file>] [--json]` maps a requirement to a candidate obligation citing that article (reused or created); it never decides applicability.
 - `graph [--input <file>] [--json] [--view [--open]]` maps the project's Python files, functions, imports and calls by parsing only (nothing is run); paths are possible paths, never proof.
 - `pr-check [--diff <file>|-] [--input <file>] [--markdown|--json] [--strict]` screens a unified diff's added lines for legal touchpoints and compares them with the declarations.

@@ -25,6 +25,8 @@
   `pack verify` use the reviewer's SSH key; `pack import` adds candidate obligations
   and targets, never overwrites a different record, and never maps or decides. The
   contract is generated from `models.py` (`ObligationPack`).
+- MCP review tools (2.0 bolt 021): the `mcp` server also serves `ground` (read-only
+  proposals) and `pr_check` (given a unified diff).
 
 ## 1.5.0 — 2026-11-06
 

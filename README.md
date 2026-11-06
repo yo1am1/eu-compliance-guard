@@ -359,8 +359,9 @@ before it, word for word, ignoring case, whitespace and the style of quotation m
 exits 1 when a citation or quotation does not match. It checks wording only, never legal
 meaning.
 
-`mcp` serves the same check, plus `article_search` and `next_steps`, as read-only tools
-over stdio for other agents, for example
+`mcp` serves the same check, plus `article_search`, `ground`, `pr_check` (given a diff)
+and `next_steps`, as read-only tools over stdio for other agents. `ground` only proposes
+lines; pinning one stays a person's step with `ground --apply`. For example
 `claude mcp add eucg -- eu-compliance-guard mcp --input .eu-compliance-guard/declarations.json`.
 
 ### Obligation packs
