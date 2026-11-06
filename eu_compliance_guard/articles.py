@@ -210,6 +210,113 @@ def _segment(paragraphs) -> dict[str, dict]:
     return found
 
 
+# legislation.gov.uk XHTML (2.2): a provision starts at an element whose id names it
+# ("section-170", "regulation-6", "section-Article-17" or "article-17"); its title is in a
+# `LegP1GroupTitle` element just before or after. Amendment notes, extent labels and footnote
+# markers are not the provision's text.
+UK_SKIPPED_CLASSES = frozenset({"LegAnnotations", "LegCommentaryItem", "LegExtentRestriction", "LegCommentaryLink",
+                                "LegChangeDelimiter", "LegP1No", "LegFootnoteRef", "LegAnchorID", "LegClearPblock"})
+UK_TITLE_CLASSES = frozenset({"LegP1GroupTitle", "LegP1GroupTitleFirst"})
+UK_ENDS = ("schedule-", "part-", "chapter-", "crossheading-", "signature", "annex-")
+VOID = frozenset({"br", "img", "hr", "meta", "link", "input", "col", "area", "base", "wbr", "source"})
+
+
+def _uk_provision(identity: str) -> str | None:
+    """'section-170' -> 'Section 170', 'regulation-6' -> 'Regulation 6', 'section-Article-17' or
+    'article-17' -> 'Article 17'; sub-paragraph ids ('regulation-6-2-a') are not provisions."""
+    parts = identity.split("-")
+    if len(parts) == 3 and parts[0] == "section" and parts[1] == "Article":
+        parts = ["article", parts[2]]
+    if len(parts) != 2 or parts[0] not in ("section", "regulation", "article"):
+        return None
+    return article_key(f"{parts[0]} {parts[1]}") if parts[1][:1].isdecimal() else None
+
+
+def _ends_provisions(identity: str) -> bool:
+    """'schedule-1', 'part-2', 'annex-I' and the like start a division that is not a provision."""
+    for prefix in UK_ENDS:
+        if identity.startswith(prefix):
+            return "-" not in identity[len(prefix):]
+    return False
+
+
+class _LegislationUk(HTMLParser):
+    """Provisions of one legislation.gov.uk XHTML page, in order, with their titles and text."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.found: dict[str, dict] = {}
+        self.current: str | None = None
+        self.stack: list[tuple[str, bool, bool]] = []  # tag, skipping, in a title
+        self.pending_title: list[str] = []
+        self.title_parts: list[str] | None = None
+        self.size = 0
+
+    def _skipping(self) -> bool:
+        return bool(self.stack) and self.stack[-1][1]
+
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        classes = set((values.get("class") or "").split())
+        identity = values.get("id") or ""
+        if _ends_provisions(identity):
+            self.current = None  # a schedule, part or annex begins: no provision continues into it
+        key = _uk_provision(identity) if identity else None
+        if key and key not in self.found and len(self.found) < MAX_ARTICLES:
+            self.current = key
+            self.found[key] = {"title": " ".join(" ".join(self.pending_title).split()), "text": []}
+            self.pending_title = []
+        in_title = bool(classes & UK_TITLE_CLASSES) or (bool(self.stack) and self.stack[-1][2])
+        if classes & UK_TITLE_CLASSES and not (self.stack and self.stack[-1][2]):
+            self.title_parts = []
+        skipping = self._skipping() or bool(classes & UK_SKIPPED_CLASSES) or tag in SKIPPED
+        if tag not in VOID:
+            self.stack.append((tag, skipping, in_title))
+        if self.current and not skipping and not in_title and (tag in BREAKS or "LegRHS" in classes):
+            # A paragraph, or the text column beside a number label: "(1) It is", never "(1)It is".
+            self.found[self.current]["text"].append("\n" if tag in BREAKS else " ")
+
+    def handle_endtag(self, tag):
+        for index in range(len(self.stack) - 1, -1, -1):
+            if self.stack[index][0] == tag:
+                closing_title = self.stack[index][2] and (index == 0 or not self.stack[index - 1][2])
+                del self.stack[index:]
+                if closing_title and self.title_parts is not None:
+                    title = " ".join(" ".join(self.title_parts).split())
+                    self.title_parts = None
+                    item = self.found.get(self.current) if self.current else None
+                    # A title right after the anchor names this provision. Any other title starts the
+                    # next provision: the current one ends, and the title waits for the next anchor.
+                    if item is not None and not item["title"] and not "".join(item["text"]).strip():
+                        item["title"] = title
+                    else:
+                        self.pending_title = [title]
+                        self.current = None
+                return
+
+    def handle_data(self, data):
+        if self._skipping():
+            return
+        self.size += len(data)
+        if self.size > MAX_PAGE_CHARS:
+            raise ValueError("page too large")
+        if self.stack and self.stack[-1][2]:
+            if self.title_parts is not None:
+                self.title_parts.append(data)
+            return
+        if self.current:
+            self.found[self.current]["text"].append(data)
+        elif data.strip():
+            # Text before any anchor belongs to a provision without one (a prospective insertion,
+            # for example): its title must not be given to the next provision.
+            self.pending_title = []
+
+
+def _is_legislation_uk(text: str) -> bool:
+    head = text[:200000]
+    return "legislation.gov.uk" in head and "LegP1" in text
+
+
 def _tidy(text: str) -> str:
     return " ".join(text.split())
 
@@ -221,6 +328,15 @@ def parse(content: bytes, media_type: str) -> dict[str, dict]:
     except UnicodeDecodeError:
         return {}
     media_type = media_type.lower()  # media types are case-insensitive; admission accepts any case
+    if media_type in ("text/html", "application/xhtml+xml") and _is_legislation_uk(text):
+        uk = _LegislationUk()
+        try:
+            uk.feed(text)
+            uk.close()
+        except (AssertionError, ValueError):
+            return {}
+        return {key: {"title": item["title"], "text": _tidy("".join(item["text"]))[:MAX_ARTICLE_CHARS]}
+                for key, item in uk.found.items() if "".join(item["text"]).strip()}
     if media_type in ("text/html", "application/xhtml+xml"):
         parser = _Paragraphs()
         try:
@@ -240,10 +356,19 @@ def parse(content: bytes, media_type: str) -> dict[str, dict]:
             for key, item in _segment(paragraphs).items()}
 
 
+# Provision words and their canonical names: EU articles, UK sections (Acts) and regulations
+# (statutory instruments). A locator names one provision, so plurals are not keys; the citation
+# guard expands "Articles 5 and 6" itself.
+PROVISION_WORDS = (("article", "Article"), ("art.", "Article"), ("art", "Article"), ("section", "Section"),
+                   ("s.", "Section"), ("regulation", "Regulation"), ("reg.", "Regulation"))
+
+
 def article_key(locator: str) -> str | None:
-    """'Article 9(2)(a)', 'Art. 9' or 'article 9' -> 'Article 9'."""
+    """A provision's canonical key: 'Article 9(2)(a)', 'Art. 9' -> 'Article 9'; 'section 170(1)',
+    's. 170' -> 'Section 170'; 'regulation 6', 'reg. 6' -> 'Regulation 6'. An act's own number is
+    never a provision: 'Regulation 2016/679' and 'Regulation (EU) 2016/679' give None."""
     rest = locator.lstrip()
-    for prefix in ("article", "art.", "art"):
+    for prefix, name in PROVISION_WORDS:
         if rest[:len(prefix)].lower() == prefix:
             rest = rest[len(prefix):].lstrip()
             break
@@ -254,8 +379,14 @@ def article_key(locator: str) -> str | None:
         digits += 1
     if not digits:
         return None
-    suffix = rest[digits:digits + 1]
-    return f"Article {rest[:digits]}{suffix if suffix.isascii() and suffix.isalpha() else ''}"
+    after = rest[digits:]
+    if after[:1] == "/":
+        return None  # 2016/679 is an act number
+    suffix = after[:1]
+    letters = suffix if suffix.isascii() and suffix.isalpha() else ""
+    if letters and name != "Article":
+        letters = letters.upper()  # UK insertions are capital letters: section 16A
+    return f"{name} {rest[:digits]}{letters}"
 
 
 def _stem(term: str) -> str:

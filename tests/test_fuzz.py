@@ -15,7 +15,11 @@ from eu_compliance_guard import articles, citations, imports, mcp_server, prchec
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 TOKENS = ["Article", "article", "Art.", "Articles", " ", "\n", '"', "“", "”", "„", "«", "»", "(", ")", "1", "9", "12a",
           "and", ",", "\x00", "‮", "é", "<p>", "</p>", '<p class="oj-ti-art">', '<p class="ti-art">', "&amp;",
-          "&#0;", "CHAPTER I", "\r", "\t", "{", "}", "[", "]", "@@ -1 +1 @@", "diff --git a/x b/x", "+++ b/x", "+cookie"]
+          "&#0;", "CHAPTER I", "\r", "\t", "{", "}", "[", "]", "@@ -1 +1 @@", "diff --git a/x b/x", "+++ b/x", "+cookie",
+          # legislation.gov.uk markup, so the UK parser is fuzzed too
+          "legislation.gov.uk", '<a class="LegAnchorID" id="section-170">', '<span class="LegP1No" id="regulation-6">',
+          '<h4 class="LegP1Container">', '<span class="LegP1GroupTitle">', '<div class="LegAnnotations">',
+          'id="section-Article-17"', 'id="schedule-1"', "</span>", "</h4>", "</div>", "section 5", "s. 12", "reg. 6"]
 KEYS = ["cookies", "beacons", "hosts", "requests", "thirdParty", "runs", "tool", "driver", "results", "ruleId", "message",
         "text", "locations", "physicalLocation", "artifactLocation", "uri", "region", "startLine", "rules", "properties",
         "tags", "localStorage", "secure_connection", "unsafeForms", "name", "id", "level"]
