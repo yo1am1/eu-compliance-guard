@@ -12,7 +12,7 @@ import json
 import os
 from pathlib import Path
 
-from . import articles, models as m, revalidation as r, sources
+from . import articles, jurisdictions, models as m, revalidation as r
 
 LOCK_NAME = "eu-law.lock"
 
@@ -32,9 +32,10 @@ def build(run_dir: str | os.PathLike) -> m.LawLock:
     entries = []
     for target_id in sorted(acts):
         target = targets.get(target_id)
-        version = sources.celex_version(target.intended_identifier, target.intended_url) if target else None
+        version = jurisdictions.version(target.intended_identifier, target.intended_url) if target else None
         entries.append(m.LawLockEntry(
-            target_id=target_id, version=version["celex"] if version else None, source_digest=digests[target_id],
+            target_id=target_id, version=(version["id"] + ("@" + version["date"] if version["jurisdiction"] == "UK" and version["date"] else ""))
+            if version else None, source_digest=digests[target_id],
             articles=[m.LawLockArticle(key=key, digest=m.content_digest(f"{item['title']}\n{item['text']}".encode("utf-8")))
                       for key, item in sorted(acts[target_id].items())]))
     return m.LawLock(schema_version=1, lock_version=1, project_id=bundle.project_id, run_id=bundle.run.id, entries=entries)

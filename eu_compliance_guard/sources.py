@@ -21,13 +21,11 @@ import tempfile
 import time
 from urllib.parse import urljoin, urlsplit
 
-from . import __version__
+from . import __version__, jurisdictions as _jurisdictions
 
-# Code-reviewed exact-host registry. It is a retrieval policy, not a list of all official law.
-OFFICIAL_HOSTS = frozenset({
-    "eur-lex.europa.eu", "curia.europa.eu", "commission.europa.eu",
-    "digital-strategy.ec.europa.eu", "www.edpb.europa.eu", "publications.europa.eu",
-})
+# Code-reviewed exact-host registry, per jurisdiction (jurisdictions.py). It is a retrieval
+# policy, not a list of all official law.
+OFFICIAL_HOSTS = _jurisdictions.OFFICIAL_HOSTS
 MAX_URL_CHARS = 4096
 MAX_ADDRESSES = 16
 MAX_REDIRECTS = 3
@@ -45,7 +43,7 @@ STOP_SECONDS = 2.0
 REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 # The Publications Office (Cellar) redirects its own https requests to http URLs on the same host.
 # Only for these hosts, a same-host http redirect is upgraded to https; any other downgrade is refused.
-HTTPS_UPGRADE_HOSTS = frozenset({"publications.europa.eu"})
+HTTPS_UPGRADE_HOSTS = _jurisdictions.HTTPS_UPGRADE_HOSTS
 LANGUAGE = re.compile(r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})?$")
 MEDIA_TYPES = frozenset({"text/html", "application/xhtml+xml", "text/plain", "application/pdf"})
 # http.client adds only Host and "Accept-Encoding: identity" to these fixed headers.

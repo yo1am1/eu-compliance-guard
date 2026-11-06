@@ -274,14 +274,26 @@ def _check(path, previous) -> dict:
                           else "declare a manually downloaded copy as a selected source instead")
                 warnings.append({"at": f"source_targets[{index}]", "problem": "--fetch-official will refuse this target ("
                                  + failure.code + "); " + advice})
-        version = s.celex_version(target.intended_identifier, target.intended_url)
-        if target.intended_type == "eu_act" and version is not None and not version["consolidated"]:
+        from .jurisdictions import version as act_version
+        version = act_version(target.intended_identifier, target.intended_url)
+        if version is not None and version["jurisdiction"] == "EU" and target.intended_type == "eu_act" \
+                and not version["consolidated"]:
             warnings.append({"at": f"source_targets[{index}]",
                              "problem": "base CELEX: the act as first published, not the law in force; declare a "
                                         "consolidated CELEX (0YYYY…-YYYYMMDD) and review its date"})
+        if version is not None and version["jurisdiction"] == "UK" and not version["consolidated"]:
+            warnings.append({"at": f"source_targets[{index}]",
+                             "problem": "enacted or made text: the act as first published, not the law in force; use the "
+                                        "revised text (no date, or /YYYY-MM-DD) and review its date"})
+        if version is None:
+            label = None
+        elif version["jurisdiction"] == "UK":
+            label = ("as first published" if not version["consolidated"] else
+                     "revised as on " + version["date"] if version["date"] else "latest revised")
+        else:
+            label = "consolidated " + version["date"] if version["consolidated"] else "as first published"
         targets.append({"at": f"source_targets[{index}]", "id": target.id, "fetch": state,
-                        **({"version": "consolidated " + version["date"] if version["consolidated"] else "as first published"}
-                           if version else {})})
+                        **({"version": label} if label else {})})
     if not declared.requirements:
         warnings.append({"at": "requirements", "problem": "empty: every run will report a coverage gap"})
     if not declared.obligations:
