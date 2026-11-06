@@ -143,13 +143,33 @@ class McpTests(Project):
             {"jsonrpc": "2.0", "id": 6, "method": "unknown"})
         self.assertEqual([item.get("id") for item in responses], [1, 2, 3, 4, 5, 6, None])
         self.assertEqual(responses[0]["result"]["serverInfo"]["name"], "eu-compliance-guard")
-        self.assertEqual([tool["name"] for tool in responses[1]["result"]["tools"]], ["cite_check", "article_search", "next_steps"])
+        self.assertEqual([tool["name"] for tool in responses[1]["result"]["tools"]], ["cite_check", "article_search", "ground", "pr_check", "next_steps"])
         self.assertFalse(responses[2]["result"]["structuredContent"]["ok"])
         self.assertIn("Not legal advice", responses[2]["result"]["content"][0]["text"])
         self.assertEqual(responses[3]["result"]["structuredContent"]["results"][0]["article"], "Article 2")
         self.assertTrue(responses[4]["result"]["isError"])
         self.assertEqual(responses[5]["error"]["code"], -32601)
         self.assertEqual(responses[6]["error"]["code"], -32700)
+
+    def test_tools_read_the_real_project_and_latest_run(self):
+        import os
+        from unittest import mock
+        from eu_compliance_guard import authoring
+        with mock.patch.dict(os.environ, {"XDG_STATE_HOME": str(self.root / "xdg")}):
+            r.run(self.input, authoring.state_dir(self.input) / "run-latest")
+            declarations = str(self.input)
+            text, report = mcp_server.call(declarations, "cite_check", {"text": 'Article 2: "erase an account on request".'})
+            self.assertTrue(report["ok"], text)
+            _, steps = mcp_server.call(declarations, "next_steps", {"top": 2})
+            self.assertLessEqual(len(steps["steps"]), 2)
+            _, grounded = mcp_server.call(declarations, "ground", {})
+            self.assertIsInstance(grounded, dict)
+            diff = ("diff --git a/app/signup.py b/app/signup.py\n--- a/app/signup.py\n+++ b/app/signup.py\n"
+                    "@@ -1 +1,2 @@\n x = 1\n+analytics_cookie = set_tracking_cookie(user.email)\n")
+            text, screened = mcp_server.call(declarations, "pr_check", {"diff": diff})
+            self.assertIn("attention", screened)
+            with self.assertRaises(mcp_server.ToolError):
+                mcp_server.call(declarations, "pr_check", {"diff": "  "})
 
 
 if __name__ == "__main__":

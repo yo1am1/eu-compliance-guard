@@ -1,8 +1,8 @@
-"""A minimal MCP server over stdio (2.0 bolt 018): the citation guard and the read-only review
-tools for other agents.
+"""A minimal MCP server over stdio (2.0 bolts 018 and 021): the citation guard and the read-only
+review tools (article search, grounding, the PR screen, next steps) for other agents.
 
 Newline-delimited JSON-RPC 2.0 (`initialize`, `tools/list`, `tools/call`, `ping`). Every tool
-reads the latest completed run of one project's declarations and changes nothing. Tool output
+reads one project's declarations, files or latest completed run, and changes nothing. Tool output
 is workflow evidence ending with the legal notice; an empty result is never a compliance verdict.
 """
 from __future__ import annotations
@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sys
 
-from . import __version__, articles, authoring, citations, nextstep
+from . import __version__, articles, authoring, citations, grounding, nextstep, prcheck, revalidation
 from .notice import LEGAL_NOTICE
 
 PROTOCOL = "2025-06-18"
@@ -26,6 +26,16 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {"query": {"type": "string"},
                                                        "top": {"type": "integer", "minimum": 1, "maximum": 20}},
                      "required": ["query"], "additionalProperties": False}},
+    {"name": "ground",
+     "description": "Find code lines that may confirm assumed technical facts, with explained matches. Read-only: "
+                    "pinning a line stays a person's step (eu-compliance-guard ground --apply).",
+     "inputSchema": {"type": "object", "properties": {"top": {"type": "integer", "minimum": 1, "maximum": 20}},
+                     "additionalProperties": False}},
+    {"name": "pr_check",
+     "description": "Screen a unified diff (git diff output) for changes touching personal data, tracking, AI and "
+                    "other review concepts, and the declared facts and obligations they may reopen.",
+     "inputSchema": {"type": "object", "properties": {"diff": {"type": "string", "description": "Unified diff text"}},
+                     "required": ["diff"], "additionalProperties": False}},
     {"name": "next_steps",
      "description": "The next review steps of the latest run, ranked by how many open requirements each unblocks.",
      "inputSchema": {"type": "object", "properties": {"top": {"type": "integer", "minimum": 1, "maximum": 20}},
@@ -74,6 +84,17 @@ def call(declarations: str, name: str, arguments: dict) -> tuple[str, dict | Non
         lines = [f"- {item['source']} {item['article']} ({item['title']}), score {item['score']}" for item in found]
         return "\n".join(lines or ["No retained article matches."]) + "\nCandidates to read, not a mapping decision.", \
             {"results": found}
+    if name == "ground":
+        report = grounding.ground(declarations, _top(arguments, 3))
+        return grounding.format_ground(report), report
+    if name == "pr_check":
+        diff = _text(arguments, "diff")
+        if len(diff.encode("utf-8")) > prcheck.MAX_DIFF_BYTES:
+            raise ToolError("The diff is larger than pr-check accepts.")
+        declared = revalidation.load_input(declarations)
+        project_graph, prefix = prcheck.project_context(declarations)
+        report = prcheck.pr_check(diff, declared, project_graph, prefix)
+        return prcheck.format_text(report), report
     if name == "next_steps":
         steps = nextstep.next_steps(_latest(declarations)[0], _top(arguments, 3))
         return nextstep.format_steps(steps), {"steps": steps}

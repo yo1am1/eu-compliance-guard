@@ -620,16 +620,7 @@ def _pr_check(args) -> int:
         project_graph = root_prefix = None
         if declared is not None:
             # The checked-out project, mapped by parsing only, shows which data flows the diff changes.
-            from pathlib import Path
-            from . import graph, grounding
-            location = Path(args.input or ".eu-compliance-guard/declarations.json")
-            _, root = grounding._declarations(location)
-            project_graph = graph.build_graph(root, grounding._own_files(location, root))
-            # git diff paths are relative to the working directory (the repository top): find the
-            # files root inside it, so a project in a monorepo subfolder still matches its paths.
-            import os
-            relative = os.path.relpath(root, os.path.realpath(os.getcwd()))
-            root_prefix = None if relative.startswith("..") else relative
+            project_graph, root_prefix = prcheck.project_context(args.input or ".eu-compliance-guard/declarations.json")
         report = prcheck.pr_check(diff.decode("utf-8", "replace"), declared, project_graph, root_prefix)
     except KeyboardInterrupt:
         return 130
