@@ -98,7 +98,7 @@ def _sarif(data: dict) -> tuple[str, dict, list[str]]:
                 physical = _dict(_dict(location).get("physicalLocation"))
                 uri = _dict(physical.get("artifactLocation")).get("uri", "")
                 line = _dict(physical.get("region")).get("startLine")
-                where = f" at {uri}" + (f":{line}" if isinstance(line, int) else "")
+                where = f" at {uri}" + (f":{line}" if isinstance(line, int) and not isinstance(line, bool) else "")
             example = f"{result.get('level', 'warning')} {rule_id or 'unnamed rule'}{where}: {message}"
             concepts = prcheck.concepts_in(text) or ["unclassified"]
             for concept in concepts:
