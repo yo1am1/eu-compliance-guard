@@ -14,7 +14,7 @@ It is read-only and never gives a compliance verdict. A named human reviewer mak
 every legal decision, and the tool records who decided what, against which text and
 evidence. No output, test or example implies a real compliance audit.
 
-**Version 2.0.0.** See the [changelog](CHANGELOG.md) and the [roadmap](docs/roadmap.md).
+**Version 2.1.0.** See the [changelog](CHANGELOG.md) and the [roadmap](docs/roadmap.md).
 
 ![Walkthrough: the band and side panel in Claude Code, then article text and articles to read in the report](docs/images/walkthrough.gif)
 

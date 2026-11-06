@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased
+## 2.1.0 — 2026-11-06
+
+Precision: the 2.0 base tested on hostile input, real law and real code, and fixed where it
+fell short. No new jurisdiction yet; that is 2.2.
+
+How it was tested:
+
+- Every parser of untrusted input was fuzzed (12,000 random and mutated rounds plus targeted
+  edge cases); a seeded version now runs in CI.
+- The article parser and citation guard ran on real official texts (GDPR, AI Act, consolidated
+  ePrivacy Directive), now a committed test set with digests.
+- The project graph was measured on three real projects (django-allauth, sentry-sdk, Django),
+  parsed only, with hand-judged samples; see `docs/decisions/graph-precision.md`.
+- The WEC importer's field names were checked against the EDPS collector's source code.
+- Signing, packs, the lockfile, the reports and the plugin were read adversarially; HTML views
+  were checked with injection payloads in every free-text field (all escaped).
 
 ### Fixed
 
