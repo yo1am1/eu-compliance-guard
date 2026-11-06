@@ -326,6 +326,20 @@ def _base(declared: m.RevalidationInput, root_prefix: str | None) -> str:
     return root_prefix.rstrip("/") + "/" if root_prefix not in ("", ".") else ""
 
 
+def project_context(location) -> tuple[m.ProjectGraph, str | None]:
+    """The checked-out project's graph, mapped by parsing only, and its files root relative to the
+    working directory (the repository top), so a project in a monorepo subfolder still matches
+    git diff paths. The prefix is None when the files root is outside the working directory."""
+    import os
+    from pathlib import Path
+    from . import graph, grounding
+    location = Path(location)
+    _, root = grounding._declarations(location)
+    project_graph = graph.build_graph(root, grounding._own_files(location, root))
+    relative = os.path.relpath(root, os.path.realpath(os.getcwd()))
+    return project_graph, None if relative.startswith("..") else relative
+
+
 def pr_check(diff: str, declared: m.RevalidationInput | None = None, project_graph: m.ProjectGraph | None = None,
              root_prefix: str | None = None) -> dict:
     if len(diff.encode("utf-8", "replace")) > MAX_DIFF_BYTES:
