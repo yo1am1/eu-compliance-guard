@@ -363,6 +363,20 @@ meaning.
 over stdio for other agents, for example
 `claude mcp add eucg -- eu-compliance-guard mcp --input .eu-compliance-guard/declarations.json`.
 
+### Importing other tools' results
+
+`import-evidence --kind wec FILE` reads an EDPS Website Evidence Collector
+`inspection.json`, and `--kind sarif FILE` reads a SARIF 2.1 log from any scanner. Both
+are kept as untrusted evidence: a copy and a summary named by the file's digest, under
+`.eu-compliance-guard/imports/`. The summary groups the findings by the concepts the
+review uses: cookies, storage and beacons under tracking, third-party hosts under third
+parties, missing HTTPS and forms sent without TLS under security. SARIF results are
+classified by their rule, message and tags, and results that match no concept are kept as
+unclassified. Tool text is shown as short, single lines with control characters removed,
+and it is never followed. The declarations are never changed: a reviewer reads the
+summary and declares the copy as evidence by hand. An empty import shows only that the
+tool reported nothing.
+
 ### Accepting a suggestion
 
 `accept REQ=TARGET:ARTICLE` (for example `accept req-delete=target-gdpr:Article 17`)

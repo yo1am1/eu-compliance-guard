@@ -19,7 +19,7 @@ every bolt keeps files as the API and pure cores with thin edges.
 | 016 Graph view (done 2026-11-05; static HTML, panel button; the React page can read graph --json later) | Self-contained HTML graph view and a React dashboard page | FR-G6, FR-G7 | 013 |
 | 017 Law lockfile and change impact (done 2026-11-06) | `eu-law.lock`; reopen decisions citing changed articles or graph nodes | A1, research bets 1-2 | 012 |
 | 018 Signed decisions and citation guard (done 2026-11-06; no graph digest, as runs record none) | SSH-signed review records bound to the law version, evidence and graph digests; citation checks for agent-written text, also as MCP tools | D1, research bets 3-4, E2 | 017 |
-| 019 Imports | EDPS Website Evidence Collector, SARIF and optional Graphify import as untrusted evidence | C, FR-G8 | 012 |
+| 019 Imports (done 2026-11-06: WEC and SARIF; a Graphify import waits for a stable Graphify format) | EDPS Website Evidence Collector, SARIF and optional Graphify import as untrusted evidence | C, FR-G8 | 012 |
 
 Bolts 012 to 016 make up the graph track and 017 to 019 the law track. The two tracks
 can run in parallel, with one writer per file.

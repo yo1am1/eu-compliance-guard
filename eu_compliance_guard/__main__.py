@@ -154,6 +154,12 @@ def _command(argv: list[str] | None) -> int:
     mcp = commands.add_parser("mcp", help="Serve cite_check, article_search and next_steps as MCP tools over stdio",
                               allow_abbrev=False)
     mcp.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    imported = commands.add_parser("import-evidence", help="Keep a WEC or SARIF result as untrusted evidence, summarised by concept",
+                                   allow_abbrev=False)
+    imported.add_argument("file", help="EDPS Website Evidence Collector inspection.json or a SARIF log")
+    imported.add_argument("--kind", required=True, choices=["wec", "sarif"], help="Format of the file")
+    imported.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    imported.add_argument("--json", action="store_true", help="Print the summary as JSON")
     accept = commands.add_parser("accept", help="Map a requirement to a candidate obligation citing an article (no decision)",
                                  allow_abbrev=False)
     accept.add_argument("mapping", metavar="REQ=TARGET:ARTICLE", help="For example req-delete=target-gdpr:Article 17")
@@ -227,6 +233,8 @@ def _command(argv: list[str] | None) -> int:
         return _signing(args)
     if args.command == "cite-check":
         return _cite_check(args)
+    if args.command == "import-evidence":
+        return _import(args)
     if args.command == "mcp":
         from .mcp_server import serve
         try:
@@ -379,6 +387,22 @@ def _cite_check(args) -> int:
         return 2
     (_emit(json.dumps(report, indent=2)) if args.json else _emit_text(citations.format_check(report)))
     return 0 if report["ok"] else 1
+
+
+def _import(args) -> int:
+    import json
+    from . import imports
+    try:
+        _, summary = imports.import_file(args.input, args.file, args.kind)
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'import-failed'}: import-evidence failed",
+              file=sys.stderr)
+        return 2
+    (_emit(json.dumps(summary, indent=2)) if args.json else _emit_text(imports.format_summary(summary)))
+    return 0
 
 
 def _accept(args) -> int:

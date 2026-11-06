@@ -1,0 +1,13 @@
+{
+  "_comment": "FICTIONAL FIXTURE — SYNTHETIC EXAMPLE ONLY, shaped like an EDPS Website Evidence Collector inspection.json",
+  "uri_ins": "https://shop.example.invalid/",
+  "secure_connection": {"https_support": true, "https_redirect": false},
+  "cookies": [
+    {"name": "session", "domain": "shop.example.invalid", "firstPartyStorage": true},
+    {"name": "_fictional_id", "domain": ".tracker.example.invalid", "firstPartyStorage": false}
+  ],
+  "localStorage": {"https://shop.example.invalid": {"cart": {"value": "[]"}}},
+  "beacons": [{"url": "https://tracker.example.invalid/pixel.gif?u=1", "listName": "fictional-list"}],
+  "hosts": {"requests": {"firstParty": ["shop.example.invalid"], "thirdParty": ["cdn.example.invalid", "tracker.example.invalid"]}},
+  "unsafeForms": [{"id": "newsletter", "action": "http://shop.example.invalid/subscribe\u001b[31m"}]
+}
