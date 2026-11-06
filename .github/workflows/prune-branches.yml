@@ -16,13 +16,10 @@ permissions:
 
 env:
   BRANCHES: >-
-    claude/law-in-force
-    claude/accept
-    claude/real-repos
-    claude/ci
-    claude/panel-grounding
-    claude/release-1.4.0
-    claude/publish-1.4.0
+    claude/tidy-1.5-2.0
+    claude/newer-consolidation
+    claude/release-1.5.0
+    claude/publish-1.5.0
 
 jobs:
   prune:
