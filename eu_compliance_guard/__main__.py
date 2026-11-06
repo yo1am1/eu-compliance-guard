@@ -97,7 +97,9 @@ def _discard_stdout() -> None:
 
 
 def _command(argv: list[str] | None) -> int:
+    from . import __version__
     parser = _Parser(description=__doc__, allow_abbrev=False)
+    parser.add_argument("--version", action="version", version=f"eu-compliance-guard {__version__}")
     commands = parser.add_subparsers(dest="command", required=True, parser_class=_Parser)
     revalidate = commands.add_parser("revalidate", help="Create a private revalidation report", allow_abbrev=False)
     revalidate.add_argument("--input", required=True, help="Explicit declaration JSON file")
