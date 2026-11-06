@@ -103,8 +103,9 @@ def sign(path: str | os.PathLike, key: str, principal: str) -> Path:
     return lawlock.write_bytes(_sig_path(path), (json.dumps(stored, indent=2, sort_keys=True) + "\n").encode("utf-8"))
 
 
-def verify(path: str | os.PathLike, allowed_signers: str) -> dict:
-    pack, content = load(path)
+def verify(path: str | os.PathLike, allowed_signers: str, loaded: tuple[m.ObligationPack, bytes] | None = None) -> dict:
+    """Check the pack's signature over exactly these bytes (read once, or passed in by the caller)."""
+    pack, content = loaded or load(path)
     result = {"pack": pack.id, "revision": pack.revision, "status": pack.status, "digest": m.content_digest(content),
               "principal": None, "signature": "missing"}
     try:
@@ -122,8 +123,10 @@ def verify(path: str | os.PathLike, allowed_signers: str) -> dict:
 
 def import_pack(declarations: str | os.PathLike, path: str | os.PathLike, allowed_signers: str | None,
                 unsigned: bool = False, write: bool = True) -> dict:
-    pack, _ = load(path)
-    checked = verify(path, allowed_signers) if allowed_signers else None
+    loaded = load(path)
+    pack = loaded[0]
+    # The bytes verified are the bytes imported: the file is read once.
+    checked = verify(path, allowed_signers, loaded) if allowed_signers else None
     if checked and checked["signature"] != "valid":
         raise PackError("bad-signature")
     if checked is None and not unsigned:
