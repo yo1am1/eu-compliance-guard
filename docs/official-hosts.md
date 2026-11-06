@@ -11,7 +11,7 @@ binding, complete, applicable or current; reviewers decide that.
 | Host | Operator | Purpose |
 |---|---|---|
 | `eur-lex.europa.eu` | Publications Office of the EU | EUR-Lex, official access to EU law and consolidated texts |
-| `publications.europa.eu` | Publications Office of the EU | Cellar repository, which serves act content by CELEX number |
+| `publications.europa.eu` | Publications Office of the EU | Cellar repository, which serves act content by CELEX number, and its SPARQL endpoint (`/webapi/rdf/sparql`), which lists an act's consolidated versions |
 | `curia.europa.eu` | Court of Justice of the EU | Case law |
 | `commission.europa.eu` | European Commission | Commission policy pages and guidance |
 | `digital-strategy.ec.europa.eu` | European Commission (DG CONNECT) | Digital policy and guidance (AI Act, Data Act, DSA) |

@@ -101,6 +101,8 @@ class TargetRequest:
     redirect_hosts: tuple[str, ...] = ()
     synthetic: bool = False
     language: str = "en"
+    # Response media types this request admits; act text uses the default set only.
+    media_types: frozenset[str] = MEDIA_TYPES
 
 
 @dataclass(frozen=True)
@@ -231,7 +233,7 @@ class SystemTransport:
             raise
 
 
-def _media_type(headers: list[tuple[str, str]]) -> tuple[str, str | None]:
+def _media_type(headers: list[tuple[str, str]], allowed: frozenset[str] = MEDIA_TYPES) -> tuple[str, str | None]:
     values = [value for name, value in headers if name.lower() == "content-type"]
     if len(values) != 1:
         raise RetrievalFailure("unsupported-media-type" if not values else "invalid-response")
@@ -242,7 +244,7 @@ def _media_type(headers: list[tuple[str, str]]) -> tuple[str, str | None]:
         name, _, value = parameter.partition("=")
         if name.strip().lower() == "charset":
             charset = value.strip().strip('"').lower()
-    if not _MEDIA.match(essence) or essence not in MEDIA_TYPES or (charset is not None and not _CHARSET.match(charset)):
+    if not _MEDIA.match(essence) or essence not in allowed or (charset is not None and not _CHARSET.match(charset)):
         raise RetrievalFailure("unsupported-media-type")
     return essence, charset
 
@@ -324,7 +326,7 @@ def fetch(request: TargetRequest, transport, *, limit: int, deadline: float,
                     raise RetrievalFailure("http-status")
                 if any(name.lower() == "content-encoding" and value.strip().lower() != "identity" for name, value in headers):
                     raise RetrievalFailure("compressed-response")
-                state["media_type"], state["charset"] = _media_type(headers)
+                state["media_type"], state["charset"] = _media_type(headers, request.media_types)
                 lengths = [value.strip() for name, value in headers if name.lower() == "content-length"]
                 # ASCII digits only: str.isdigit() also accepts other scripts' digits.
                 if len(set(lengths)) > 1 or (lengths and not (lengths[0].isascii() and lengths[0].isdigit() and len(lengths[0]) <= 20)):

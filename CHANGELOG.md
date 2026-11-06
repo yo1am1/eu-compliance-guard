@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Newer-consolidation notice (1.5 bolt 008, part two). With `revalidate --fetch-official`,
+  each act target with a CELEX number gets one fixed query to the Publications Office's
+  SPARQL endpoint, through the same registry-checked, bounded retrieval as act text. CSV
+  answers are admitted for these requests only. A newer consolidation, a base CELEX with
+  a consolidation in force, or an unreadable answer becomes a review gap; declarations
+  are never changed.
+
 ## 1.4.0 — 2026-11-05
 
 Act on suggestions in one step, see which version of the law you are reading, and use

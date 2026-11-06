@@ -520,8 +520,10 @@ def _retrieval_review(content: bytes, media_type: str, target: m.SourceTarget) -
 
 def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObservation], *,
              input_digest: str, timestamp: str, run_id: str, manifest_id: str,
-             retrievals: list | None = None) -> m.RevalidationBundle:
-    """Pure recorded-review assembly; observations/time/IDs/retrieval results are explicit testable inputs."""
+             retrievals: list | None = None, notes: list[str] | None = None) -> m.RevalidationBundle:
+    """Pure recorded-review assembly; observations/time/IDs/retrieval results are explicit testable inputs.
+
+    `notes` are review gaps found during retrieval, such as a newer consolidation in force."""
     from .sources import FAILURES
     declared = m.RevalidationInput.model_validate(declarations)
     gaps = []
@@ -866,6 +868,8 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
     if not declared.scope.jurisdictions or any(j not in {item.source.jurisdiction for item in declared.sources}
                                                 for j in declared.scope.jurisdictions):
         record_gap("Specialist/national jurisdiction coverage requires an explicit reviewed legal basis.")
+    for note in notes or []:
+        record_gap(note)
     manifest_data = dict(id=manifest_id, source_files=[{"path": path, "digest": item.digest}
         for path, item in observations.items() if path in _selected_files(declared) and item.digest],
         exclusions=declared.scope.exclusions, scope_revision=declared.scope.revision,
@@ -1009,7 +1013,7 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
                 history.validate_revisions(prior[0], declared)
             observations = _observe(declared, fd, deadline)
         _check_budget(deadline)
-        retrievals = None
+        retrievals, notes = None, []
         if fetch_official:
             from . import sources
             with _named_path():
@@ -1017,15 +1021,21 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
             requests = [sources.TargetRequest(item.id, item.intended_url, tuple(item.redirect_hosts),
                                               item.intended_type == "synthetic_fixture", item.language)
                         for item in declared.source_targets]
+            from . import consolidation
+            versions = consolidation.requests(declared)
+            options = {"transport_factory": transport_factory} if transport_factory else {}
             try:
-                retrievals = sources.retrieve(requests, **({"transport_factory": transport_factory} if transport_factory else {}))
+                retrievals = sources.retrieve(requests, **options)
+                # The same consent, host registry and bounds: is a newer consolidated version in force?
+                notes = consolidation.notes(versions, sources.retrieve([item[2] for item in versions], **options)) if versions else []
             except sources.RetrievalHelperError:
                 raise RevalidationError("retrieval-failed") from None
             # The network has its own fixed budget; local assembly keeps its cooperative budget.
             deadline = time.monotonic() + BUDGET_SECONDS
         timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         bundle = assemble(declared, observations, input_digest=input_digest, timestamp=timestamp,
-                          run_id="run-" + uuid4().hex, manifest_id="manifest-" + uuid4().hex, retrievals=retrievals)
+                          run_id="run-" + uuid4().hex, manifest_id="manifest-" + uuid4().hex, retrievals=retrievals,
+                          notes=notes)
         if prior is not None:
             bundle = history.compare(prior[0], bundle, prior[1])
         try:

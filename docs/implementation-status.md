@@ -48,8 +48,8 @@ legal-notice rules are enforced by tests.
 
 Remaining for 1.5:
 
-- **Newer-consolidation notice (bolt 008, part two).** It asks the Publications Office,
-  with per-run consent, whether a newer consolidation exists. It needs the live network.
+- **Newer-consolidation notice (bolt 008, part two):** done after 1.4. It was checked
+  live against the Publications Office endpoint.
 - **Live acceptance in a real Claude Code session.** Accept a suggestion and see its
   mapping step close on the next run. This needs the Owner's own session.
 - Open choices: keep or remove the unused React page in `frontend/` (the plugin uses the
