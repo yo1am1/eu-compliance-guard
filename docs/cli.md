@@ -358,7 +358,7 @@ never one project's source copy, controls or overlays, so a pack moves between p
   an article the pack was reviewed against, import names it.
 
 Import never maps a requirement and never decides applicability: map with `accept`, then
-a named reviewer records each decision. 2.0 ships the format only; no lawyer-reviewed
+a named reviewer records each decision. 2.0 ships the format only; no
 pack content is included yet.
 
 ## Importing other tools' results

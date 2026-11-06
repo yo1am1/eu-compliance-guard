@@ -90,17 +90,17 @@ class SignedPackTests(Base):
         key = self.root / "key"
         subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "fictional", "-f", str(key)], check=True)
         allowed = self.root / "allowed_signers"
-        allowed.write_text("lawyer@example.invalid " + (self.root / "key.pub").read_text())
+        allowed.write_text("reviewer@example.invalid " + (self.root / "key.pub").read_text())
         self.assertEqual(cli("pack", "build", "--input", self.source, "--id", "pack-fictional", "--title", "Fictional",
                              "--status", "reviewed", "--output", self.pack)[0], 0)
         self.assertEqual(cli("pack", "verify", self.pack, "--allowed-signers", allowed)[0], 1)  # not signed yet
-        self.assertEqual(cli("pack", "sign", self.pack, "--key", key, "--principal", "lawyer@example.invalid")[0], 0)
+        self.assertEqual(cli("pack", "sign", self.pack, "--key", key, "--principal", "reviewer@example.invalid")[0], 0)
         code, out = cli("pack", "verify", self.pack, "--allowed-signers", allowed)
         self.assertEqual(code, 0, out)
-        self.assertIn("signed by lawyer@example.invalid", out)
+        self.assertIn("signed by reviewer@example.invalid", out)
         code, out = cli("pack", "import", self.pack, "--input", self.target, "--allowed-signers", allowed)
         self.assertEqual(code, 0, out)
-        self.assertIn("signed by lawyer@example.invalid", out)
+        self.assertIn("signed by reviewer@example.invalid", out)
         self.pack.write_bytes(self.pack.read_bytes().replace(b"Fictional", b"Altered"))
         self.assertEqual(cli("pack", "verify", self.pack, "--allowed-signers", allowed)[0], 1)
         self.target.write_text(self.target_raw)

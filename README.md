@@ -143,7 +143,7 @@ Every command, its options and exit codes are in the
   bounded Linux execution helper is not an enabled scanner, and its real
   containment is unverified.
 - Scanners of our own, a Graphify import, the API (optional `api` extra) and remediation
-  automation are later work. Obligation packs ship as a format, with no lawyer-reviewed content. The dashboard shows one run's review progress from a local file; it
+  automation are later work. Obligation packs ship as a format only. No lawyer reviews packs or outputs, and nothing is guaranteed. The dashboard shows one run's review progress from a local file; it
   manages nothing.
 
 ## Documentation
