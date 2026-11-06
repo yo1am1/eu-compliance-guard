@@ -38,4 +38,5 @@ Regulation 6 in the report with the UK version note, and checked a quotation of 
 
 The newer-consolidation notice is EU-only. UK citations recognise a fixed list of acts by
 name; others are matched by their declared target id. Schedules are not split into
-paragraphs. The US (2.3) adds a third module the same way.
+paragraphs. No US module is planned (Owner decision, 2026-11-06); any other jurisdiction would
+be added as a module the same way.
