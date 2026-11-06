@@ -337,6 +337,32 @@ them and their applicability decisions and mapped requirements: exactly those ne
 review again. Nothing is reopened or decided automatically. `--strict` exits 1 when a
 declared obligation cites a changed article, so CI can flag it.
 
+### Signed decisions
+
+`sign --decision ID --key ~/.ssh/id_ed25519 --principal you@example.org` signs one
+applicability decision with your own SSH key (`ssh-keygen -Y sign`, the format Git uses).
+A named reviewer must have recorded the decision first. The signed record holds the
+decision, its obligation, the locked digest of each article it cites, the digests of the
+evidence it relies on, and the project's commit. It is stored in
+`.eu-compliance-guard/signatures/<decision>.json`. `verify --allowed-signers FILE` checks
+each signature, then compares the signed record with the current files. It reports the
+signature as valid and current, valid but out of date (naming what changed since: the
+decision, the obligation, the law or the evidence), or invalid. A signature shows who
+recorded a decision against which text. It does not make the decision right.
+
+### Citation guard and MCP tools
+
+`cite-check FILE` (or `-` for standard input) checks text an agent wrote against the
+retained official text of the latest run. Every "Article N" it cites must exist in a
+retained act. Every quotation of three words or more must appear in the article cited just
+before it, word for word, ignoring case, whitespace and the style of quotation marks. It
+exits 1 when a citation or quotation does not match. It checks wording only, never legal
+meaning.
+
+`mcp` serves the same check, plus `article_search` and `next_steps`, as read-only tools
+over stdio for other agents, for example
+`claude mcp add eucg -- eu-compliance-guard mcp --input .eu-compliance-guard/declarations.json`.
+
 ### Accepting a suggestion
 
 `accept REQ=TARGET:ARTICLE` (for example `accept req-delete=target-gdpr:Article 17`)
