@@ -31,6 +31,7 @@ class ImportTests(unittest.TestCase):
     def test_wec_inspection_is_grouped_by_concept_with_safe_text(self):
         summary = imports.summarise((FIXTURES / "imports/wec-synthetic.json").read_bytes(), "wec")
         self.assertTrue(summary["untrusted"])
+        self.assertEqual(summary["title"], "EDPS Website Evidence Collector inspection of https://shop.example.invalid/")
         self.assertEqual(sorted(summary["concepts"]), ["security", "third_party", "tracking"])
         self.assertEqual(summary["concepts"]["tracking"]["count"], 4)
         self.assertIn("cookie _fictional_id (third-party, .tracker.example.invalid)", summary["concepts"]["tracking"]["examples"])

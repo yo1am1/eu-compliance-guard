@@ -196,6 +196,35 @@ class GraphTests(unittest.TestCase):
         self.assertEqual([item["changed"] for item in report["flows"]], [["services/api/app/coach.py:6"]])
         self.assertEqual(report["flows"][0]["facts"], ["fact-weight-llm"])
 
+    def test_data_comes_from_identifiers_not_generic_words_or_prose(self):
+        (self.root / "app/real.py").write_text(
+            'def register(form):\n    return save(form["email"], form.date_of_birth)\n\n\n'
+            'def spans(span):\n    """Every child of the user account, by name and age."""\n'
+            '    for child in span.children:\n        child.finish(max_age=1, kid=span.user)\n\n\n'
+            'def check_health():\n    return healthz() and health_check()\n\n\n'
+            'def consent(user):\n    return user.parental_consent and user.heart_rate\n')
+        nodes = {node.name: node.data for node in g.build_graph(self.root).nodes if node.path == "app/real.py"}
+        self.assertEqual(nodes["register"], ["personal_data"])
+        self.assertEqual(nodes["spans"], [])  # child spans, a JWT kid, max_age, a docstring: none is personal data
+        self.assertEqual(nodes["check_health"], [])
+        self.assertEqual(nodes["consent"], ["special_category", "children"])
+
+    def test_flows_skip_test_code_and_routes_through_more_than_one_guess(self):
+        (self.root / "tests").mkdir()
+        (self.root / "tests/test_coach.py").write_text(
+            "from app.llm import ask_model\n\n\ndef test_plan(member):\n    ask_model(member.weight_kg)\n")
+        starts = {flow["hops"][0]["location"] for flow in g.flows(g.build_graph(self.root))}
+        self.assertNotIn("tests/test_coach.py:4", starts)
+        self.assertIn("app/coach.py:5", starts)
+        project = g.build_graph(self.root)
+        nodes = {node.id: node for node in project.nodes}
+        extracted = [edge.model_copy(update={"provenance": "ambiguous"}) if edge.kind == "calls" else edge
+                     for edge in project.edges]
+        guessed = project.model_copy(update={"edges": extracted})
+        for flow in g.flows(guessed):
+            self.assertLessEqual(len(flow["hops"]) - 1, g.MAX_AMBIGUOUS_HOPS)
+        self.assertTrue(nodes)
+
     def test_the_contract_rejects_dangling_or_unsorted_edges(self):
         graph = g.build_graph(self.root)
         data = graph.model_dump(mode="json")

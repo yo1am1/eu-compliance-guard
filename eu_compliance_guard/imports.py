@@ -74,7 +74,8 @@ def _wec(data: dict) -> tuple[str, dict, list[str]]:
         _add(found, "security", f"form submitted without TLS: {form.get('action', form.get('id', '?'))}")
     if not any(key in data for key in ("cookies", "beacons", "hosts", "localStorage")):
         notes.append("No cookies, beacons, hosts or storage keys in this file: is it a WEC inspection.json?")
-    subject = _plain(data.get("uri_ins") or data.get("uri_dest") or "unknown site")
+    # Current collector versions name the site `targetUrl`; versions before 2 used `uri_ins`.
+    subject = _plain(data.get("targetUrl") or data.get("uri_ins") or data.get("uri_dest") or "unknown site")
     return f"EDPS Website Evidence Collector inspection of {subject}", found, notes
 
 

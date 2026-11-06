@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import ast
 from collections import Counter
+import functools
 import hashlib
 import json
 from pathlib import Path
@@ -20,6 +21,9 @@ MAX_AMBIGUOUS = 5
 DATA = ("personal_data", "special_category", "children")
 SINKS = ("ai", "tracking", "third_party", "marketing")
 MAX_FLOW_DEPTH = 6
+# A call the parser cannot resolve links every function of that name; a route through more than
+# one such guess is mostly noise on real projects, so it is not followed.
+MAX_AMBIGUOUS_HOPS = 1
 MAX_FLOWS = 200
 
 
@@ -37,9 +41,87 @@ def _concepts(text: str) -> list[str]:
     return prcheck.concepts_in(text)
 
 
-def _data(text: str) -> list[str]:
-    terms = set(grounding.tokens(text))
-    return [key for key in DATA if grounding.CONCEPTS[key][1] & terms]
+# Kinds of data, recognised from identifiers and short string keys only (never comments or
+# docstrings), as whole word sequences within one identifier: `birth_date`, `emailAddress`,
+# `row["phone"]`. Generic words such as `user`, `name`, `account`, `child` or `age` are not
+# enough on their own: in code they mostly mean something technical (child spans, JWT `kid`,
+# `max_age`), which real repositories showed.
+DATA_PHRASES = {
+    "personal_data": (("email",), ("e", "mail"), ("phone",), ("mobile", "number"), ("first", "name"), ("last", "name"),
+                      ("full", "name"), ("given", "name"), ("family", "name"), ("surname",), ("street",),
+                      ("postal", "code"), ("zip", "code"), ("postcode",), ("home", "address"), ("postal", "address"),
+                      ("billing", "address"), ("shipping", "address"), ("ip", "address"), ("date", "of", "birth"),
+                      ("birth", "date"), ("birthdate",), ("birthday",), ("dob",), ("gender",), ("geolocation",),
+                      ("latitude",), ("longitude",), ("passport",), ("ssn",), ("national", "id"), ("iban",),
+                      ("credit", "card"), ("card", "number"), ("social", "security")),
+    "special_category": (("health",), ("medical",), ("diagnosis",), ("biometric",), ("biometrics",), ("pregnancy",),
+                         ("religion",), ("religious",), ("ethnicity",), ("ethnic",), ("sexual",), ("disability",),
+                         ("bmi",), ("heart", "rate"), ("blood", "pressure"), ("weight", "kg"), ("weight", "lbs"),
+                         ("body", "weight"), ("allergy",), ("allergies",), ("medication",)),
+    "children": (("parental",), ("guardian",), ("coppa",), ("is", "minor"), ("minor", "user"), ("under", "13"),
+                 ("under", "16"), ("age", "verification"), ("age", "gate"), ("age", "check"), ("child", "account"),
+                 ("child", "profile"), ("child", "user"), ("kids", "mode")),
+}
+# Words that make a data word technical next to it in the same identifier: `health_check`,
+# `check_health`, `healthz`.
+TECHNICAL = {"health": {"check", "checks", "checker", "z", "status", "probe", "endpoint"}}
+MAX_KEY = 40  # a string constant this short without spaces reads as a key, not prose
+
+
+def _identifiers(node: ast.AST) -> list[str]:
+    """Names, attributes, parameters, keyword names and short string keys within a definition."""
+    found = []
+    for item in ast.walk(node):
+        if isinstance(item, ast.Name):
+            found.append(item.id)
+        elif isinstance(item, ast.Attribute):
+            found.append(item.attr)
+        elif isinstance(item, ast.arg):
+            found.append(item.arg)
+        elif isinstance(item, ast.keyword) and item.arg:
+            found.append(item.arg)
+        elif isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            found.append(item.name)
+        elif isinstance(item, ast.Constant) and isinstance(item.value, str) and len(item.value) <= MAX_KEY \
+                and item.value and not any(char.isspace() for char in item.value):
+            found.append(item.value)
+    return found
+
+
+@functools.lru_cache(maxsize=65536)
+def _identifier_data(identifier: str) -> frozenset[str]:
+    """The kinds of data one identifier names; cached, since identifiers repeat across a project."""
+    words = [word.lower() for word in grounding._words(identifier)]
+    kinds = set()
+    for kind, phrases in DATA_PHRASES.items():
+        for phrase in phrases:
+            size = len(phrase)
+            for at in range(len(words) - size + 1):
+                if tuple(words[at:at + size]) != phrase:
+                    continue
+                neighbours = set(words[max(at - 1, 0):at]) | set(words[at + size:at + size + 1])
+                if size == 1 and TECHNICAL.get(phrase[0], set()) & neighbours:
+                    continue
+                kinds.add(kind)
+                break
+            if kind in kinds:
+                break
+    return frozenset(kinds)
+
+
+def _data(node: ast.AST) -> list[str]:
+    kinds = set()
+    for identifier in set(_identifiers(node)):
+        kinds |= _identifier_data(identifier)
+    return [kind for kind in DATA if kind in kinds]
+
+
+def is_test_file(path: str) -> bool:
+    """Test code: a tests folder, test_*.py, *_test.py or conftest.py. Its data is fixtures, not processing."""
+    parts = path.split("/")
+    name = parts[-1]
+    return any(part in ("tests", "test", "testing") for part in parts[:-1]) or name.startswith("test_") \
+        or name.endswith("_test.py") or name == "conftest.py"
 
 
 def _called(call: ast.Call) -> tuple[str | None, str] | None:
@@ -70,7 +152,7 @@ class _FileVisitor(ast.NodeVisitor):
         identity = node_id(self.path, qualname)
         segment = ast.get_source_segment(self.text, node) or node.name
         self.definitions.append((identity, kind, qualname, node.lineno, node.end_lineno or node.lineno,
-                                 _concepts(segment), _data(segment), parent))
+                                 _concepts(segment), _data(node), parent))
         self.scope.append((identity, qualname))
         self.generic_visit(node)
         self.scope.pop()
@@ -204,6 +286,7 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
 def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
     """Shortest call paths from a function that handles personal data to one that reaches an AI model,
     tracking, a third party or marketing. A flow through an ambiguous call is labelled ambiguous.
+    Flows never start in test code.
 
     These are possible paths found by static parsing; they show where to look, never a finding.
     """
@@ -213,8 +296,10 @@ def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
         if edge.kind == "calls":
             calls.setdefault(edge.source, []).append((edge.target, edge.provenance))
     found = []
-    for start in sorted(node.id for node in graph.nodes if node.kind == "function" and node.data):
+    for start in sorted(node.id for node in graph.nodes
+                        if node.kind == "function" and node.data and not is_test_file(node.path)):
         previous: dict[str, tuple[str, str] | None] = {start: None}
+        guesses = {start: 0}
         frontier = [start]
         for _ in range(max_depth + 1):
             following = []
@@ -233,12 +318,16 @@ def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
                                   "hops": [{"name": nodes[hop].name, "location": f"{nodes[hop].path}:{nodes[hop].line}",
                                             "end_line": nodes[hop].end_line} for hop in hops]})
                     continue  # the first sink on a route ends it; what it calls is the sink's own detail
-                for target, provenance in sorted(calls.get(current, [])):
-                    if target not in previous:
+                for target, provenance in sorted(calls.get(current, []), key=lambda item: (item[1] != "extracted", item)):
+                    count = guesses[current] + (provenance == "ambiguous")
+                    if target not in previous and count <= MAX_AMBIGUOUS_HOPS:
                         previous[target] = (current, provenance)
+                        guesses[target] = count
                         following.append(target)
             frontier = following
-    found.sort(key=lambda flow: (flow["hops"][0]["location"], flow["hops"][-1]["location"]))
+    # Extracted routes first, then the shortest: the cap keeps the most reliable flows.
+    found.sort(key=lambda flow: (flow["provenance"] != "extracted", len(flow["hops"]),
+                                 flow["hops"][0]["location"], flow["hops"][-1]["location"]))
     return found[:MAX_FLOWS]
 
 
