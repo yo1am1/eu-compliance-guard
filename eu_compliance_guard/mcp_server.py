@@ -109,9 +109,28 @@ def _error(identity, code: int, message: str) -> dict:
     return {"jsonrpc": "2.0", "id": identity, "error": {"code": code, "message": message}}
 
 
+def _valid_id(value) -> bool:
+    """JSON-RPC ids are strings, integers or null; anything else is never echoed back."""
+    return value is None or isinstance(value, str) or (isinstance(value, int) and not isinstance(value, bool))
+
+
+def _reject_constant(name: str):
+    raise ValueError(name)  # NaN and Infinity are not JSON
+
+
+def parse(line: str):
+    """One message; ValueError for anything that is not plain JSON, including nesting too deep to read."""
+    try:
+        return json.loads(line, parse_constant=_reject_constant)
+    except RecursionError:
+        raise ValueError("too deeply nested") from None
+
+
 def handle(declarations: str, message) -> dict | None:
-    if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or not isinstance(message.get("method"), str):
-        return _error(message.get("id") if isinstance(message, dict) else None, -32600, "Invalid request")
+    if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or not isinstance(message.get("method"), str) \
+            or not _valid_id(message.get("id")):
+        identity = message.get("id") if isinstance(message, dict) else None
+        return _error(identity if _valid_id(identity) else None, -32600, "Invalid request")
     identity, method = message.get("id"), message["method"]
     if "id" not in message:
         return None  # a notification (such as notifications/initialized) gets no response
@@ -161,7 +180,7 @@ def serve(declarations: str, stdin=None, stdout=None) -> int:
             continue
         else:
             try:
-                response = handle(declarations, json.loads(line))
+                response = handle(declarations, parse(line))
             except ValueError:
                 response = _error(None, -32700, "Parse error")
         if response is not None:
