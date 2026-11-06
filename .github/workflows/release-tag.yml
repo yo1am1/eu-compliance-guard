@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 env:
-  TAG: v1.4.0
-  TARGET: d0ea9ccaa29491178a9e50052cff61589a1ccb4e
+  TAG: v1.5.0
+  TARGET: 4b7ecaf0d11fd28eb7df5f5e9740091733594c8f
 
 jobs:
   release:
