@@ -132,8 +132,11 @@ def import_pack(declarations: str | os.PathLike, path: str | os.PathLike, allowe
     declared = r.load_input(target)
     data = json.loads(m.canonical_json(declared))
     added = {"source_targets": [], "obligations": []}
+    # An obligation already in the project is the same one when it differs only in what belongs to
+    # the project (its own source copies, controls and overlays), as in the project a pack came from.
+    own = {item.id: _portable(item).model_dump(mode="json") for item in declared.obligations}
     for kind, records in (("source_targets", pack.source_targets), ("obligations", pack.obligations)):
-        present = {item["id"]: item for item in data[kind]}
+        present = {item["id"]: own.get(item["id"], item) if kind == "obligations" else item for item in data[kind]}
         for record in records:
             value = record.model_dump(mode="json")
             if record.id not in present:
