@@ -74,6 +74,8 @@ class PluginLayoutTests(unittest.TestCase):
         self.assertEqual((plugin["name"], plugin["version"]), ("eu-compliance-guard", version))
         from eu_compliance_guard import __version__
         self.assertEqual(__version__, version)
+        self.assertIn(f"**Version {version}.**", (ROOT / "README.md").read_text())
+        self.assertIn(f"## {version} ", (ROOT / "CHANGELOG.md").read_text())
         icon = (ROOT / ".claude-plugin/icon.png").read_bytes()
         self.assertEqual((icon[:8], int.from_bytes(icon[16:20]), int.from_bytes(icon[20:24])),
                          (b"\x89PNG\r\n\x1a\n", 512, 512))
@@ -118,6 +120,18 @@ class PluginLayoutTests(unittest.TestCase):
         include = tomllib.loads((ROOT / "pyproject.toml").read_text())["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
         for path in ("/.claude-plugin", "/skills", "/hooks", "/types"):
             self.assertIn(path, include)
+
+
+class VersionFlagTests(unittest.TestCase):
+    def test_version_flag_prints_the_package_version(self):
+        import io
+        from contextlib import redirect_stdout
+        from eu_compliance_guard import __version__
+        from eu_compliance_guard.__main__ import main
+        out = io.StringIO()
+        with redirect_stdout(out), self.assertRaises(SystemExit) as raised:
+            main(["--version"])
+        self.assertEqual((raised.exception.code, out.getvalue()), (0, f"eu-compliance-guard {__version__}\n"))
 
 
 class SessionHookTests(unittest.TestCase):
