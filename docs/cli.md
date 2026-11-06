@@ -94,9 +94,10 @@ stays unresolved.
 ## Official sources
 
 The network is off by default. `--fetch-official` sends bounded GETs to the declared
-source targets, and only to six exact hosts: `eur-lex.europa.eu`, `curia.europa.eu`,
-`commission.europa.eu`, `digital-strategy.ec.europa.eu`, `www.edpb.europa.eu` and
-`publications.europa.eu` (the Publications Office's machine endpoint, Cellar). For
+source targets, and only to exact hosts registered per jurisdiction: for the EU
+`eur-lex.europa.eu`, `curia.europa.eu`, `commission.europa.eu`,
+`digital-strategy.ec.europa.eu`, `www.edpb.europa.eu` and `publications.europa.eu` (the
+Publications Office's machine endpoint, Cellar); for the UK `www.legislation.gov.uk`. For
 Cellar alone, its own same-host `http://` redirect is upgraded to https; every other
 downgrade is refused. Requests carry the target's language as `Accept-Language`.
 [docs/official-hosts.md](official-hosts.md) names each host's operator and purpose
@@ -130,6 +131,21 @@ reviewed, but it always remains a "needs manual identity review" gap, so also sa
 the HTML version of an act you want to rely on. Some official pages, such as EDPB's, change bytes on every request, so
 exact-byte comparison reports them as changed. See the
 [live smoke check](../memory-bank/bolts/002-legal-revalidation-cli/live-smoke-report.md).
+
+### United Kingdom
+
+UK law comes from legislation.gov.uk (The National Archives). Declare a target with
+`"jurisdiction": "UK"`, `"intended_type": "national_act"` and a URL ending in `/data.htm`,
+for example `https://www.legislation.gov.uk/uksi/2003/2426/data.htm` for PECR,
+`/ukpga/2018/12/data.htm` for the Data Protection Act 2018 or `/eur/2016/679/data.htm` for
+the UK GDPR. Without a date the site returns the latest revised text, which may list changes
+not yet applied; `/YYYY-MM-DD/data.htm` returns the text on a date, and `/enacted` or `/made`
+the text as first published (`check` warns about those). Provisions are read by their own
+names: "Section 170" in an Act, "Regulation 6" in a statutory instrument, "Article 17" in
+assimilated EU law; amendment notes are left out. legislation.gov.uk builds a large act on
+demand, so its host may take up to 30 seconds before the first byte. The lock records UK
+versions as `uksi/2003/2426` or `ukpga/2018/12@2026-01-01`. The newer-consolidation notice
+is EU-only: for a dated UK text, check legislation.gov.uk for later changes yourself.
 
 ## Revalidation
 
@@ -338,7 +354,10 @@ retained act. Every quotation of three words or more must appear in the article 
 before it, word for word, ignoring case, whitespace and the style of quotation marks. A
 citation followed by an act's name or number ("Article 17 GDPR", "Article 5(3) of the
 ePrivacy Directive", "Article 99 of Regulation (EU) 2016/679") is checked in that act only;
-a well-known act the run did not retain, such as the DSA, is reported as not checked. It
+a well-known act the run did not retain, such as the DSA, is reported as not checked. UK
+citations work the same way: "section 170 of the Data Protection Act 2018", "s. 170 DPA
+2018", "regulation 6 of PECR", "Article 17 UK GDPR". A citation of "the GDPR" is never
+checked in the UK GDPR, or the other way round. It
 exits 1 when a citation or quotation does not match. It checks wording only, never legal
 meaning.
 

@@ -10,7 +10,7 @@
 | 1.5 | Trustworthy guidance: [the intent](../memory-bank/intents/002-trustworthy-guidance-v1-5/requirements.md) completed with the newer-consolidation notice | Released (live band and panel check in a session not done; see CHANGELOG) |
 | 2.0 | Compliance workspace: law lockfile and change impact, signed decisions, citation guard and MCP tools, obligation pack format, evidence imports ([bolts 012–021](../memory-bank/intents/003-compliance-workspace-v2/units.md)) | Released (scripted end-to-end check; signing with the Owner's key and a live session check not done; see CHANGELOG) |
 | 2.1 | Precision: full audit, fuzz tests for untrusted inputs, real law-text and real-repository test sets, fixes ([intent 004](../memory-bank/intents/004-precision-and-jurisdictions-v2-5/requirements.md)) | Released |
-| 2.2 | Jurisdictions as modules; the UK (legislation.gov.uk) | Planned |
+| 2.2 | Jurisdictions as modules; the UK (legislation.gov.uk) | Done; release pending |
 | 2.3 | US federal law (eCFR, Federal Register, GovInfo) | Planned |
 | 2.4 | CRA, EAA, NIS2, AI Act dates; application-date timeline; draft starter packs; exports | Planned |
 | 2.5 | JavaScript/TypeScript graph, graph digests in runs, Graphify import | Planned |
