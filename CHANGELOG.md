@@ -27,6 +27,22 @@
   contract is generated from `models.py` (`ObligationPack`).
 - MCP review tools (2.0 bolt 021): the `mcp` server also serves `ground` (read-only
   proposals) and `pr_check` (given a unified diff).
+- `--version` prints the installed version.
+
+### Changed
+
+- The README is a short overview; the full command reference moved to `docs/cli.md`
+  and the plugin's band, panel, dashboard and hook to `docs/plugin.md`.
+- Package metadata (authors, classifiers, keywords, project links), a contributing
+  guide, a security policy, and issue and pull-request templates.
+
+### Fixed
+
+- Grounding and the project graph no longer read the tool's own outputs (`imports/`,
+  `signatures/`, `eu-law.lock`) as project code when the files root is the declarations
+  folder: imported tool output is untrusted and was proposed as code evidence.
+- Importing a pack into the project it came from no longer reports a conflict.
+- `sign` says when no `eu-law.lock` exists, so the signature pins no article text.
 
 ## 1.5.0 — 2026-11-06
 
