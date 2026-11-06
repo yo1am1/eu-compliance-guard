@@ -33,9 +33,10 @@ library is imported into the standalone repository.
   containment/admission requirements remain unmet; fake tests are not that evidence.
 - Separate Python/frontend lock files, package selection, and license notices.
 
-## Current state (v2.0.0, 2026-11-06) and what remains
+## Current state (v2.1.0, 2026-11-06) and what remains
 
-Released: 1.0 to 2.0. The read-only workflow covers:
+Released: 1.0 to 2.1. 2.1 tested the base on hostile input, real official texts and real
+projects, and fixed what fell short (see the changelog). The 2.0 summary follows. The read-only workflow covers:
 
 - declarations, `check`, official-source retrieval from six verified EU hosts, the
   version in force with a newer-consolidation notice, reports, and predecessor
