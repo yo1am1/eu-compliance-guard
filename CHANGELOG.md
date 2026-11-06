@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- The MCP server no longer stops on one deeply nested JSON message, limits nesting to 64
+  levels on every Python, and rejects invalid request ids and NaN.
+- SARIF imports no longer print a boolean line number.
+- `verify` binds each signature file to the decision it is named after and lists reviewed
+  decisions left unsigned; signature files are read without following links, size-limited.
+- `pack import` imports exactly the bytes whose signature it verified.
+- `impact` reports law text the newer run did not retain as not compared, never as removed,
+  and refuses another project's lock.
+- The project graph tags data from identifiers, not prose or generic words, starts no flow in
+  test code, and follows at most one ambiguous call per flow. On three real projects the
+  false children's-data tags fell from hundreds to none (see
+  `docs/decisions/graph-precision.md`).
+
+### Added
+
+- Citations are checked in the act they name ("Article 17 GDPR", "Article 5(3) of the
+  ePrivacy Directive", "Article 99 of Regulation (EU) 2016/679"); well-known acts the run
+  did not retain are reported as not checked.
+- Tests: seeded fuzzing of every parser of untrusted input, and a test set of real official
+  texts (GDPR, AI Act, consolidated ePrivacy Directive) in `fixtures/official/`.
+
 ## 2.0.0 — 2026-11-06
 
 From a review tool to a compliance workspace: the law a review read is pinned, a law
