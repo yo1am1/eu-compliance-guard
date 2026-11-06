@@ -16,14 +16,13 @@ permissions:
 
 env:
   BRANCHES: >-
-    claude/law-lock
-    claude/signed-decisions
-    claude/imports
-    claude/obligation-packs
-    claude/mcp-review-tools
-    claude/live-check-fixes
-    claude/repo-cleanup
-    claude/release-2.0.0
+    claude/publish-2.0.0
+    claude/intent-2.5
+    claude/audit-untrusted-input
+    claude/audit-signing
+    claude/real-law-tests
+    claude/graph-precision
+    claude/release-2.1.0
 
 jobs:
   prune:
