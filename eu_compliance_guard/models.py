@@ -2122,3 +2122,38 @@ class ProjectGraph(Record):
         if keys != sorted(set(keys)):
             raise ValueError("graph edges must be unique and sorted")
         return self
+
+
+# Law lockfile (2.0 bolt 017): which official text, version and articles the decisions were made against.
+class LawLockArticle(Record):
+    key: Name
+    digest: Digest
+
+
+class LawLockEntry(Record):
+    target_id: Id
+    version: Text | None
+    source_digest: Digest
+    articles: Annotated[list[LawLockArticle], Field(max_length=5000)]
+
+    @model_validator(mode="after")
+    def sorted_articles(self) -> LawLockEntry:
+        keys = [item.key for item in self.articles]
+        if keys != sorted(set(keys)):
+            raise ValueError("lock articles must be unique and sorted")
+        return self
+
+
+class LawLock(Record):
+    schema_version: SchemaVersion
+    lock_version: Literal[1]
+    project_id: Id
+    run_id: Id
+    entries: Annotated[list[LawLockEntry], Field(max_length=16)]
+
+    @model_validator(mode="after")
+    def sorted_entries(self) -> LawLock:
+        ids = [item.target_id for item in self.entries]
+        if ids != sorted(set(ids)):
+            raise ValueError("lock entries must be unique and sorted by target")
+        return self

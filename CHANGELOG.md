@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Law lockfile and change impact (2.0 bolt 017): `lock` writes `eu-law.lock` (each act's
+  version, source digest and per-article digests, from a verified run). `impact` lists
+  the articles changed since the lock and the obligations, decisions and requirements
+  citing them, with `--strict` for CI. The contract is generated from `models.py`
+  (`LawLock`).
+
 ## 1.5.0 — 2026-11-06
 
 Trustworthy guidance: suggestions explain themselves, a suggestion becomes a mapping in

@@ -325,6 +325,18 @@ For a future hosted service, `frontend/` holds a React page that renders such a 
 or drop the file). It is read in the browser only; the page's Content Security Policy blocks every
 connection, and its types are generated from `eu_compliance_guard/models.py`.
 
+### Law lockfile and change impact
+
+`lock` records the law a run's reviews read. For each act whose text the run retained, it
+stores the version (CELEX), the source digest and a digest per article, in
+`.eu-compliance-guard/eu-law.lock`. The lockfile is deterministic and meant to be
+committed with the declarations. After a newer run, for example one with
+`--fetch-official` once the consolidated text has moved, `impact` compares that run with
+the lock. It lists the changed, added and removed articles, then the obligations citing
+them and their applicability decisions and mapped requirements: exactly those need
+review again. Nothing is reopened or decided automatically. `--strict` exits 1 when a
+declared obligation cites a changed article, so CI can flag it.
+
 ### Accepting a suggestion
 
 `accept REQ=TARGET:ARTICLE` (for example `accept req-delete=target-gdpr:Article 17`)

@@ -3451,6 +3451,119 @@
       "type": "object"
     },
     "JsonValue": {},
+    "LawLock": {
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/LawLockEntry"
+          },
+          "maxItems": 16,
+          "title": "Entries",
+          "type": "array"
+        },
+        "lock_version": {
+          "const": 1,
+          "title": "Lock Version",
+          "type": "integer"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "lock_version",
+        "project_id",
+        "run_id",
+        "entries"
+      ],
+      "title": "LawLock",
+      "type": "object"
+    },
+    "LawLockArticle": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "key": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "digest"
+      ],
+      "title": "LawLockArticle",
+      "type": "object"
+    },
+    "LawLockEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "articles": {
+          "items": {
+            "$ref": "#/$defs/LawLockArticle"
+          },
+          "maxItems": 5000,
+          "title": "Articles",
+          "type": "array"
+        },
+        "source_digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Source Digest",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Target Id",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Version"
+        }
+      },
+      "required": [
+        "target_id",
+        "version",
+        "source_digest",
+        "articles"
+      ],
+      "title": "LawLockEntry",
+      "type": "object"
+    },
     "LegalRefreshArgs": {
       "additionalProperties": false,
       "properties": {
