@@ -36,6 +36,10 @@ TOOLS = [
                     "other review concepts, and the declared facts and obligations they may reopen.",
      "inputSchema": {"type": "object", "properties": {"diff": {"type": "string", "description": "Unified diff text"}},
                      "required": ["diff"], "additionalProperties": False}},
+    {"name": "timeline",
+     "description": "Application, entry-into-force and transposition dates quoted from the retained official text, "
+                    "marked reached or upcoming against the declarations' assessment date.",
+     "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "next_steps",
      "description": "The next review steps of the latest run, ranked by how many open requirements each unblocks.",
      "inputSchema": {"type": "object", "properties": {"top": {"type": "integer", "minimum": 1, "maximum": 20}},
@@ -97,6 +101,12 @@ def call(declarations: str, name: str, arguments: dict) -> tuple[str, dict | Non
         project_graph, prefix = prcheck.project_context(declarations)
         report = prcheck.pr_check(diff, declared, project_graph, prefix)
         return prcheck.format_text(report), report
+    if name == "timeline":
+        from . import timeline
+        bundle, acts = _latest(declarations)
+        assessment = bundle.declarations.scope.assessment_date if bundle is not None else None
+        entries = timeline.timeline(acts, assessment)
+        return timeline.format_timeline(entries, assessment, sorted(acts)), {"assessment_date": assessment, "entries": entries}
     if name == "next_steps":
         steps = nextstep.next_steps(_latest(declarations)[0], _top(arguments, 3))
         return nextstep.format_steps(steps), {"steps": steps}

@@ -10,7 +10,7 @@ from pathlib import Path
 import random
 import unittest
 
-from eu_compliance_guard import articles, citations, imports, mcp_server, prcheck, sources
+from eu_compliance_guard import articles, citations, imports, mcp_server, prcheck, sources, timeline
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 TOKENS = ["Article", "article", "Art.", "Articles", " ", "\n", '"', "“", "”", "„", "«", "»", "(", ")", "1", "9", "12a",
@@ -68,6 +68,8 @@ class FuzzTests(unittest.TestCase):
             self.survives(lambda: articles.parse(raw, "text/plain"))
             self.survives(lambda: articles.parse(raw, "text/html"))
             self.survives(lambda: citations.check(text, CATALOGUE))
+            self.survives(lambda: timeline.timeline({"act": {"Article 1": {"title": "", "text": text + " shall apply from 2 May 2030;"}}},
+                                                    "2026-01-01"))
             self.survives(lambda: prcheck.pr_check(text))
             self.survives(lambda: imports.summarise(json.dumps(self.value()).encode(), "wec"))
             self.survives(lambda: imports.summarise(json.dumps(self.value()).encode(), "sarif"))

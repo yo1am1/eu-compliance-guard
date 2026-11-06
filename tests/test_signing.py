@@ -170,7 +170,7 @@ class McpTests(Project):
             {"jsonrpc": "2.0", "id": 6, "method": "unknown"})
         self.assertEqual([item.get("id") for item in responses], [1, 2, 3, 4, 5, 6, None])
         self.assertEqual(responses[0]["result"]["serverInfo"]["name"], "eu-compliance-guard")
-        self.assertEqual([tool["name"] for tool in responses[1]["result"]["tools"]], ["cite_check", "article_search", "ground", "pr_check", "next_steps"])
+        self.assertEqual([tool["name"] for tool in responses[1]["result"]["tools"]], ["cite_check", "article_search", "ground", "pr_check", "timeline", "next_steps"])
         self.assertFalse(responses[2]["result"]["structuredContent"]["ok"])
         self.assertIn("Not legal advice", responses[2]["result"]["content"][0]["text"])
         self.assertEqual(responses[3]["result"]["structuredContent"]["results"][0]["article"], "Article 2")

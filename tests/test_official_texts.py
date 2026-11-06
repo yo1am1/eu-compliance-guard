@@ -11,6 +11,9 @@ TEXTS = {  # file stem: (sha256 of the uncompressed bytes, media type)
     "gdpr-32016R0679": ("962539af03738bf552319ff4ce42d69e5f95a576307c4dfed7bf87e81b646b9d", "application/xhtml+xml"),
     "ai-act-32024R1689": ("8f0b656302f9864cc87e040c371f209a9d65ae1a6cecc25ca5eb737e872d721a", "application/xhtml+xml"),
     "eprivacy-02002L0058-20091219": ("c2924162f0a6faf98ed18dda78655a2b0ce8c4e80403e1b5db08e76f6915f502", "application/xhtml+xml"),
+    "cra-32024R2847": ("fe0cca4a0caec50e7cf5a91432b94a19b211f86be8584fdba56372bdcea571ed", "application/xhtml+xml"),
+    "eaa-32019L0882": ("f1047e0732b744f5e7bd0e01c69d1db54a461de693ab375aa5b39a0c212fa50d", "application/xhtml+xml"),
+    "nis2-32022L2555": ("6ee66d5c419d9a056fb98d94083cacf9b818803bd6b416435718e0d4919cb589", "application/xhtml+xml"),
     "uk-gdpr-eur-2016-679": ("804885cb4134ee6bb1dc1f69658dfb306a1ad270115a1e13e719d13334963f44", "application/xhtml+xml"),
     "pecr-uksi-2003-2426": ("bf91b37ab3c956f7b3c54ae246e953c1f97971d324f2f7ed3db63ad692530d60", "application/xhtml+xml"),
     "dpa-2018-ukpga-2018-12": ("c24aea0190a491bc09f6945eaf465d6ea46b3e8910f1e20c1a685529431ac479", "application/xhtml+xml"),
@@ -83,6 +86,42 @@ class OfficialTextTests(unittest.TestCase):
     def test_search_finds_the_erasure_article(self):
         found = articles.suggest("users can delete their account and all personal data", self.acts, top=3)
         self.assertIn(("gdpr", "Article 17"), [(item["source"], item["article"]) for item in found])
+
+
+class TimelineTests(unittest.TestCase):
+    """Application dates quoted from the real final provisions, against an assessment date."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.acts = {"ai-act": load("ai-act-32024R1689"), "cra": load("cra-32024R2847"), "eaa": load("eaa-32019L0882"),
+                    "nis2": load("nis2-32022L2555"), "gdpr": load("gdpr-32016R0679")}
+
+    def test_new_acts_parse_completely(self):
+        self.assertEqual([len(self.acts[act]) for act in ("cra", "eaa", "nis2")], [71, 35, 46])
+        self.assertEqual(self.acts["cra"]["Article 14"]["title"], "Reporting obligations of manufacturers")
+
+    def test_dates_are_quoted_and_compared_with_the_assessment_date(self):
+        from eu_compliance_guard import timeline
+        entries = timeline.timeline(self.acts, "2026-11-06")
+        final = {(e["date"], e["act"], e["kind"], e["status"]) for e in entries
+                 if e["article"] in ("Article 113", "Article 71", "Article 31", "Article 41", "Article 99")}
+        self.assertLessEqual({("2025-02-02", "ai-act", "applies", "reached"), ("2026-08-02", "ai-act", "applies", "reached"),
+                              ("2027-08-02", "ai-act", "applies", "upcoming"), ("2026-06-11", "cra", "applies", "reached"),
+                              ("2026-09-11", "cra", "applies", "reached"), ("2027-12-11", "cra", "applies", "upcoming"),
+                              ("2022-06-28", "eaa", "transposition", "reached"), ("2025-06-28", "eaa", "applies", "reached"),
+                              ("2024-10-17", "nis2", "transposition", "reached"), ("2018-05-25", "gdpr", "applies", "reached")},
+                             final)
+        for entry in entries:  # every quotation is the act's own text
+            self.assertIn(entry["quote"].rstrip("…"), " ".join(self.acts[entry["act"]][entry["article"]]["text"].split()))
+        self.assertEqual(entries, sorted(entries, key=lambda e: (e["date"], e["act"], e["article"], e["quote"])))
+        self.assertEqual(timeline.timeline(self.acts, "2026-11-06"), entries)  # deterministic
+        self.assertIsNone(timeline.timeline(self.acts)[0]["status"])
+
+    def test_dates_are_read_without_guessing(self):
+        from eu_compliance_guard import timeline
+        self.assertEqual(timeline._dates("shall apply from 2 August 2026 and from August 3, 2027"), ["2026-08-02", "2027-08-03"])
+        self.assertEqual(timeline._dates("shall apply from 31 February 2026 or 2 Augustus 2026 or 2 August 26"), [])
+        self.assertIsNone(timeline._kind("The Commission shall report by 2 August 2028."))
 
 
 class UkOfficialTextTests(unittest.TestCase):

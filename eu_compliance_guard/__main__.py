@@ -148,6 +148,11 @@ def _command(argv: list[str] | None) -> int:
     verify.add_argument("--allowed-signers", required=True, help="ssh-keygen allowed-signers file")
     verify.add_argument("--lock", help="Lockfile (default: eu-law.lock beside the declarations, if present)")
     verify.add_argument("--json", action="store_true", help="Print the result as JSON")
+    when = commands.add_parser("timeline", help="List application, entry-into-force and transposition dates quoted from the retained text",
+                               allow_abbrev=False)
+    when.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    when.add_argument("--run", help="Completed run directory (default: the newest run in this project's state-dir)")
+    when.add_argument("--json", action="store_true", help="Print the result as JSON")
     cite = commands.add_parser("cite-check", help="Check article citations and quotations against the retained official text",
                                allow_abbrev=False)
     cite.add_argument("file", help="Text file to check, or - for standard input")
@@ -264,6 +269,8 @@ def _command(argv: list[str] | None) -> int:
         return _signing(args)
     if args.command == "cite-check":
         return _cite_check(args)
+    if args.command == "timeline":
+        return _timeline(args)
     if args.command == "import-evidence":
         return _import(args)
     if args.command == "pack":
@@ -397,6 +404,33 @@ def _signing(args) -> int:
     (_emit(json.dumps(results, indent=2)) if args.json else _emit_text(signing.format_verify(results)))
     # A missing signature is listed but is not a failure: signing is optional.
     return 0 if all(item["signature"] in ("valid", "missing") and not item["changed"] for item in results) else 1
+
+
+def _timeline(args) -> int:
+    import json
+    from . import authoring, nextstep, timeline
+    from .view import catalogue, verify_run
+    try:
+        run = args.run
+        if run is None:
+            found = nextstep.latest_run(authoring.state_dir(args.input, create=False))
+            if found is None:
+                raise nextstep.NoRun("no-run")
+            run = str(found)
+        contents: dict[str, bytes] = {}
+        bundle = verify_run(run, contents)
+        acts = catalogue(bundle, contents)
+        assessment = bundle.declarations.scope.assessment_date
+        entries = timeline.timeline(acts, assessment)
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'timeline-failed'}: timeline failed", file=sys.stderr)
+        return 2
+    (_emit(json.dumps({"assessment_date": assessment, "entries": entries}, indent=2)) if args.json
+     else _emit_text(timeline.format_timeline(entries, assessment, sorted(acts))))
+    return 0
 
 
 def _cite_check(args) -> int:
