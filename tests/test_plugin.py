@@ -105,7 +105,7 @@ class PluginLayoutTests(unittest.TestCase):
             self.assertIn("--fetch-official", text)
             self.assertRegex(text, r"Never (invent|fill) (a )?reviewer")
         from eu_compliance_guard.sources import OFFICIAL_HOSTS
-        self.assertEqual(set(re.findall(r"`([a-z.-]+\.europa\.eu)`", audit)), set(OFFICIAL_HOSTS))
+        self.assertEqual(set(re.findall(r"`([a-z.-]+\.(?:europa\.eu|gov\.uk))`", audit)), set(OFFICIAL_HOSTS))
 
     def test_hook_config_runs_the_shipped_script(self):
         config = json.loads((ROOT / "hooks/hooks.json").read_text())

@@ -4,8 +4,8 @@
 [![Release](https://img.shields.io/github/v/release/yo1am1/eu-compliance-guard)](https://github.com/yo1am1/eu-compliance-guard/releases)
 [![License: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue)](LICENSE)
 
-A Claude Code plugin and command-line tool that keeps a project's EU legal review
-traceable. It maps declared project requirements to candidate EU obligations and
+A Claude Code plugin and command-line tool that keeps a project's EU and UK legal review
+traceable. It maps declared project requirements to candidate obligations and
 official sources, then keeps every unanswered question visible as a review gap. It
 writes private, tamper-evident reports and revalidates them when the project or the
 law changes.
@@ -46,8 +46,9 @@ All screenshots show the fictional FitBox example project.
 
 - Declarations of requirements, facts, sources and obligations, validated with located
   diagnostics (`init`, `check`).
-- Official text from six verified EU hosts, fetched only with consent, and the version
-  in force, with a notice when a newer consolidation exists (`revalidate --fetch-official`).
+- Official text from verified hosts, fetched only with consent: EU law from EUR-Lex and the
+  Publications Office, with a notice when a newer consolidation exists, and UK law from
+  legislation.gov.uk, by section, regulation or article (`revalidate --fetch-official`).
 - Private, digest-verified runs that revalidate against their predecessor, so stale
   reviews never carry over silently.
 - The next best step, review-progress meters, article suggestions with their reasons,

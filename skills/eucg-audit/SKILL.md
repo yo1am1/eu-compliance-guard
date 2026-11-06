@@ -36,7 +36,13 @@ Use the CLI command from the SessionStart context, written `<cli>` below, or
   amendments. For the law in force, use a consolidated CELEX, `0` + the act number +
   `-` + the consolidation date (for example `02002L0058-20091219` for ePrivacy as
   amended in 2009), and record that date. Never assume a consolidation is the latest
-  one: ask the owner or a reviewer to confirm it. Set `"synthetic": false` only for a real project.
+  one: ask the owner or a reviewer to confirm it. For UK law, the only registry host is
+  `www.legislation.gov.uk`: use `https://www.legislation.gov.uk/<type>/<year>/<number>/data.xht`
+  (for example `ukpga/2018/12` for the Data Protection Act 2018, `eur/2016/679` for the UK
+  GDPR, `uksi/2003/2426` for PECR), with `jurisdiction: "UK"` and `intended_type:
+  "national_act"`. Without a date it returns the latest revised text; add `/<YYYY-MM-DD>`
+  before `/data.xht` for the text on a date, and record it. Set `"synthetic": false` only for
+  a real project.
 - Never fill reviewer, `reviewed_at`, applicability, source reviews or evidence
   reviews yourself. They stay empty or unresolved until a named human supplies them.
   Evidence paths point to files the user selected; their bodies are not read into

@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Jurisdictions as modules (2.2): each jurisdiction registers its official hosts, its act
+  identifiers and its well-known acts (`jurisdictions.py`). The EU is the first.
+- The United Kingdom: `www.legislation.gov.uk` (The National Archives) is a registered host;
+  UK identifiers (`ukpga/2018/12`, `uksi/2003/2426`, `eur/2016/679`, with an optional date)
+  are read for `check`, the report's version note and the law lockfile; legislation.gov.uk
+  XHTML is parsed into sections, regulations and articles, with amendment notes left out;
+  the citation guard reads "section 170", "s. 170", "regulation 6" and "reg. 6" and knows
+  the UK GDPR, the Data Protection Act 2018, PECR and other UK acts by name. The audit skill
+  shows how to declare UK targets.
+- A test set of UK texts (UK GDPR, PECR, Data Protection Act 2018) under the Open Government
+  Licence, next to the EU texts.
+
+### Fixed
+
+- legislation.gov.uk may take over ten seconds to build a large act; its host gets a 30-second
+  first-byte allowance, while an explicit retrieval budget always wins.
+- `lock` counts provisions, not articles.
+
 ## 2.1.0 — 2026-11-06
 
 Precision: the 2.0 base tested on hostile input, real law and real code, and fixed where it

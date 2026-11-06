@@ -39,7 +39,7 @@ API. The tool's name stays "EU Compliance Guard" through 2.x; a rename is a 3.0 
 | Version | Destination |
 |---|---|
 | 2.1 | **Precision.** Audit by area (parsers, file handling, signing, MCP, plugin); fuzz tests for the article, citation, WEC, SARIF, diff and MCP inputs; committed extracts of real EUR-Lex text as a parser and citation test set; grounding and graph measured on real open-source repositories. |
-| 2.2 | **Jurisdictions, starting with the UK.** A jurisdiction becomes a module (verified hosts, identifiers, screening families); the EU is the first; the UK the second. |
+| 2.2 (done 2026-11-06) | **Jurisdictions, starting with the UK.** A jurisdiction becomes a module (verified hosts, identifiers, screening families); the EU is the first; the UK the second. |
 | 2.3 | **US federal law.** eCFR (point in time), the Federal Register (new and proposed rules, for change impact) and GovInfo (US Code; needs a free api.data.gov key, through the credential flow). First targets: COPPA, HIPAA, GLBA, FTC rules. |
 | 2.4 | **Laws software teams meet now.** Cyber Resilience Act, European Accessibility Act, NIS2 screening, the AI Act's phased dates; an application-date timeline quoted from the text; starter packs as unreviewed drafts; exports (a draft Article 30 record, DPIA screening inputs). |
 | 2.5 | **More of the code.** A JavaScript/TypeScript graph through a pinned optional parser; graph digests in runs so a code change reopens decisions as a law change does; a Graphify import; stabilisation for 3.0. |

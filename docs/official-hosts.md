@@ -1,9 +1,11 @@
 # Official host registry
 
-`--fetch-official` retrieves law text only from the exact hosts below
-(`OFFICIAL_HOSTS` in `eu_compliance_guard/sources.py`). Each host is an EU institution
-site under `europa.eu`, the EU institutions' own domain. A test keeps this table and the
-code in step: adding a host means adding a row here, with its operator and purpose.
+`--fetch-official` retrieves law text only from the exact hosts below, registered per
+jurisdiction in `eu_compliance_guard/jurisdictions.py`. Each EU host is an institution site
+under `europa.eu`, the EU institutions' own domain; the UK host is legislation.gov.uk, run by
+The National Archives. A test keeps this table and the code in step and checks each host sits
+under its jurisdiction's official domain: adding a host means adding a row here, with its
+operator and purpose.
 
 Official hosting shows where a text came from. It does not establish that the text is
 binding, complete, applicable or current; reviewers decide that.
@@ -16,6 +18,7 @@ binding, complete, applicable or current; reviewers decide that.
 | `commission.europa.eu` | European Commission | Commission policy pages and guidance |
 | `digital-strategy.ec.europa.eu` | European Commission (DG CONNECT) | Digital policy and guidance (AI Act, Data Act, DSA) |
 | `www.edpb.europa.eu` | European Data Protection Board | GDPR guidelines and opinions |
+| `www.legislation.gov.uk` | The National Archives (UK) | UK legislation: Acts, statutory instruments and assimilated EU law such as the UK GDPR, as enacted, revised, or on a date |
 
 ## Reachability
 
@@ -33,3 +36,4 @@ Last check: 2026-11-05, through this project's cloud environment.
 | `eur-lex.europa.eu` | HTTP 202. This is a bot challenge, not the page. `admit_source_content` already refuses challenge pages, so act text should come from `publications.europa.eu` (Cellar) with a consolidated CELEX number. |
 | `publications.europa.eu` | HTTP 200 |
 | `www.edpb.europa.eu` | HTTP 200 |
+| `www.legislation.gov.uk` | HTTP 200 (checked 2026-11-06). `data.xht` returns the XHTML of a whole act. `ico.org.uk` (the UK regulator) answered HTTP 403 to automated clients and is not registered. |

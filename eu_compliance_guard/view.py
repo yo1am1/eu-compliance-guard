@@ -272,11 +272,8 @@ def source_catalogue(bundle: m.RevalidationBundle, contents: dict[str, bytes]) -
 
 
 def _version_note(version: dict | None) -> str:
-    if version is None:
-        return "check the official consolidated version before relying on it."
-    if version["consolidated"]:
-        return f"consolidated version of {version['date']} (CELEX {version['celex']}); check that no newer one applies."
-    return f"the act as first published (base CELEX {version['celex']}), not the law in force; check the consolidated version."
+    from .jurisdictions import version_note
+    return version_note(version)
 
 
 def _article(pin: m.ProvisionRef, acts: dict[str, dict[str, dict]], by_source: dict[str, dict[str, dict]],
@@ -318,8 +315,8 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
     # reference shows its source's declared type, an unpinned one its target's intended type.
     source_types = {item.source.id: item.source.type for item in declared.sources}
     target_types = {item.id: item.intended_type for item in declared.source_targets}
-    from .sources import celex_version
-    versions = {item.id: celex_version(item.intended_identifier, item.intended_url) for item in declared.source_targets}
+    from .jurisdictions import version
+    versions = {item.id: version(item.intended_identifier, item.intended_url) for item in declared.source_targets}
     decisions = {item.obligation.id: item for item in bundle.effective_applicability_decisions}
     requirement_states = Counter(item.state for item in bundle.requirement_assessments)
     applicability = Counter(item.applicability for item in bundle.obligation_dispositions)
