@@ -22,6 +22,10 @@ class Jurisdiction:
     https_upgrade_hosts: frozenset[str] = frozenset()
     # Well-known acts: identifier -> common names, used to tell which act a citation names.
     known_acts: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    # Seconds a host may take to answer: legislation.gov.uk builds a large act on demand and can
+    # take over ten seconds before its first byte when the act is not cached.
+    operation_seconds: float = 5.0
+    target_seconds: float = 20.0
 
 
 EU = Jurisdiction(
@@ -49,6 +53,7 @@ UK = Jurisdiction(
     code="UK", name="United Kingdom",
     hosts=frozenset({"www.legislation.gov.uk"}),
     domain=".legislation.gov.uk",
+    operation_seconds=30.0, target_seconds=45.0,
     # By legislation.gov.uk identifier (type/year/number).
     known_acts={
         "eur/2016/679": ("UK GDPR",),
@@ -63,6 +68,8 @@ UK = Jurisdiction(
 ALL = (EU, UK)
 OFFICIAL_HOSTS = frozenset().union(*(item.hosts for item in ALL))
 HTTPS_UPGRADE_HOSTS = frozenset().union(*(item.https_upgrade_hosts for item in ALL))
+OPERATION_SECONDS = {host: item.operation_seconds for item in ALL for host in item.hosts}
+TARGET_SECONDS = {host: item.target_seconds for item in ALL for host in item.hosts}
 # legislation.gov.uk document types: Acts, statutory instruments, retained (assimilated) EU law.
 UK_TYPES = frozenset({"ukpga", "uksi", "asp", "asc", "anaw", "mwa", "nia", "nisi", "nisr", "ssi", "wsi", "eur", "eudr",
                       "eudn", "ukla", "ukcm"})

@@ -253,11 +253,11 @@ def fetch(request: TargetRequest, transport, *, limit: int, deadline: float,
     started = now()
     state = {"redirects": [], "status": None, "media_type": None, "charset": None, "bytes_read": 0}
 
-    def remaining() -> float:
+    def remaining(host: str | None = None) -> float:
         left = deadline - clock()
         if left <= 0:
             raise RetrievalFailure("timeout")
-        return min(OPERATION_SECONDS, left)
+        return min(_jurisdictions.OPERATION_SECONDS.get(host, OPERATION_SECONDS), left)
 
     def result(failure=None, **values) -> FetchResult:
         return FetchResult(target_id=request.target_id, requested_url=request.url, started_at=started, ended_at=now(),
@@ -282,7 +282,7 @@ def fetch(request: TargetRequest, transport, *, limit: int, deadline: float,
             response = None
             for address in addresses:
                 try:
-                    response = transport.get(host, address, target, remaining(), language)
+                    response = transport.get(host, address, target, remaining(host), language)
                     break
                 except (ssl.SSLError, TimeoutError):
                     raise
@@ -430,7 +430,7 @@ def _from_message(request: TargetRequest, message, started: str, content: bytes 
 
 
 def retrieve(requests: list[TargetRequest], *, transport_factory=SystemTransport,
-             target_seconds: float = TARGET_SECONDS, network_seconds: float = NETWORK_SECONDS) -> list[FetchResult]:
+             target_seconds: float | None = None, network_seconds: float = NETWORK_SECONDS) -> list[FetchResult]:
     """Fetch targets sequentially, one disposable helper at a time, within fixed bounds."""
     if len(requests) > MAX_TARGETS:
         raise ValueError("too many retrieval targets")
@@ -455,7 +455,11 @@ def retrieve(requests: list[TargetRequest], *, transport_factory=SystemTransport
                 results.append(FetchResult(target_id=request.target_id, requested_url=request.url,
                                            started_at=started, ended_at=utc_now(), failure=refusal))
                 continue
-            seconds = min(target_seconds, left)
+            # Without an explicit budget, each host gets its jurisdiction's: legislation.gov.uk builds
+            # documents on demand. An explicit budget always wins.
+            host = urlsplit(request.url).hostname or ""
+            budget = target_seconds if target_seconds is not None else _jurisdictions.TARGET_SECONDS.get(host, TARGET_SECONDS)
+            seconds = min(budget, left)
             staged = os.path.join(staging, f"{index}.body")
             receiver, sender = context.Pipe(duplex=False)
             process = context.Process(target=_worker, args=(request, transport_factory, limit, seconds, staged, sender),
