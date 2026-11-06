@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## 1.5.0 — 2026-11-06
+
+Trustworthy guidance: suggestions explain themselves, a suggestion becomes a mapping in
+one step, and the law shown is the version in force, with a notice when a newer
+consolidation exists. This completes the 1.5 intent.
+
+Acceptance, recorded honestly:
+
+- The plugin loaded in a real Claude Code session, its commands were listed, and
+  `/eucg-audit` started (initialising a fictional project with `--synthetic`).
+- The accept flow was verified on real runs, with screenshots. Before, Mapping was
+  5/10 and the next step was to map the requirement. After `accept` and a new run,
+  Mapping was 10/10, `check` stayed valid, and the next step was a reviewer's
+  applicability decision. Nothing was decided automatically.
+- Not verified live: the band and side panel updating inside an interactive
+  session. This environment does not allow driving a second Claude agent; the
+  automated band tests (33) cover them.
 
 ### Added
 
