@@ -1,3 +1,3 @@
 """Shared local audit application; importing it never starts tools or services."""
 
-__version__ = "1.5.0"
+__version__ = "2.0.0"

@@ -1,6 +1,25 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 — 2026-11-06
+
+From a review tool to a compliance workspace: the law a review read is pinned, a law
+change reopens exactly the decisions that cite it, decisions are signed by their
+reviewer, agent-written citations are checked against the official text, and other
+tools' results come in as untrusted evidence. This completes the 2.0 intent as the
+Owner adopted it; GRC exports and the graph side of change impact move to 2.1.
+
+Acceptance, recorded honestly:
+
+- Every new command ran end to end on a synthetic project, by script: `revalidate`,
+  `lock`, `sign` and `verify` with a real ed25519 key (unchanged, then reported as
+  changed after an edit), `cite-check` (a pass, then a missing article and a misattributed
+  quotation), `pack build`, `sign`, `verify` and `import`, `import-evidence` and `impact`.
+- `mcp` ran as a separate process driven over stdio through the MCP handshake
+  (`initialize`, `tools/list`, every tool, and an invalid call). The official MCP
+  Inspector could not be run in this environment; no Claude client was connected.
+- The check found three defects, fixed before release (see Fixed).
+- Signing with the Owner's own key and a live band and panel check in a session were
+  not done.
 
 ### Added
 

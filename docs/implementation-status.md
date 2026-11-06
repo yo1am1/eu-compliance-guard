@@ -33,42 +33,40 @@ library is imported into the standalone repository.
   containment/admission requirements remain unmet; fake tests are not that evidence.
 - Separate Python/frontend lock files, package selection, and license notices.
 
-## Current state (v1.4.0, 2026-11-05) and what remains
+## Current state (v2.0.0, 2026-11-06) and what remains
 
-Released: 1.0 to 1.4. The read-only workflow covers:
+Released: 1.0 to 2.0. The read-only workflow covers:
 
-- declarations, `check`, official-source retrieval from six verified EU hosts,
-  reports, and predecessor revalidation;
+- declarations, `check`, official-source retrieval from six verified EU hosts, the
+  version in force with a newer-consolidation notice, reports, and predecessor
+  revalidation;
 - the Claude Code plugin: band, side panel, a static dashboard and a graph view;
 - grounding with an inverted index and explained matches, `accept`, and `next`;
-- `pr-check` (graph-aware, monorepo-aware), `score`, and `make eval`.
+- `pr-check` (graph-aware, monorepo-aware), `score`, and `make eval`;
+- 2.0: `lock` and `impact` (law lockfile and change impact), `sign` and `verify` (SSH-
+  signed decisions), `cite-check`, the `mcp` server (`cite_check`, `article_search`,
+  `ground`, `pr_check`, `next_steps`), the `pack` format, and `import-evidence` (EDPS
+  Website Evidence Collector and SARIF).
 
 CI runs `make check` on every pull request. Supply-chain, determinism, regex and
 legal-notice rules are enforced by tests.
 
-Remaining for 1.5:
+How 2.0 was verified: unit tests (a real throwaway ed25519 key for signing), then a
+scripted end-to-end run of every new command on a synthetic project, with `mcp` driven
+as a separate process over stdio. That run found three defects, fixed before release.
+Not done: signing with the Owner's own key, a connected MCP client such as Claude Code,
+and a live band and panel check inside a session (this environment cannot drive a
+second Claude agent).
 
-- **Newer-consolidation notice (bolt 008, part two):** done after 1.4. It was checked
-  live against the Publications Office endpoint.
-- **Live acceptance:** in 1.5.0 the plugin loaded in a real session and the accept flow
-  was verified on real runs. The live band and panel check inside a session is not
-  done; this environment cannot drive a second Claude agent.
-- Open choices: keep or remove the unused React page in `frontend/` (the plugin uses the
-  static dashboard), and review Dependabot updates under the 14-day cooldown.
-
-Next for 2.0, the law track (bolts 017 to 019):
-
-- the law lockfile and change impact;
-- signed decisions with Git SSH signing, and a citation guard, also as MCP tools;
-- importing EDPS Website Evidence Collector and SARIF results as untrusted evidence.
-
-The graph track (012 to 016) shipped in 1.3. Hybrid ranking was measured and not
-adopted (`docs/decisions/hybrid-search.md`). Runs do not record a graph, because
-`revalidate` never crawls the project.
+Candidates for 2.1 (see the [roadmap](roadmap.md)): exports to GRC tools, graph digests
+in runs so a code change reopens decisions as a law change does, an application-date
+timeline, quoted articles in the PR screen, and a Graphify import. A full audit for
+defects is planned and waits for the Owner's approval. Open choice: keep or remove the
+unused React page in `frontend/` (the plugin uses the static dashboard).
 
 Still not built: an operational compliance audit, an API or hosted service, a reviewed
-legal corpus, scanners of our own, browser checks, and managed remediation. Outputs
-remain workflow evidence for a named reviewer, never a verdict.
+legal corpus or reviewed packs, scanners of our own, browser checks, and managed
+remediation. Outputs remain workflow evidence for a named reviewer, never a verdict.
 
 ## Review-progress dashboard (2026-11-04)
 
