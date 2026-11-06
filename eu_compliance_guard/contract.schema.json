@@ -4047,6 +4047,99 @@
       "title": "ObligationDisposition",
       "type": "object"
     },
+    "ObligationPack": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "law": {
+          "items": {
+            "$ref": "#/$defs/LawLockEntry"
+          },
+          "maxItems": 16,
+          "title": "Law",
+          "type": "array"
+        },
+        "limitations": {
+          "items": {
+            "maxLength": 8192,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Limitations",
+          "type": "array"
+        },
+        "obligations": {
+          "items": {
+            "$ref": "#/$defs/Obligation"
+          },
+          "maxItems": 200,
+          "minItems": 1,
+          "title": "Obligations",
+          "type": "array"
+        },
+        "pack_version": {
+          "const": 1,
+          "title": "Pack Version",
+          "type": "integer"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source_targets": {
+          "items": {
+            "$ref": "#/$defs/SourceTarget"
+          },
+          "maxItems": 16,
+          "title": "Source Targets",
+          "type": "array"
+        },
+        "status": {
+          "default": "draft",
+          "enum": [
+            "draft",
+            "reviewed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "synthetic": {
+          "title": "Synthetic",
+          "type": "boolean"
+        },
+        "title": {
+          "maxLength": 8192,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "pack_version",
+        "id",
+        "revision",
+        "title",
+        "synthetic",
+        "source_targets",
+        "obligations",
+        "limitations"
+      ],
+      "title": "ObligationPack",
+      "type": "object"
+    },
     "PatchApplyArgs": {
       "additionalProperties": false,
       "properties": {

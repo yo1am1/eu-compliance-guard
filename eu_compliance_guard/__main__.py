@@ -8,7 +8,8 @@ _ERROR_CODES = {
     "output-exists", "privacy-unavailable", "budget-exceeded", "invalid-output", "retrieval-failed",
     "incomplete-run", "corrupt-run",
     "wrong-project", "invalid-revision", "not-observable", "bad-location", "unrelated-line", "no-run",
-    "unknown-id", "unreviewed-decision", "bad-principal", "signing-failed",
+    "unknown-id", "unreviewed-decision", "bad-principal", "signing-failed", "pack-conflict", "unsigned-pack",
+    "bad-signature",
 }
 _DEFAULT_INPUT = ".eu-compliance-guard/declarations.json"
 
@@ -154,6 +155,34 @@ def _command(argv: list[str] | None) -> int:
     mcp = commands.add_parser("mcp", help="Serve cite_check, article_search and next_steps as MCP tools over stdio",
                               allow_abbrev=False)
     mcp.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    pack = commands.add_parser("pack", help="Build, sign, verify or import a reusable obligation pack (never a decision)",
+                               allow_abbrev=False)
+    packs = pack.add_subparsers(dest="pack_command", required=True, parser_class=_Parser)
+    build = packs.add_parser("build", help="Draft a pack from this project's obligations", allow_abbrev=False)
+    build.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    build.add_argument("--id", required=True, help="Pack ID")
+    build.add_argument("--title", required=True, help="Pack title")
+    build.add_argument("--obligation", action="append", help="Obligation ID to include (repeatable; default: all)")
+    build.add_argument("--revision", type=int, default=0, help="Pack revision (default 0)")
+    build.add_argument("--status", choices=["draft", "reviewed"], default="draft", help="Declared review status")
+    build.add_argument("--lock", help="Lockfile (default: eu-law.lock beside the declarations, if present)")
+    build.add_argument("--output", required=True, help="Pack file to write")
+    pack_sign = packs.add_parser("sign", help="Sign a pack file with your SSH key, as <pack>.sig", allow_abbrev=False)
+    pack_sign.add_argument("pack", help="Pack file")
+    pack_sign.add_argument("--key", required=True, help="SSH private key (or its .pub with an agent)")
+    pack_sign.add_argument("--principal", required=True, help="Signer identity as written in the allowed-signers file")
+    pack_verify = packs.add_parser("verify", help="Verify a pack's signature", allow_abbrev=False)
+    pack_verify.add_argument("pack", help="Pack file")
+    pack_verify.add_argument("--allowed-signers", required=True, help="ssh-keygen allowed-signers file")
+    pack_verify.add_argument("--json", action="store_true", help="Print the result as JSON")
+    pack_import = packs.add_parser("import", help="Add a pack's targets and obligations to the declarations",
+                                   allow_abbrev=False)
+    pack_import.add_argument("pack", help="Pack file")
+    pack_import.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    trust = pack_import.add_mutually_exclusive_group(required=True)
+    trust.add_argument("--allowed-signers", help="Import only if the pack's signature verifies against this file")
+    trust.add_argument("--unsigned", action="store_true", help="Import a pack without checking any signature")
+    pack_import.add_argument("--json", action="store_true", help="Print the result as JSON")
     imported = commands.add_parser("import-evidence", help="Keep a WEC or SARIF result as untrusted evidence, summarised by concept",
                                    allow_abbrev=False)
     imported.add_argument("file", help="EDPS Website Evidence Collector inspection.json or a SARIF log")
@@ -235,6 +264,8 @@ def _command(argv: list[str] | None) -> int:
         return _cite_check(args)
     if args.command == "import-evidence":
         return _import(args)
+    if args.command == "pack":
+        return _pack(args)
     if args.command == "mcp":
         from .mcp_server import serve
         try:
@@ -387,6 +418,38 @@ def _cite_check(args) -> int:
         return 2
     (_emit(json.dumps(report, indent=2)) if args.json else _emit_text(citations.format_check(report)))
     return 0 if report["ok"] else 1
+
+
+def _pack(args) -> int:
+    import json
+    from . import packs
+    name = "pack " + args.pack_command
+    try:
+        if args.pack_command == "build":
+            built = packs.build(args.input, args.id, args.title, args.obligation, args.revision, args.lock, args.status)
+            path = packs.write(built, args.output)
+            text = (f"{path}: pack {built.id} revision {built.revision} ({built.status}), {len(built.obligations)} "
+                    f"obligation(s), {len(built.source_targets)} source target(s). Sign it with pack sign after review.")
+            result = None
+        elif args.pack_command == "sign":
+            path = packs.sign(args.pack, args.key, args.principal)
+            text, result = f"{path}: pack signed by {args.principal}.", None
+        elif args.pack_command == "verify":
+            result = packs.verify(args.pack, args.allowed_signers)
+            text = packs.format_verify(result)
+        else:
+            result = packs.import_pack(args.input, args.pack, args.allowed_signers, args.unsigned)
+            text = packs.format_import(result)
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'pack-failed'}: {name} failed", file=sys.stderr)
+        return 2
+    (_emit(json.dumps(result, indent=2)) if getattr(args, "json", False) and result is not None else _emit_text(text))
+    if args.pack_command == "verify":
+        return 0 if result["signature"] == "valid" else 1
+    return 0
 
 
 def _import(args) -> int:

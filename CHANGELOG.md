@@ -20,6 +20,11 @@
   Evidence Collector inspection or a SARIF log as untrusted evidence under
   `.eu-compliance-guard/imports/`, with a summary by concept. Declarations are never
   changed. Synthetic fixtures only.
+- Obligation packs (2.0 bolt 020), format only: `pack build` drafts a pack of portable
+  obligations with their article pins and the locked article digests; `pack sign` and
+  `pack verify` use the reviewer's SSH key; `pack import` adds candidate obligations
+  and targets, never overwrites a different record, and never maps or decides. The
+  contract is generated from `models.py` (`ObligationPack`).
 
 ## 1.5.0 — 2026-11-06
 

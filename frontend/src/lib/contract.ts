@@ -2209,6 +2209,303 @@ export type ProjectId26 = string;
 export type RequestId10 = string;
 export type RunId16 = string | null;
 export type SchemaVersion12 = 1;
+export type Id22 = string;
+/**
+ * @maxItems 16
+ */
+export type Law =
+  | []
+  | [LawLockEntry]
+  | [LawLockEntry, LawLockEntry]
+  | [LawLockEntry, LawLockEntry, LawLockEntry]
+  | [LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry]
+  | [LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry]
+  | [LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry]
+  | [LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry]
+  | [LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry, LawLockEntry]
+  | [
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry
+    ]
+  | [
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry
+    ]
+  | [
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry
+    ]
+  | [
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry
+    ]
+  | [
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry
+    ]
+  | [
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry
+    ]
+  | [
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry
+    ]
+  | [
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry,
+      LawLockEntry
+    ];
+/**
+ * @maxItems 1000
+ */
+export type Limitations2 = string[];
+/**
+ * @minItems 1
+ * @maxItems 200
+ */
+export type Obligations = [Obligation, ...Obligation[]];
+export type PackVersion = 1;
+export type Revision16 = number;
+export type SchemaVersion13 = 1;
+/**
+ * @maxItems 16
+ */
+export type SourceTargets =
+  | []
+  | [SourceTarget]
+  | [SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget]
+  | [SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget, SourceTarget]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ]
+  | [
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget,
+      SourceTarget
+    ];
+export type Family2 = string;
+export type Id23 = string;
+export type IntendedIdentifier1 = string | null;
+export type IntendedType1 =
+  | "eu_act"
+  | "national_act"
+  | "judgment"
+  | "final_guidance"
+  | "draft_guidance"
+  | "proposal"
+  | "standard"
+  | "engineering_practice"
+  | "synthetic_fixture";
+export type IntendedUrl1 = string;
+export type Jurisdiction1 = string;
+export type Language2 = string;
+export type Publisher2 = string;
+/**
+ * @maxItems 4
+ */
+export type RedirectHosts =
+  [] | [string] | [string, string] | [string, string, string] | [string, string, string, string];
+export type Revision17 = number;
+export type Status1 = "draft" | "reviewed";
+export type Synthetic6 = boolean;
+export type Title = string;
 export type PermissionId5 = string;
 export type ProposalId1 = string;
 export type ExpectedRevision9 = number;
@@ -2216,15 +2513,15 @@ export type Operation8 = "patch.apply";
 export type ProjectId27 = string;
 export type RequestId11 = string;
 export type RunId17 = string | null;
-export type SchemaVersion13 = 1;
+export type SchemaVersion14 = 1;
 export type ExpectedRevision10 = number;
 export type Operation9 = "patch.propose";
 export type ProjectId28 = string;
 export type RequestId12 = string;
 export type RunId18 = string | null;
-export type SchemaVersion14 = 1;
+export type SchemaVersion15 = 1;
 export type ExpiresAt = string;
-export type Id22 = string;
+export type Id24 = string;
 /**
  * @maxItems 100
  */
@@ -2272,20 +2569,20 @@ export type Operation10 = "permission.grant";
 export type ProjectId30 = string;
 export type RequestId13 = string;
 export type RunId19 = string | null;
-export type SchemaVersion15 = 1;
+export type SchemaVersion16 = 1;
 export type PermissionId6 = string;
 export type ExpectedRevision12 = number;
 export type Operation11 = "permission.revoke";
 export type ProjectId31 = string;
 export type RequestId14 = string;
 export type RunId20 = string | null;
-export type SchemaVersion16 = 1;
+export type SchemaVersion17 = 1;
 /**
  * @maxItems 1000
  */
 export type DataCategories = string[];
 export type EvidenceOwner = string;
-export type Id23 = string;
+export type Id25 = string;
 export type Locations = Fact[];
 export type Purpose = string;
 export type Recipients = Fact[];
@@ -2310,7 +2607,7 @@ export type Nodes = GraphNode[];
 export type Notice =
   "Static structure only: dynamic calls are missed, so paths are possible paths. An empty graph or path never shows compliance.";
 export type Parsed = number;
-export type SchemaVersion17 = 1;
+export type SchemaVersion18 = 1;
 export type Skipped = number;
 export type RepositoryRoot = string;
 export type Activities = ProcessingActivity[];
@@ -2328,7 +2625,7 @@ export type Establishment = string[];
  * @maxItems 1000
  */
 export type Exclusions2 = string[];
-export type Id24 = string;
+export type Id26 = string;
 /**
  * @maxItems 1000
  */
@@ -2343,7 +2640,7 @@ export type Jurisdictions1 = string[];
 export type Markets = string[];
 export type PermissionId7 = string;
 export type ProjectId32 = string;
-export type Revision16 = number;
+export type Revision18 = number;
 export type Roles1 = Fact[];
 export type SizeAndSector = Fact[];
 /**
@@ -2355,7 +2652,7 @@ export type Operation12 = "project.register";
 export type ProjectId33 = string;
 export type RequestId15 = string;
 export type RunId21 = string | null;
-export type SchemaVersion18 = 1;
+export type SchemaVersion19 = 1;
 export type CandidateDigest = string;
 export type Reviewer4 = string;
 export type ExpectedRevision14 = number;
@@ -2363,7 +2660,7 @@ export type Operation13 = "registry.accept";
 export type ProjectId34 = string;
 export type RequestId16 = string;
 export type RunId22 = string | null;
-export type SchemaVersion19 = 1;
+export type SchemaVersion20 = 1;
 /**
  * @maxItems 1000
  */
@@ -2391,7 +2688,7 @@ export type Operation14 = "results.import";
 export type ProjectId35 = string;
 export type RequestId17 = string;
 export type RunId23 = string | null;
-export type SchemaVersion20 = 1;
+export type SchemaVersion21 = 1;
 /**
  * @maxItems 200
  */
@@ -2485,13 +2782,13 @@ export type FilesRoot = "declarations_dir" | "project";
 /**
  * @maxItems 200
  */
-export type Obligations = Obligation[];
+export type Obligations1 = Obligation[];
 export type ProjectId36 = string;
 /**
  * @maxItems 200
  */
 export type Requirements = DeclaredRequirement[];
-export type SchemaVersion21 = 1;
+export type SchemaVersion22 = 1;
 /**
  * @maxItems 16
  */
@@ -2624,7 +2921,7 @@ export type SourceReviews =
 /**
  * @maxItems 16
  */
-export type SourceTargets =
+export type SourceTargets1 =
   | []
   | [SourceTarget]
   | [SourceTarget, SourceTarget]
@@ -2750,29 +3047,6 @@ export type SourceTargets =
       SourceTarget,
       SourceTarget
     ];
-export type Family2 = string;
-export type Id25 = string;
-export type IntendedIdentifier1 = string | null;
-export type IntendedType1 =
-  | "eu_act"
-  | "national_act"
-  | "judgment"
-  | "final_guidance"
-  | "draft_guidance"
-  | "proposal"
-  | "standard"
-  | "engineering_practice"
-  | "synthetic_fixture";
-export type IntendedUrl1 = string;
-export type Jurisdiction1 = string;
-export type Language2 = string;
-export type Publisher2 = string;
-/**
- * @maxItems 4
- */
-export type RedirectHosts =
-  [] | [string] | [string, string] | [string, string, string] | [string, string, string, string];
-export type Revision17 = number;
 /**
  * @maxItems 16
  */
@@ -2914,7 +3188,7 @@ export type Sources =
 export type Charset1 = string | null;
 export type MediaType2 = string;
 export type TargetId1 = string;
-export type Synthetic6 = boolean;
+export type Synthetic7 = boolean;
 /**
  * @maxItems 200
  */
@@ -3087,7 +3361,7 @@ export type RetrievedSources =
       LegalSource,
       LegalSource
     ];
-export type SchemaVersion22 = 1;
+export type SchemaVersion23 = 1;
 /**
  * @maxItems 16
  */
@@ -3226,14 +3500,14 @@ export type SourceAttempts =
       SourceAttempt,
       SourceAttempt
     ];
-export type Synthetic7 = boolean;
+export type Synthetic8 = boolean;
 /**
  * @minItems 4
  * @maxItems 37
  */
 export type Files1 = [SourceFile, SourceFile, SourceFile, SourceFile, ...SourceFile[]];
 export type RunId24 = string;
-export type SchemaVersion23 = 1;
+export type SchemaVersion24 = 1;
 export type CreatedAt = string;
 export type CreatingRequestId = string;
 export type Operation15 = string;
@@ -3248,7 +3522,7 @@ export type Operation16 = "scope.register";
 export type ProjectId39 = string;
 export type RequestId18 = string;
 export type RunId26 = string | null;
-export type SchemaVersion24 = 1;
+export type SchemaVersion25 = 1;
 export type Count = number;
 export type Key2 = "reviewer_recorded_insufficient" | "re_review_after_change" | "evidence_changed" | "origin_changed";
 export type Points = number;
@@ -3308,7 +3582,7 @@ export type TotalBefore = number;
 export type Counts = ScoreCount[];
 export type Done = number;
 export type Key5 = "alignment" | "law_text" | "facts" | "decisions" | "mapping" | "reviews";
-export type Id26 = string;
+export type Id27 = string;
 export type Method2 = string | null;
 /**
  * @minItems 1
@@ -3477,10 +3751,10 @@ export type ParentRunId2 = string | null;
 export type ProjectId40 = string;
 export type RunId27 = string;
 export type RunState = "planned" | "running" | "cancelling" | "completed" | "partial" | "cancelled" | "interrupted";
-export type SchemaVersion25 = 1;
+export type SchemaVersion26 = 1;
 export type ScorerVersion = 1;
-export type Status1 = "declarations_incomplete" | "needs_attention" | "in_review" | "steps_closed";
-export type Synthetic8 = boolean;
+export type Status2 = "declarations_incomplete" | "needs_attention" | "in_review" | "steps_closed";
+export type Synthetic9 = boolean;
 export type Actions = PatchProposal[];
 export type Attempts = CheckAttempt[];
 export type CurrentAssessments1 = CurrentAssessment[];
@@ -3490,7 +3764,7 @@ export type Findings = Finding[];
 export type ObligationDispositions1 = ObligationDisposition[];
 export type ProjectId41 = string;
 export type RelationsRevision = number;
-export type SchemaVersion26 = 1;
+export type SchemaVersion27 = 1;
 export type Terminal = boolean;
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4366,6 +4640,39 @@ export interface LegalRefreshCommand {
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "ObligationPack".
+ */
+export interface ObligationPack {
+  id: Id22;
+  law?: Law;
+  limitations: Limitations2;
+  obligations: Obligations;
+  pack_version: PackVersion;
+  revision: Revision16;
+  schema_version: SchemaVersion13;
+  source_targets: SourceTargets;
+  status?: Status1;
+  synthetic: Synthetic6;
+  title: Title;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
+ * via the `definition` "SourceTarget".
+ */
+export interface SourceTarget {
+  family: Family2;
+  id: Id23;
+  intended_identifier?: IntendedIdentifier1;
+  intended_type: IntendedType1;
+  intended_url: IntendedUrl1;
+  jurisdiction: Jurisdiction1;
+  language: Language2;
+  publisher: Publisher2;
+  redirect_hosts?: RedirectHosts;
+  revision: Revision17;
+}
+/**
+ * This interface was referenced by `ContractDefinitions`'s JSON-Schema
  * via the `definition` "PatchApplyArgs".
  */
 export interface PatchApplyArgs {
@@ -4383,7 +4690,7 @@ export interface PatchApplyCommand {
   project_id: ProjectId27;
   request_id: RequestId11;
   run_id?: RunId17;
-  schema_version: SchemaVersion13;
+  schema_version: SchemaVersion14;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4403,7 +4710,7 @@ export interface PatchProposeCommand {
   project_id: ProjectId28;
   request_id: RequestId12;
   run_id?: RunId18;
-  schema_version: SchemaVersion14;
+  schema_version: SchemaVersion15;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4411,7 +4718,7 @@ export interface PatchProposeCommand {
  */
 export interface PermissionGrant {
   expires_at: ExpiresAt;
-  id: Id22;
+  id: Id24;
   operations: Operations;
   project_id: ProjectId29;
   provider: ProviderBoundary;
@@ -4448,7 +4755,7 @@ export interface PermissionGrantCommand {
   project_id: ProjectId30;
   request_id: RequestId13;
   run_id?: RunId19;
-  schema_version: SchemaVersion15;
+  schema_version: SchemaVersion16;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4468,7 +4775,7 @@ export interface PermissionRevokeCommand {
   project_id: ProjectId31;
   request_id: RequestId14;
   run_id?: RunId20;
-  schema_version: SchemaVersion16;
+  schema_version: SchemaVersion17;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4477,7 +4784,7 @@ export interface PermissionRevokeCommand {
 export interface ProcessingActivity {
   data_categories: DataCategories;
   evidence_owner: EvidenceOwner;
-  id: Id23;
+  id: Id25;
   lawful_basis: Fact;
   locations: Locations;
   purpose: Purpose;
@@ -4499,7 +4806,7 @@ export interface ProjectGraph {
   nodes: Nodes;
   notice: Notice;
   parsed: Parsed;
-  schema_version: SchemaVersion17;
+  schema_version: SchemaVersion18;
   skipped: Skipped;
 }
 /**
@@ -4522,13 +4829,13 @@ export interface Scope {
   environment: Environment;
   establishment: Establishment;
   exclusions: Exclusions2;
-  id: Id24;
+  id: Id26;
   included_scenarios: IncludedScenarios;
   jurisdictions: Jurisdictions1;
   markets: Markets;
   permission_id: PermissionId7;
   project_id: ProjectId32;
-  revision: Revision16;
+  revision: Revision18;
   roles: Roles1;
   size_and_sector: SizeAndSector;
 }
@@ -4543,7 +4850,7 @@ export interface ProjectRegisterCommand {
   project_id: ProjectId33;
   request_id: RequestId15;
   run_id?: RunId21;
-  schema_version: SchemaVersion18;
+  schema_version: SchemaVersion19;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4564,7 +4871,7 @@ export interface RegistryAcceptCommand {
   project_id: ProjectId34;
   request_id: RequestId16;
   run_id?: RunId22;
-  schema_version: SchemaVersion19;
+  schema_version: SchemaVersion20;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4598,7 +4905,7 @@ export interface ResultsImportCommand {
   project_id: ProjectId35;
   request_id: RequestId17;
   run_id?: RunId23;
-  schema_version: SchemaVersion20;
+  schema_version: SchemaVersion21;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4620,9 +4927,9 @@ export interface RevalidationBundle {
   requirement_assessments: RequirementAssessments;
   retrieved_sources?: RetrievedSources;
   run: AuditRun;
-  schema_version: SchemaVersion22;
+  schema_version: SchemaVersion23;
   source_attempts?: SourceAttempts;
-  synthetic: Synthetic7;
+  synthetic: Synthetic8;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4637,15 +4944,15 @@ export interface RevalidationInput {
   evidence_reviews?: EvidenceReviews;
   family_screenings?: FamilyScreenings;
   files_root?: FilesRoot;
-  obligations?: Obligations;
+  obligations?: Obligations1;
   project_id: ProjectId36;
   requirements?: Requirements;
-  schema_version: SchemaVersion21;
+  schema_version: SchemaVersion22;
   scope: Scope;
   source_reviews?: SourceReviews;
-  source_targets?: SourceTargets;
+  source_targets?: SourceTargets1;
   sources?: Sources;
-  synthetic: Synthetic6;
+  synthetic: Synthetic7;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4654,22 +4961,6 @@ export interface RevalidationInput {
 export interface SelectedEvidence {
   evidence: Evidence;
   path?: Path2;
-}
-/**
- * This interface was referenced by `ContractDefinitions`'s JSON-Schema
- * via the `definition` "SourceTarget".
- */
-export interface SourceTarget {
-  family: Family2;
-  id: Id25;
-  intended_identifier?: IntendedIdentifier1;
-  intended_type: IntendedType1;
-  intended_url: IntendedUrl1;
-  jurisdiction: Jurisdiction1;
-  language: Language2;
-  publisher: Publisher2;
-  redirect_hosts?: RedirectHosts;
-  revision: Revision17;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4689,7 +4980,7 @@ export interface SelectedSource {
 export interface RunCompletion {
   files: Files1;
   run_id: RunId24;
-  schema_version: SchemaVersion23;
+  schema_version: SchemaVersion24;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4731,7 +5022,7 @@ export interface ScopeRegisterCommand {
   project_id: ProjectId39;
   request_id: RequestId18;
   run_id?: RunId26;
-  schema_version: SchemaVersion24;
+  schema_version: SchemaVersion25;
 }
 /**
  * This interface was referenced by `ContractDefinitions`'s JSON-Schema
@@ -4793,7 +5084,7 @@ export interface ScoreDimension {
  * via the `definition` "ScoreOpenItem".
  */
 export interface ScoreOpenItem {
-  id: Id26;
+  id: Id27;
   method?: Method2;
   reasons: Reasons1;
 }
@@ -4864,11 +5155,11 @@ export interface Scorecard {
   project_id: ProjectId40;
   run_id: RunId27;
   run_state: RunState;
-  schema_version: SchemaVersion25;
+  schema_version: SchemaVersion26;
   scorer_version: ScorerVersion;
   screening: ScoreScreening;
-  status: Status1;
-  synthetic: Synthetic8;
+  status: Status2;
+  synthetic: Synthetic9;
   trend?: ScoreTrend | null;
 }
 /**
@@ -4886,6 +5177,6 @@ export interface Snapshot {
   project_id: ProjectId41;
   relations_revision: RelationsRevision;
   run: AuditRun;
-  schema_version: SchemaVersion26;
+  schema_version: SchemaVersion27;
   terminal: Terminal;
 }
