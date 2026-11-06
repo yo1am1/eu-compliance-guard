@@ -1,0 +1,156 @@
+{
+  "id": "pack-eu-cra-products",
+  "law": [
+    {
+      "articles": [
+        {
+          "digest": "sha256:73f86ab16bf6eda127887504befe83a8d2523f1c43109526eba3bd4e42caeea7",
+          "key": "Article 13"
+        },
+        {
+          "digest": "sha256:c03a192c5c0618f7295abd1e02a5a02326af5742e29b421b6a4950b60b329908",
+          "key": "Article 14"
+        },
+        {
+          "digest": "sha256:e68f454bb2d25a86edb457f81d6cf0f3adfbaa508cc05c2a296a33a79ebc23f3",
+          "key": "Article 28"
+        },
+        {
+          "digest": "sha256:f0e867318095189188deee747824708fab281c625d677161a19669e092e79396",
+          "key": "Article 30"
+        },
+        {
+          "digest": "sha256:39357b5714c185280549f59743371c3d5b2a271a712dd6a7a00aa597188d53bf",
+          "key": "Article 32"
+        },
+        {
+          "digest": "sha256:947b4c682f1a200c4d8f25f0dcb22d2701104d497adb275f9953c0acb0b8a098",
+          "key": "Article 6"
+        }
+      ],
+      "source_digest": "sha256:fe0cca4a0caec50e7cf5a91432b94a19b211f86be8584fdba56372bdcea571ed",
+      "target_id": "target-eu-cra",
+      "version": "32024R2847"
+    }
+  ],
+  "limitations": [
+    "Starter pack: candidate obligations only; whether each applies is a named reviewer's decision.",
+    "Draft written with AI assistance from the article text; reviewed by no one; no guarantee.",
+    "Directives bind Member States; national transposition is not covered.",
+    "Not legal advice: workflow evidence for a named reviewer, who decides and is responsible. Provided without warranty; see LICENSE and NOTICE."
+  ],
+  "obligations": [
+    {
+      "classification": "duty",
+      "conditions": [
+        "The product is placed on the market: conformity assessment, EU declaration of conformity and CE marking."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "cybersecurity",
+      "id": "obligation-cra-conformity",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 28",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-cra"
+        },
+        {
+          "locator": "Article 30",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-cra"
+        },
+        {
+          "locator": "Article 32",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-cra"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "A product with digital elements is made available on the Union market (Article 2(1)); applies from 11 December 2027 (Article 71)."
+      ],
+      "control_ids": [],
+      "exceptions": [
+        "Products covered by the rules listed in Article 2(2) to (4), such as medical devices and vehicles."
+      ],
+      "family": "cybersecurity",
+      "id": "obligation-cra-essential-requirements",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 6",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-cra"
+        },
+        {
+          "locator": "Article 13",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-cra"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "The manufacturer becomes aware of an actively exploited vulnerability or a severe incident: early warning within 24 hours and notification within 72 hours; applies from 11 September 2026 (Article 71)."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "cybersecurity",
+      "id": "obligation-cra-reporting",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 14",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-cra"
+        }
+      ]
+    }
+  ],
+  "pack_version": 1,
+  "revision": 0,
+  "schema_version": 1,
+  "source_targets": [
+    {
+      "family": "cybersecurity",
+      "id": "target-eu-cra",
+      "intended_identifier": "32024R2847",
+      "intended_type": "eu_act",
+      "intended_url": "https://publications.europa.eu/resource/celex/32024R2847",
+      "jurisdiction": "EU",
+      "language": "en",
+      "publisher": "Publications Office of the European Union",
+      "redirect_hosts": [],
+      "revision": 0
+    }
+  ],
+  "status": "draft",
+  "synthetic": false,
+  "title": "Cyber Resilience Act: manufacturers of products with digital elements"
+}

@@ -1,0 +1,107 @@
+{
+  "id": "pack-eu-eprivacy-cookies",
+  "law": [
+    {
+      "articles": [
+        {
+          "digest": "sha256:9c6f6f6bb5eac77824ce8ea74ef918acc6e753f3ef5c9abbae66d193f2523ca1",
+          "key": "Article 13"
+        },
+        {
+          "digest": "sha256:06e0562a3b1333046af20be5d37ca738a42a5900748dcafce884b25229e9dbea",
+          "key": "Article 5"
+        }
+      ],
+      "source_digest": "sha256:c2924162f0a6faf98ed18dda78655a2b0ce8c4e80403e1b5db08e76f6915f502",
+      "target_id": "target-eu-eprivacy",
+      "version": "02002L0058-20091219"
+    }
+  ],
+  "limitations": [
+    "Starter pack: candidate obligations only; whether each applies is a named reviewer's decision.",
+    "Draft written with AI assistance from the article text; reviewed by no one; no guarantee.",
+    "Directives bind Member States; national transposition is not covered.",
+    "Not legal advice: workflow evidence for a named reviewer, who decides and is responsible. Provided without warranty; see LICENSE and NOTICE."
+  ],
+  "obligations": [
+    {
+      "classification": "duty",
+      "conditions": [
+        "Electronic mail, automated calls or fax are used for direct marketing."
+      ],
+      "control_ids": [],
+      "exceptions": [
+        "Existing customers, for the sender's own similar products, with a free and easy opt-out at collection and in every message (Article 13(2))."
+      ],
+      "family": "eprivacy",
+      "id": "obligation-eprivacy-direct-marketing",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 13(1)",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-eprivacy"
+        },
+        {
+          "locator": "Article 13(2)",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-eprivacy"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "Information is stored on, or read from, a user's device (cookies, local storage, similar technologies)."
+      ],
+      "control_ids": [],
+      "exceptions": [
+        "Storage or access for the sole purpose of carrying out a transmission, or strictly necessary for a service the user explicitly requested (Article 5(3)).",
+        "Member States implement the Directive in national law; check the national rules."
+      ],
+      "family": "eprivacy",
+      "id": "obligation-eprivacy-terminal-storage",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 5(3)",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-eprivacy"
+        }
+      ]
+    }
+  ],
+  "pack_version": 1,
+  "revision": 0,
+  "schema_version": 1,
+  "source_targets": [
+    {
+      "family": "eprivacy",
+      "id": "target-eu-eprivacy",
+      "intended_identifier": "02002L0058-20091219",
+      "intended_type": "eu_act",
+      "intended_url": "https://publications.europa.eu/resource/celex/02002L0058-20091219",
+      "jurisdiction": "EU",
+      "language": "en",
+      "publisher": "Publications Office of the European Union",
+      "redirect_hosts": [],
+      "revision": 0
+    }
+  ],
+  "status": "draft",
+  "synthetic": false,
+  "title": "ePrivacy: cookies and electronic marketing"
+}
