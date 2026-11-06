@@ -385,7 +385,12 @@ def _signing(args) -> int:
               file=sys.stderr)
         return 2
     if args.command == "sign":
-        _emit_text(f"{path}: decision {args.decision} signed by {args.principal}.")
+        from pathlib import Path
+        from . import lawlock
+        unpinned = not (args.lock or (Path(args.input).parent / lawlock.LOCK_NAME).exists())
+        _emit_text(f"{path}: decision {args.decision} signed by {args.principal}."
+                   + (" No eu-law.lock was found, so the signature pins no article text: run lock first and sign "
+                      "again to bind it to the law." if unpinned else ""))
         return 0
     (_emit(json.dumps(results, indent=2)) if args.json else _emit_text(signing.format_verify(results)))
     return 0 if all(item["signature"] == "valid" and not item["changed"] for item in results) else 1

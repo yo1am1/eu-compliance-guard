@@ -53,6 +53,11 @@ class PackTests(Base):
         self.assertEqual([item.id for item in pack.source_targets], ["target-example"])
         self.assertIn("Not legal advice", " ".join(pack.limitations))
         self.assertEqual(packs.to_bytes(packs.build(self.source, "pack-fictional", "Fictional")), first)
+        # The project a pack came from already has its obligations: importing it there changes nothing.
+        before = self.source.read_bytes()
+        result = packs.import_pack(self.source, self.pack, None, unsigned=True)
+        self.assertEqual(result["added"], {"source_targets": [], "obligations": []})
+        self.assertEqual(self.source.read_bytes(), before)
         self.assertEqual(cli("pack", "build", "--input", self.source, "--id", "p", "--title", "t",
                              "--obligation", "missing", "--output", self.root / "x.json")[0], 2)
 

@@ -62,6 +62,7 @@ class SigningTests(Project):
     def test_a_signed_decision_verifies_and_reports_what_changed_since(self):
         code, out = self.sign()
         self.assertEqual(code, 0, out)
+        self.assertNotIn("No eu-law.lock", out)
         stored = json.loads((self.root / "signatures/decision-example.json").read_text())
         self.assertEqual(stored["payload"]["law"][0]["article"], "Article 1")
         self.assertTrue(stored["payload"]["law"][0]["digest"].startswith("sha256:"))
@@ -75,6 +76,14 @@ class SigningTests(Project):
         self.assertEqual(code, 1)
         self.assertEqual(json.loads(out)[0]["signature"], "valid")
         self.assertEqual(json.loads(out)[0]["changed"], ["decision"])
+
+    def test_signing_without_a_lock_says_no_article_text_is_pinned(self):
+        (self.root / "eu-law.lock").unlink()
+        code, out = self.sign()
+        self.assertEqual(code, 0, out)
+        self.assertIn("No eu-law.lock was found", out)
+        stored = json.loads((self.root / "signatures/decision-example.json").read_text())
+        self.assertIsNone(stored["payload"]["law"][0]["digest"])
 
     def test_a_tampered_record_or_an_unknown_signer_is_invalid(self):
         self.assertEqual(self.sign()[0], 0)

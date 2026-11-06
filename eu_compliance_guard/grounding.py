@@ -180,7 +180,8 @@ def read_project(root: Path, exclude: frozenset[str] = frozenset()) -> tuple[lis
         skipped += 1
 
     for directory, folders, names in os.walk(root, onerror=unreadable, followlinks=False):
-        folders[:] = sorted(name for name in folders if name not in SKIP_DIRS and not name.startswith("."))
+        folders[:] = sorted(name for name in folders if name not in SKIP_DIRS and not name.startswith(".")
+                            and (Path(directory) / name).relative_to(root).as_posix() not in exclude)
         for name in sorted(names):
             path = Path(directory) / name
             if not _is_text(path) or path.relative_to(root).as_posix() in exclude:
@@ -308,12 +309,21 @@ def _declarations(path: Path) -> tuple[m.RevalidationInput, Path]:
     return declared, Path(os.path.realpath(root))
 
 
+# What the tool itself writes beside the declarations: never project code, and imports are untrusted.
+TOOL_OUTPUTS = ("eu-law.lock", "imports", "signatures")
+
+
 def _own_files(path, root: Path) -> frozenset[str]:
-    """The declarations file, relative to the files root, when it lies inside it."""
-    try:
-        return frozenset({Path(os.path.realpath(path)).relative_to(root).as_posix()})
-    except ValueError:
-        return frozenset()
+    """The declarations file and the tool's own outputs beside it, relative to the files root, when
+    they lie inside it (when the files root is the declarations folder)."""
+    declarations = Path(os.path.realpath(path))
+    own = set()
+    for item in (declarations, *(declarations.parent / name for name in TOOL_OUTPUTS)):
+        try:
+            own.add(item.relative_to(root).as_posix())
+        except ValueError:
+            pass
+    return frozenset(own)
 
 
 def _lines(text: str) -> list[str]:
