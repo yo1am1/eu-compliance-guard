@@ -16,6 +16,10 @@
 - Citation guard: `cite-check` checks that cited articles exist in the retained text and
   quotations appear verbatim in the cited article. `mcp` serves it, `article_search` and
   `next_steps` as read-only MCP tools over stdio.
+- Imports (2.0 bolt 019): `import-evidence --kind wec|sarif` keeps an EDPS Website
+  Evidence Collector inspection or a SARIF log as untrusted evidence under
+  `.eu-compliance-guard/imports/`, with a summary by concept. Declarations are never
+  changed. Synthetic fixtures only.
 
 ## 1.5.0 — 2026-11-06
 
