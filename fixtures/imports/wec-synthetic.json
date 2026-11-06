@@ -1,6 +1,6 @@
 {
-  "_comment": "FICTIONAL FIXTURE — SYNTHETIC EXAMPLE ONLY, shaped like an EDPS Website Evidence Collector inspection.json",
-  "uri_ins": "https://shop.example.invalid/",
+  "_comment": "FICTIONAL FIXTURE — SYNTHETIC EXAMPLE ONLY, shaped like an EDPS Website Evidence Collector inspection.json (field names checked against the collector's source, code.europa.eu/EDPS/website-evidence-collector, 2026-11-06)",
+  "targetUrl": "https://shop.example.invalid/",
   "secure_connection": {"https_support": true, "https_redirect": false},
   "cookies": [
     {"name": "session", "domain": "shop.example.invalid", "firstPartyStorage": true},
