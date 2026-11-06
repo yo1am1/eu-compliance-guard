@@ -76,7 +76,9 @@ def _text(arguments: dict, name: str) -> str:
 def call(declarations: str, name: str, arguments: dict) -> tuple[str, dict | None]:
     if name == "cite_check":
         text = _text(arguments, "text")
-        report = citations.check(text, _latest(declarations)[1])
+        bundle, catalogue = _latest(declarations)
+        names = citations.act_names(bundle.declarations.source_targets) if bundle is not None else None
+        report = citations.check(text, catalogue, names)
         return citations.format_check(report), report
     if name == "article_search":
         query, top = _text(arguments, "query"), _top(arguments, 5)

@@ -58,6 +58,25 @@ class OfficialTextTests(unittest.TestCase):
         self.assertEqual([(item["found_in"], item["ok"]) for item in report["quotations"]],
                          [(["gdpr Article 17"], True), (["eprivacy Article 5"], True), (["gdpr Article 17"], False)])
 
+    def test_a_citation_naming_its_act_is_checked_in_that_act_only(self):
+        from types import SimpleNamespace as Target
+        names = citations.act_names([
+            Target(id="gdpr", intended_identifier="32016R0679", intended_url=None),
+            Target(id="ai-act", intended_identifier=None, intended_url="https://publications.europa.eu/resource/celex/32024R1689"),
+            Target(id="eprivacy", intended_identifier="02002L0058-20091219", intended_url=None)])
+        text = ('Article 5(3) of the ePrivacy Directive says "only allowed on condition that the subscriber or user concerned '
+                'has given his or her consent". Article 99 of the AI Act and Article 99 of Regulation (EU) 2016/679 differ. '
+                'Article 5 of the DSA applies. Article 17 GDPR: "the right to obtain from the controller the erasure".')
+        report = citations.check(text, self.acts, names)
+        self.assertEqual([(item["article"], item["act"], item["ok"]) for item in report["citations"]],
+                         [("Article 5", "eprivacy", True), ("Article 99", "ai-act", True), ("Article 99", "gdpr", True),
+                          ("Article 5", "DSA (not declared)", False), ("Article 17", "gdpr", True)])
+        self.assertEqual([item["ok"] for item in report["quotations"]], [True, True])
+        self.assertIn("NOT CHECKED, the latest run retained no text of DSA (not declared)", citations.format_check(report))
+        wrong = citations.check('Article 17 of the AI Act says "the right to obtain from the controller the erasure".',
+                                self.acts, names)
+        self.assertEqual([item["ok"] for item in wrong["quotations"]], [False])
+
     def test_search_finds_the_erasure_article(self):
         found = articles.suggest("users can delete their account and all personal data", self.acts, top=3)
         self.assertIn(("gdpr", "Article 17"), [(item["source"], item["article"]) for item in found])
