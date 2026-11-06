@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 2.2.0 — 2026-11-06
+
+Jurisdictions become modules, and the United Kingdom is the second one, through
+legislation.gov.uk. The EU behaves as before; the record formats do not change.
+
+Acceptance: the UK GDPR, PECR and the Data Protection Act 2018 were fetched with the tool's own
+retrieval and parse into 120 articles, 50 regulations and 259 sections, with titles checked
+against the source (now a committed test set). A project with a PECR target ran
+`revalidate --fetch-official` against the live site, locked 50 regulations, showed Regulation 6
+with the UK version note in the report, and `cite-check` confirmed a verbatim quotation. See
+`docs/decisions/jurisdictions.md`.
 
 ### Added
 
