@@ -395,7 +395,8 @@ def _signing(args) -> int:
                       "again to bind it to the law." if unpinned else ""))
         return 0
     (_emit(json.dumps(results, indent=2)) if args.json else _emit_text(signing.format_verify(results)))
-    return 0 if all(item["signature"] == "valid" and not item["changed"] for item in results) else 1
+    # A missing signature is listed but is not a failure: signing is optional.
+    return 0 if all(item["signature"] in ("valid", "missing") and not item["changed"] for item in results) else 1
 
 
 def _cite_check(args) -> int:

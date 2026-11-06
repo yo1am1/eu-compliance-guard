@@ -98,6 +98,24 @@ class SigningTests(Project):
         code, out = cli("verify", "--input", self.input, "--allowed-signers", self.allowed, "--json")
         self.assertEqual((code, json.loads(out)[0]["signature"]), (1, "invalid"))
 
+    def test_a_signature_copied_to_another_decision_is_invalid_and_unsigned_decisions_are_listed(self):
+        code, out = cli("verify", "--input", self.input, "--allowed-signers", self.allowed, "--json")
+        self.assertEqual((code, json.loads(out)), (0, [{"decision": "decision-example", "signature": "missing", "changed": []}]))
+        self.assertEqual(self.sign()[0], 0)
+        folder = self.root / "signatures"
+        (folder / "decision-other.json").write_bytes((folder / "decision-example.json").read_bytes())
+        code, out = cli("verify", "--input", self.input, "--allowed-signers", self.allowed, "--json")
+        results = {item["decision"]: item for item in json.loads(out)}
+        self.assertEqual(code, 1)
+        self.assertEqual(results["decision-example"]["signature"], "valid")
+        self.assertEqual((results["decision-other"]["signature"], results["decision-other"]["changed"]),
+                         ("invalid", ["file holds decision decision-example"]))
+        (folder / "decision-other.json").unlink()
+        (folder / "decision-other.json").symlink_to(folder / "decision-example.json")
+        results = {item["decision"]: item for item in json.loads(cli("verify", "--input", self.input, "--allowed-signers",
+                                                                       self.allowed, "--json")[1])}
+        self.assertEqual(results["decision-other"]["signature"], "invalid")
+
     def test_only_a_reviewed_decision_with_a_plain_principal_is_signed(self):
         self.assertEqual(cli("sign", "--decision", "missing", "--input", self.input, "--key", self.key,
                              "--principal", "reviewer@example.invalid")[0], 2)
@@ -159,6 +177,21 @@ class McpTests(Project):
         self.assertTrue(responses[4]["result"]["isError"])
         self.assertEqual(responses[5]["error"]["code"], -32601)
         self.assertEqual(responses[6]["error"]["code"], -32700)
+
+    def test_hostile_messages_get_an_error_and_never_stop_the_server(self):
+        stdin = io.StringIO("[" * 100000 + "]" * 100000 + "\n"
+                            '{"jsonrpc":"2.0","id":8,"method":"ping","params":{"a":"[[[[' + "[" * 100 + '"}}\n'
+                            '{"jsonrpc":"2.0","id":NaN,"method":"ping"}\n'
+                            '{"jsonrpc":"2.0","id":{"a":1},"method":"ping"}\n'
+                            '{"jsonrpc":"2.0","id":true,"method":"ping"}\n'
+                            '{"jsonrpc":"2.0","id":7,"method":"ping"}\n')
+        stdout = io.StringIO()
+        self.assertEqual(mcp_server.serve(str(self.input), stdin, stdout), 0)
+        responses = [json.loads(line) for line in stdout.getvalue().splitlines()]
+        self.assertEqual([(item["id"], item.get("error", {}).get("code")) for item in responses],
+                         [(None, -32700), (8, None), (None, -32700), (None, -32600), (None, -32600), (7, None)])
+        self.assertTrue(mcp_server._too_deep("[" * 65 + "]" * 65))
+        self.assertFalse(mcp_server._too_deep("[" * 64 + "]" * 64))
 
     def test_tools_read_the_real_project_and_latest_run(self):
         import os
