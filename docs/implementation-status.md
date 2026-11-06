@@ -50,8 +50,9 @@ Remaining for 1.5:
 
 - **Newer-consolidation notice (bolt 008, part two):** done after 1.4. It was checked
   live against the Publications Office endpoint.
-- **Live acceptance in a real Claude Code session.** Accept a suggestion and see its
-  mapping step close on the next run. This needs the Owner's own session.
+- **Live acceptance:** in 1.5.0 the plugin loaded in a real session and the accept flow
+  was verified on real runs. The live band and panel check inside a session is not
+  done; this environment cannot drive a second Claude agent.
 - Open choices: keep or remove the unused React page in `frontend/` (the plugin uses the
   static dashboard), and review Dependabot updates under the 14-day cooldown.
 
