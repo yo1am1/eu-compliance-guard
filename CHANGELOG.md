@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Application-date timeline (2.3): `timeline` lists the dated application, entry-into-force
+  and transposition clauses of the retained text, word for word, reached or upcoming against
+  the assessment date; also an MCP tool.
+- The Cyber Resilience Act, the European Accessibility Act and NIS2 are part of the real-text
+  test set (71, 35 and 46 articles).
+
 ## 2.2.0 — 2026-11-06
 
 Jurisdictions become modules, and the United Kingdom is the second one, through

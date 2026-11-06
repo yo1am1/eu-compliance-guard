@@ -68,11 +68,13 @@ All screenshots show the fictional FitBox example project.
   evidence (`sign`, `verify`).
 - A citation guard for agent-written text: cited articles must exist and quotations
   must be verbatim (`cite-check`).
+- An application-date timeline: when each act, or each part of it, applies, quoted from the
+  text and marked reached or upcoming against the assessment date (`timeline`).
 - Signed, reusable obligation packs, as a format (`pack`).
 - Imports of EDPS Website Evidence Collector and SARIF results as untrusted evidence
   (`import-evidence`).
 - An MCP server for any agent, with read-only `cite_check`, `article_search`, `ground`,
-  `pr_check` and `next_steps` tools (`mcp`).
+  `pr_check`, `timeline` and `next_steps` tools (`mcp`).
 
 ## Quick start (Claude Code)
 

@@ -27,7 +27,8 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `import-evidence --kind wec\|sarif <file> [--json]` | Keep an EDPS Website Evidence Collector or SARIF result as untrusted evidence, summarised by concept |
 | `accept <requirement>=<target>:<article>` | Map a requirement to a candidate obligation citing an article; no decision |
 | `graph [--input <file>] [--json] [--view [--open]]` | Map the project's Python files, functions, imports, calls and data flows (static) |
-| `mcp [--input <file>]` | Serve `cite_check`, `article_search`, `ground`, `pr_check` and `next_steps` as read-only MCP tools over stdio |
+| `timeline [--input <file>] [--run <run dir>] [--json]` | List application, entry-into-force and transposition dates quoted from the retained text, reached or upcoming against the assessment date |
+| `mcp [--input <file>]` | Serve `cite_check`, `article_search`, `ground`, `pr_check`, `timeline` and `next_steps` as read-only MCP tools over stdio |
 
 ```sh
 eu-compliance-guard init --project-id shop --jurisdiction EU --jurisdiction DE
@@ -330,6 +331,19 @@ review again. An act whose text the newer run did not retain is reported as not 
 never as removed, and a lock from another project is refused. Nothing is reopened or
 decided automatically. `--strict` exits 1 when a
 declared obligation cites a changed article, so CI can flag it.
+
+## Application-date timeline
+
+`timeline` reads the retained official text of the latest run and lists every clause that
+names a calendar date and says that something applies, is applicable, comes into force, or
+must be adopted by Member States (transposition). Each entry gives the date, the act and
+article, the kind, and the clause word for word, and is marked reached or upcoming against
+the declarations' assessment date (never today, so the output is deterministic). For example,
+the AI Act's Article 113 yields 2 February 2025, 2 August 2025, 2 August 2026 and 2 August
+2027; the Cyber Resilience Act's Article 71 yields 11 June 2026, 11 September 2026 and 11
+December 2027. A date that is only described ("the twentieth day following publication") is
+not computed. A directive's dates bind Member States; when national law applies is a
+reviewer's question. The timeline shows what the text says, never whether it applies.
 
 ## Signed decisions
 
