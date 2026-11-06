@@ -363,6 +363,27 @@ meaning.
 over stdio for other agents, for example
 `claude mcp add eucg -- eu-compliance-guard mcp --input .eu-compliance-guard/declarations.json`.
 
+### Obligation packs
+
+A pack is one versioned JSON file of reviewed obligations: their conditions, exceptions
+and exact article pins, the source targets those pins name, and the digest of each
+article the reviewer read (taken from `eu-law.lock`). Pins name a target and an article,
+never one project's source copy, controls or overlays, so a pack moves between projects.
+
+- `pack build --id ID --title TITLE --output FILE [--obligation ID ...] [--status reviewed]`
+  drafts a pack from this project's obligations.
+- `pack sign FILE --key KEY --principal NAME` signs the file with the reviewer's SSH key
+  and writes `FILE.sig` beside it.
+- `pack verify FILE --allowed-signers SIGNERS` checks that signature.
+- `pack import FILE --allowed-signers SIGNERS` (or `--unsigned`, on request) adds the
+  pack's targets and obligations to the declarations. A record that already exists with
+  different content is never overwritten. When the project's lock has different text for
+  an article the pack was reviewed against, import names it.
+
+Import never maps a requirement and never decides applicability: map with `accept`, then
+a named reviewer records each decision. 2.0 ships the format only; no lawyer-reviewed
+pack content is included yet.
+
 ### Importing other tools' results
 
 `import-evidence --kind wec FILE` reads an EDPS Website Evidence Collector
