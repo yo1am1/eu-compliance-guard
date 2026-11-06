@@ -8,6 +8,7 @@ _ERROR_CODES = {
     "output-exists", "privacy-unavailable", "budget-exceeded", "invalid-output", "retrieval-failed",
     "incomplete-run", "corrupt-run",
     "wrong-project", "invalid-revision", "not-observable", "bad-location", "unrelated-line", "no-run",
+    "unknown-id", "unreviewed-decision", "bad-principal", "signing-failed",
 }
 _DEFAULT_INPUT = ".eu-compliance-guard/declarations.json"
 
@@ -131,6 +132,28 @@ def _command(argv: list[str] | None) -> int:
     impact.add_argument("--lock", help="Lockfile (default: eu-law.lock beside the declarations)")
     impact.add_argument("--json", action="store_true", help="Print the result as JSON")
     impact.add_argument("--strict", action="store_true", help="Exit 1 when a declared obligation cites a changed article")
+    sign = commands.add_parser("sign", help="Sign a reviewed decision with your SSH key, against the locked law and evidence",
+                               allow_abbrev=False)
+    sign.add_argument("--decision", required=True, help="Applicability decision ID")
+    sign.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    sign.add_argument("--key", required=True, help="SSH private key (or its .pub with an agent), as for git signing")
+    sign.add_argument("--principal", required=True, help="Signer identity as written in the allowed-signers file")
+    sign.add_argument("--lock", help="Lockfile (default: eu-law.lock beside the declarations, if present)")
+    verify = commands.add_parser("verify", help="Verify signed decisions and say which changed since they were signed",
+                                 allow_abbrev=False)
+    verify.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    verify.add_argument("--allowed-signers", required=True, help="ssh-keygen allowed-signers file")
+    verify.add_argument("--lock", help="Lockfile (default: eu-law.lock beside the declarations, if present)")
+    verify.add_argument("--json", action="store_true", help="Print the result as JSON")
+    cite = commands.add_parser("cite-check", help="Check article citations and quotations against the retained official text",
+                               allow_abbrev=False)
+    cite.add_argument("file", help="Text file to check, or - for standard input")
+    cite.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    cite.add_argument("--run", help="Completed run directory (default: the newest run in this project's state-dir)")
+    cite.add_argument("--json", action="store_true", help="Print the result as JSON")
+    mcp = commands.add_parser("mcp", help="Serve cite_check, article_search and next_steps as MCP tools over stdio",
+                              allow_abbrev=False)
+    mcp.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
     accept = commands.add_parser("accept", help="Map a requirement to a candidate obligation citing an article (no decision)",
                                  allow_abbrev=False)
     accept.add_argument("mapping", metavar="REQ=TARGET:ARTICLE", help="For example req-delete=target-gdpr:Article 17")
@@ -200,6 +223,16 @@ def _command(argv: list[str] | None) -> int:
         return _accept(args)
     if args.command in ("lock", "impact"):
         return _lawlock(args)
+    if args.command in ("sign", "verify"):
+        return _signing(args)
+    if args.command == "cite-check":
+        return _cite_check(args)
+    if args.command == "mcp":
+        from .mcp_server import serve
+        try:
+            return serve(args.input)
+        except KeyboardInterrupt:
+            return 130
     if args.command == "state-dir":
         try:
             from .authoring import state_dir
@@ -295,6 +328,57 @@ def _lawlock(args) -> int:
         return 0
     (_emit(json.dumps(report, indent=2)) if args.json else _emit_text(lawlock.format_impact(report)))
     return 1 if args.strict and report["obligations"] else 0
+
+
+def _signing(args) -> int:
+    import json
+    from . import signing
+    try:
+        if args.command == "sign":
+            path = signing.sign(args.input, args.decision, args.key, args.principal, args.lock)
+        else:
+            results = signing.verify(args.input, args.allowed_signers, args.lock)
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else args.command + '-failed'}: {args.command} failed",
+              file=sys.stderr)
+        return 2
+    if args.command == "sign":
+        _emit_text(f"{path}: decision {args.decision} signed by {args.principal}.")
+        return 0
+    (_emit(json.dumps(results, indent=2)) if args.json else _emit_text(signing.format_verify(results)))
+    return 0 if all(item["signature"] == "valid" and not item["changed"] for item in results) else 1
+
+
+def _cite_check(args) -> int:
+    import json
+    from . import authoring, citations, nextstep
+    from .view import catalogue, verify_run
+    try:
+        if args.file == "-":
+            text = sys.stdin.read(citations.MAX_TEXT)
+        else:
+            with open(args.file, encoding="utf-8") as handle:
+                text = handle.read(citations.MAX_TEXT)
+        run = args.run
+        if run is None:
+            found = nextstep.latest_run(authoring.state_dir(args.input, create=False))
+            if found is None:
+                raise nextstep.NoRun("no-run")
+            run = str(found)
+        contents: dict[str, bytes] = {}
+        report = citations.check(text, catalogue(verify_run(run, contents), contents))
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'cite-check-failed'}: cite-check failed",
+              file=sys.stderr)
+        return 2
+    (_emit(json.dumps(report, indent=2)) if args.json else _emit_text(citations.format_check(report)))
+    return 0 if report["ok"] else 1
 
 
 def _accept(args) -> int:

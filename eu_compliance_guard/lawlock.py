@@ -46,8 +46,12 @@ def to_bytes(lock: m.LawLock) -> bytes:
 
 def write(lock: m.LawLock, path: str | os.PathLike) -> Path:
     """Atomically create or replace the lockfile, never through a link."""
+    return write_bytes(path, to_bytes(lock))
+
+
+def write_bytes(path: str | os.PathLike, content: bytes) -> Path:
+    """Atomically create or replace a project file, never through a link or over a folder."""
     path = Path(path)
-    content = to_bytes(lock)
     with r._parent(path) as (parent_fd, name):
         temporary = "." + name + ".tmp"
         try:
