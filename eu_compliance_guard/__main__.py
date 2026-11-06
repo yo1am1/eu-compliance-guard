@@ -119,6 +119,18 @@ def _command(argv: list[str] | None) -> int:
     state = commands.add_parser("state-dir", help="Print (and create) the private run directory for a project",
                                 allow_abbrev=False)
     state.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file naming the project")
+    lock = commands.add_parser("lock", help="Record the law a run's reviews read: versions and article digests",
+                               allow_abbrev=False)
+    lock.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    lock.add_argument("--run", help="Completed run directory (default: the newest run in this project's state-dir)")
+    lock.add_argument("--output", help="Lockfile (default: eu-law.lock beside the declarations)")
+    impact = commands.add_parser("impact", help="List the articles changed since the lock and the decisions citing them",
+                                 allow_abbrev=False)
+    impact.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    impact.add_argument("--run", help="Newer completed run (default: the newest run in this project's state-dir)")
+    impact.add_argument("--lock", help="Lockfile (default: eu-law.lock beside the declarations)")
+    impact.add_argument("--json", action="store_true", help="Print the result as JSON")
+    impact.add_argument("--strict", action="store_true", help="Exit 1 when a declared obligation cites a changed article")
     accept = commands.add_parser("accept", help="Map a requirement to a candidate obligation citing an article (no decision)",
                                  allow_abbrev=False)
     accept.add_argument("mapping", metavar="REQ=TARGET:ARTICLE", help="For example req-delete=target-gdpr:Article 17")
@@ -186,6 +198,8 @@ def _command(argv: list[str] | None) -> int:
         return _graph(args)
     if args.command == "accept":
         return _accept(args)
+    if args.command in ("lock", "impact"):
+        return _lawlock(args)
     if args.command == "state-dir":
         try:
             from .authoring import state_dir
@@ -248,6 +262,39 @@ def _check(path: str, as_json: bool, previous: str | None = None) -> int:
         return 2
     (_emit(json.dumps(report, indent=2)) if as_json else _emit_text(format_check(report)))
     return 0 if report["valid"] else 2
+
+
+def _lawlock(args) -> int:
+    import json
+    from pathlib import Path
+    from . import authoring, lawlock, nextstep
+    from .revalidation import load_input
+    try:
+        run = args.run
+        if run is None:
+            found = nextstep.latest_run(authoring.state_dir(args.input, create=False))
+            if found is None:
+                raise nextstep.NoRun("no-run")
+            run = str(found)
+        default = Path(args.input).parent / lawlock.LOCK_NAME
+        built = lawlock.build(run)
+        if args.command == "lock":
+            path = lawlock.write(built, args.output or default)
+        else:
+            report = lawlock.impact(lawlock.read(args.lock or default), built, load_input(args.input))
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else args.command + '-failed'}: {args.command} failed",
+              file=sys.stderr)
+        return 2
+    if args.command == "lock":
+        _emit_text(f"{path}: {len(built.entries)} act(s), "
+                   f"{sum(len(item.articles) for item in built.entries)} article(s) locked from run {built.run_id}.")
+        return 0
+    (_emit(json.dumps(report, indent=2)) if args.json else _emit_text(lawlock.format_impact(report)))
+    return 1 if args.strict and report["obligations"] else 0
 
 
 def _accept(args) -> int:
