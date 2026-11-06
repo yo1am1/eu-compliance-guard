@@ -59,6 +59,16 @@ class ImportTests(unittest.TestCase):
         # Importing the same file again is deterministic.
         self.assertEqual(cli("import-evidence", FIXTURES / "imports/sarif-synthetic.json", "--kind", "sarif", "--input", self.input)[1], out)
 
+    def test_imported_files_are_never_grounded_as_project_code(self):
+        from eu_compliance_guard import grounding
+        self.assertEqual(cli("import-evidence", FIXTURES / "imports/sarif-synthetic.json", "--kind", "sarif",
+                             "--input", self.input)[0], 0)
+        (self.root / "eu-law.lock").write_text("{}")
+        (self.root / "signatures").mkdir()
+        (self.root / "signatures/decision.json").write_text('{"cookie": "tracking"}')
+        files, _ = grounding.read_project(self.root, grounding._own_files(self.input, self.root))
+        self.assertEqual([path for path, _, _ in files if path.startswith(("imports", "signatures", "eu-law"))], [])
+
     def test_invalid_or_linked_input_fails_safely(self):
         bad = self.root / "bad.json"
         bad.write_text("[1, 2]")
