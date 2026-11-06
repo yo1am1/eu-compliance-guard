@@ -310,7 +310,9 @@ committed with the declarations. After a newer run, for example one with
 `--fetch-official` once the consolidated text has moved, `impact` compares that run with
 the lock. It lists the changed, added and removed articles, then the obligations citing
 them and their applicability decisions and mapped requirements: exactly those need
-review again. Nothing is reopened or decided automatically. `--strict` exits 1 when a
+review again. An act whose text the newer run did not retain is reported as not compared,
+never as removed, and a lock from another project is refused. Nothing is reopened or
+decided automatically. `--strict` exits 1 when a
 declared obligation cites a changed article, so CI can flag it.
 
 ## Signed decisions
@@ -323,7 +325,9 @@ evidence it relies on, and the project's commit. It is stored in
 `.eu-compliance-guard/signatures/<decision>.json`. `verify --allowed-signers FILE` checks
 each signature, then compares the signed record with the current files. It reports the
 signature as valid and current, valid but out of date (naming what changed since: the
-decision, the obligation, the law or the evidence), or invalid. A signature shows who
+decision, the obligation, the law or the evidence), or invalid. A signature file must
+hold the decision it is named after, and a reviewed decision with no signature is listed
+as not signed (which does not fail the command). A signature shows who
 recorded a decision against which text. It does not make the decision right.
 
 ## Citation guard and MCP tools

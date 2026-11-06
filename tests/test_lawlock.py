@@ -75,6 +75,19 @@ class LawLockTests(unittest.TestCase):
         self.assertIn("changed Article 1", text)
         self.assertIn("Nothing was reopened or decided", text)
 
+    def test_text_the_newer_run_did_not_retain_is_not_compared_and_other_projects_are_refused(self):
+        first = self.run_with(act("The fictional controller shall retain a review record."), "run-1")
+        lock = lawlock.build(first)
+        empty = lock.model_copy(update={"entries": [], "run_id": "run-later"})
+        report = lawlock.impact(lock, empty, r.load_input(self.input))
+        self.assertEqual((report["changes"], report["obligations"]), ([], []))
+        self.assertEqual(report["not_retained"], ["target-example"])
+        self.assertEqual(report["obligations_not_compared"], ["obligation-example", "obligation-unmapped"])
+        self.assertIn("Not compared", lawlock.format_impact(report))
+        other = lock.model_copy(update={"project_id": "another-project"})
+        with self.assertRaises(r.RevalidationError):
+            lawlock.impact(lock, other, r.load_input(self.input))
+
     def test_a_missing_lock_or_a_linked_lockfile_fails_safely(self):
         run = self.run_with(act("Text."), "run-1")
         code, _ = self.cli("impact", "--input", self.input, "--run", run)

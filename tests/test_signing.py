@@ -98,6 +98,24 @@ class SigningTests(Project):
         code, out = cli("verify", "--input", self.input, "--allowed-signers", self.allowed, "--json")
         self.assertEqual((code, json.loads(out)[0]["signature"]), (1, "invalid"))
 
+    def test_a_signature_copied_to_another_decision_is_invalid_and_unsigned_decisions_are_listed(self):
+        code, out = cli("verify", "--input", self.input, "--allowed-signers", self.allowed, "--json")
+        self.assertEqual((code, json.loads(out)), (0, [{"decision": "decision-example", "signature": "missing", "changed": []}]))
+        self.assertEqual(self.sign()[0], 0)
+        folder = self.root / "signatures"
+        (folder / "decision-other.json").write_bytes((folder / "decision-example.json").read_bytes())
+        code, out = cli("verify", "--input", self.input, "--allowed-signers", self.allowed, "--json")
+        results = {item["decision"]: item for item in json.loads(out)}
+        self.assertEqual(code, 1)
+        self.assertEqual(results["decision-example"]["signature"], "valid")
+        self.assertEqual((results["decision-other"]["signature"], results["decision-other"]["changed"]),
+                         ("invalid", ["file holds decision decision-example"]))
+        (folder / "decision-other.json").unlink()
+        (folder / "decision-other.json").symlink_to(folder / "decision-example.json")
+        results = {item["decision"]: item for item in json.loads(cli("verify", "--input", self.input, "--allowed-signers",
+                                                                       self.allowed, "--json")[1])}
+        self.assertEqual(results["decision-other"]["signature"], "invalid")
+
     def test_only_a_reviewed_decision_with_a_plain_principal_is_signed(self):
         self.assertEqual(cli("sign", "--decision", "missing", "--input", self.input, "--key", self.key,
                              "--principal", "reviewer@example.invalid")[0], 2)

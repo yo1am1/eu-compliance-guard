@@ -20,6 +20,7 @@ from . import articles, lawlock, models as m, revalidation as r
 NAMESPACE = "eucg-decision"
 FORMAT = "eucg-decision-v1"
 TIMEOUT = 60
+MAX_SIGNATURE_BYTES = 4 * 1024 * 1024
 
 
 class SigningError(ValueError):
@@ -127,15 +128,20 @@ def verify(declarations: str | os.PathLike, allowed_signers: str, lock_path: str
     results = []
     folder = _signatures(path)
     for file in sorted(folder.glob("*.json")) if folder.is_dir() and not folder.is_symlink() else []:
-        if file.is_symlink():
-            results.append({"decision": file.stem, "signature": "invalid", "changed": ["not a regular file"]})
-            continue
         try:
-            stored = json.loads(file.read_text(encoding="utf-8"))
+            with r._parent(file) as (fd, name):
+                raw = r._read_file(fd, name, limit=MAX_SIGNATURE_BYTES, retain=True)
+            if raw.content is None:
+                raise OSError("not a regular file")
+            stored = json.loads(raw.content.decode("utf-8"))
             payload, principal, armored = stored["payload"], stored["principal"], stored["signature"]
             decision_id = payload["decision"]["id"]
-        except (OSError, ValueError, KeyError, TypeError):
+        except (OSError, ValueError, KeyError, TypeError, r.RevalidationError):
             results.append({"decision": file.stem, "signature": "invalid", "changed": ["unreadable signature file"]})
+            continue
+        if decision_id != file.stem:
+            # A valid signature copied over another decision's file must not stand in for it.
+            results.append({"decision": file.stem, "signature": "invalid", "changed": [f"file holds decision {decision_id}"]})
             continue
         valid = isinstance(principal, str) and isinstance(armored, str) and \
             ssh_verify(_canonical(payload), armored, allowed_signers, principal, NAMESPACE)
@@ -146,7 +152,12 @@ def verify(declarations: str | os.PathLike, allowed_signers: str, lock_path: str
             changed = ["decision removed"]
         results.append({"decision": decision_id, "principal": principal, "signature": "valid" if valid else "invalid",
                         "commit": payload.get("commit"), "changed": changed})
-    return results
+    # A reviewed decision with no signature file is listed, so a missing signature is never silent.
+    signed = {item["decision"] for item in results}
+    for decision in r.load_input(path).applicability_decisions:
+        if decision.reviewer and decision.applicability != "unresolved" and decision.id not in signed:
+            results.append({"decision": decision.id, "signature": "missing", "changed": []})
+    return sorted(results, key=lambda item: item["decision"])
 
 
 def format_verify(results: list[dict]) -> str:
@@ -154,7 +165,9 @@ def format_verify(results: list[dict]) -> str:
         return "No signed decisions."
     lines = []
     for item in results:
-        if item["signature"] != "valid":
+        if item["signature"] == "missing":
+            lines.append(f"- {item['decision']}: reviewed but not signed")
+        elif item["signature"] != "valid":
             lines.append(f"- {item['decision']}: signature INVALID for this allowed-signers file" +
                          (f" ({', '.join(item['changed'])})" if item.get("changed") else ""))
         elif item["changed"]:
