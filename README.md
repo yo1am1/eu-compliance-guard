@@ -223,7 +223,11 @@ A base CELEX (`resource/celex/32002L0058`) returns the act as first published; f
 law in force use a consolidated CELEX such as `02002L0058-20091219`, and have a reviewer
 confirm that it is the latest consolidation. `check` warns when an `eu_act` target uses a
 base CELEX and lists each target's version ("consolidated 2009-12-19" or "as first
-published"). Each article excerpt in the report names the version it comes from.
+published"). Each article excerpt in the report names the version it comes from. With
+`--fetch-official`, the same consent also asks the Publications Office's official SPARQL
+endpoint, once per act target with a CELEX number, whether a newer consolidation exists.
+The query is built only from the CELEX number. A newer version, or an answer that could
+not be read, becomes a review gap on the run; the declarations are never changed.
 
 - Requests use HTTPS on port 443 only, with no credentials and no proxy.
 - DNS answers must all be public, and the connection is pinned to a validated
