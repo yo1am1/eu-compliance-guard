@@ -2157,3 +2157,36 @@ class LawLock(Record):
         if ids != sorted(set(ids)):
             raise ValueError("lock entries must be unique and sorted by target")
         return self
+
+
+# Obligation packs (2.0 bolt 020): reviewed obligations with their exact article pins, reusable
+# across projects. A pack adds candidate obligations; it never records an applicability decision.
+class ObligationPack(Record):
+    schema_version: SchemaVersion
+    pack_version: Literal[1]
+    id: Id
+    revision: Revision
+    title: Text
+    status: Literal["draft", "reviewed"] = "draft"
+    synthetic: bool
+    source_targets: Annotated[list[SourceTarget], Field(max_length=16)]
+    obligations: Annotated[list[Obligation], Field(min_length=1, max_length=200)]
+    # The article digests the pack's reviewer read, as in a law lock.
+    law: Annotated[list[LawLockEntry], Field(max_length=16)] = Field(default_factory=list)
+    limitations: Texts
+
+    @model_validator(mode="after")
+    def closed_pack(self) -> ObligationPack:
+        targets = [item.id for item in self.source_targets]
+        obligations = [item.id for item in self.obligations]
+        if len(set(targets)) != len(targets) or len(set(obligations)) != len(obligations):
+            raise ValueError("pack ids must be unique")
+        pins = [pin for item in self.obligations for pin in item.source_provisions]
+        if any(pin.source_target_id not in targets for pin in pins):
+            raise ValueError("every pinned target must be in the pack")
+        if any(pin.source_id is not None for pin in pins) or any(item.control_ids or item.overlay_ids for item in self.obligations):
+            raise ValueError("pack obligations pin targets and articles only, never one project's sources or controls")
+        law = [item.target_id for item in self.law]
+        if law != sorted(set(law)) or not set(law) <= set(targets):
+            raise ValueError("pack law entries must be unique, sorted and pack targets")
+        return self

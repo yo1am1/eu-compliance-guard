@@ -69,6 +69,39 @@ def _signatures(declarations: Path) -> Path:
     return declarations.parent / "signatures"
 
 
+def check_principal(principal: str) -> None:
+    if not principal or any(char.isspace() for char in principal) or len(principal) > 256:
+        raise SigningError("bad-principal")
+
+
+def ssh_sign(data: bytes, key: str, namespace: str) -> str:
+    """An armored `ssh-keygen -Y sign` signature over the bytes, with the signer's own key."""
+    with tempfile.TemporaryDirectory(prefix="eucg-sign-") as folder:
+        message = Path(folder) / "message"
+        message.write_bytes(data)
+        try:
+            done = subprocess.run(["ssh-keygen", "-Y", "sign", "-f", key, "-n", namespace, str(message)],
+                                  capture_output=True, timeout=TIMEOUT, stdin=subprocess.DEVNULL)
+        except (OSError, subprocess.SubprocessError):
+            raise SigningError("signing-failed") from None
+        signature = Path(str(message) + ".sig")
+        if done.returncode != 0 or not signature.is_file():
+            raise SigningError("signing-failed")
+        return signature.read_text(encoding="ascii")
+
+
+def ssh_verify(data: bytes, armored: str, allowed_signers: str, principal: str, namespace: str) -> bool:
+    with tempfile.TemporaryDirectory(prefix="eucg-verify-") as scratch:
+        sig = Path(scratch) / "message.sig"
+        try:
+            sig.write_text(armored, encoding="ascii")
+            done = subprocess.run(["ssh-keygen", "-Y", "verify", "-f", allowed_signers, "-I", principal, "-n", namespace,
+                                   "-s", str(sig)], input=data, capture_output=True, timeout=TIMEOUT)
+        except (OSError, ValueError, subprocess.SubprocessError):
+            return False
+        return done.returncode == 0
+
+
 def sign(declarations: str | os.PathLike, decision_id: str, key: str, principal: str, lock_path: str | None = None) -> Path:
     path = Path(declarations)
     lock = lawlock.read(lock_path or path.parent / lawlock.LOCK_NAME) if (lock_path or (path.parent / lawlock.LOCK_NAME).exists()) else None
@@ -76,20 +109,8 @@ def sign(declarations: str | os.PathLike, decision_id: str, key: str, principal:
     decision = payload["decision"]
     if decision["applicability"] == "unresolved" or not decision["reviewer"]:
         raise SigningError("unreviewed-decision")  # only a decision a named reviewer recorded is signed
-    if not principal or any(char.isspace() for char in principal) or len(principal) > 256:
-        raise SigningError("bad-principal")
-    with tempfile.TemporaryDirectory(prefix="eucg-sign-") as folder:
-        message = Path(folder) / "decision.json"
-        message.write_bytes(_canonical(payload))
-        try:
-            done = subprocess.run(["ssh-keygen", "-Y", "sign", "-f", key, "-n", NAMESPACE, str(message)],
-                                  capture_output=True, timeout=TIMEOUT, stdin=subprocess.DEVNULL)
-        except (OSError, subprocess.SubprocessError):
-            raise SigningError("signing-failed") from None
-        signature = Path(str(message) + ".sig")
-        if done.returncode != 0 or not signature.is_file():
-            raise SigningError("signing-failed")
-        armored = signature.read_text(encoding="ascii")
+    check_principal(principal)
+    armored = ssh_sign(_canonical(payload), key, NAMESPACE)
     folder = _signatures(path)
     folder.mkdir(mode=0o755, exist_ok=True)
     if folder.is_symlink():
@@ -116,15 +137,8 @@ def verify(declarations: str | os.PathLike, allowed_signers: str, lock_path: str
         except (OSError, ValueError, KeyError, TypeError):
             results.append({"decision": file.stem, "signature": "invalid", "changed": ["unreadable signature file"]})
             continue
-        with tempfile.TemporaryDirectory(prefix="eucg-verify-") as scratch:
-            sig = Path(scratch) / "decision.sig"
-            sig.write_text(armored, encoding="ascii")
-            try:
-                done = subprocess.run(["ssh-keygen", "-Y", "verify", "-f", allowed_signers, "-I", principal, "-n", NAMESPACE,
-                                       "-s", str(sig)], input=_canonical(payload), capture_output=True, timeout=TIMEOUT)
-                valid = done.returncode == 0
-            except (OSError, subprocess.SubprocessError):
-                valid = False
+        valid = isinstance(principal, str) and isinstance(armored, str) and \
+            ssh_verify(_canonical(payload), armored, allowed_signers, principal, NAMESPACE)
         try:
             current = record(path, decision_id, lock)
             changed = [part for part in ("decision", "obligation", "law", "evidence") if current[part] != payload[part]]
