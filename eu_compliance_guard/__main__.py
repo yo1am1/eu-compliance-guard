@@ -416,7 +416,8 @@ def _cite_check(args) -> int:
                 raise nextstep.NoRun("no-run")
             run = str(found)
         contents: dict[str, bytes] = {}
-        report = citations.check(text, catalogue(verify_run(run, contents), contents))
+        bundle = verify_run(run, contents)
+        report = citations.check(text, catalogue(bundle, contents), citations.act_names(bundle.declarations.source_targets))
     except KeyboardInterrupt:
         return 130
     except Exception as error:

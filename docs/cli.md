@@ -335,7 +335,10 @@ recorded a decision against which text. It does not make the decision right.
 `cite-check FILE` (or `-` for standard input) checks text an agent wrote against the
 retained official text of the latest run. Every "Article N" it cites must exist in a
 retained act. Every quotation of three words or more must appear in the article cited just
-before it, word for word, ignoring case, whitespace and the style of quotation marks. It
+before it, word for word, ignoring case, whitespace and the style of quotation marks. A
+citation followed by an act's name or number ("Article 17 GDPR", "Article 5(3) of the
+ePrivacy Directive", "Article 99 of Regulation (EU) 2016/679") is checked in that act only;
+a well-known act the run did not retain, such as the DSA, is reported as not checked. It
 exits 1 when a citation or quotation does not match. It checks wording only, never legal
 meaning.
 
