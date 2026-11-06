@@ -16,13 +16,9 @@ permissions:
 
 env:
   BRANCHES: >-
-    claude/publish-2.0.0
-    claude/intent-2.5
-    claude/audit-untrusted-input
-    claude/audit-signing
-    claude/real-law-tests
-    claude/graph-precision
-    claude/release-2.1.0
+    claude/publish-2.1.0
+    claude/jurisdictions
+    claude/release-2.2.0
 
 jobs:
   prune:
