@@ -160,6 +160,21 @@ class McpTests(Project):
         self.assertEqual(responses[5]["error"]["code"], -32601)
         self.assertEqual(responses[6]["error"]["code"], -32700)
 
+    def test_hostile_messages_get_an_error_and_never_stop_the_server(self):
+        stdin = io.StringIO("[" * 100000 + "]" * 100000 + "\n"
+                            '{"jsonrpc":"2.0","id":8,"method":"ping","params":{"a":"[[[[' + "[" * 100 + '"}}\n'
+                            '{"jsonrpc":"2.0","id":NaN,"method":"ping"}\n'
+                            '{"jsonrpc":"2.0","id":{"a":1},"method":"ping"}\n'
+                            '{"jsonrpc":"2.0","id":true,"method":"ping"}\n'
+                            '{"jsonrpc":"2.0","id":7,"method":"ping"}\n')
+        stdout = io.StringIO()
+        self.assertEqual(mcp_server.serve(str(self.input), stdin, stdout), 0)
+        responses = [json.loads(line) for line in stdout.getvalue().splitlines()]
+        self.assertEqual([(item["id"], item.get("error", {}).get("code")) for item in responses],
+                         [(None, -32700), (8, None), (None, -32700), (None, -32600), (None, -32600), (7, None)])
+        self.assertTrue(mcp_server._too_deep("[" * 65 + "]" * 65))
+        self.assertFalse(mcp_server._too_deep("[" * 64 + "]" * 64))
+
     def test_tools_read_the_real_project_and_latest_run(self):
         import os
         from unittest import mock
