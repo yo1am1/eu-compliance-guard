@@ -365,7 +365,7 @@ def _lawlock(args) -> int:
         return 2
     if args.command == "lock":
         _emit_text(f"{path}: {len(built.entries)} act(s), "
-                   f"{sum(len(item.articles) for item in built.entries)} article(s) locked from run {built.run_id}.")
+                   f"{sum(len(item.articles) for item in built.entries)} provision(s) locked from run {built.run_id}.")
         return 0
     (_emit(json.dumps(report, indent=2)) if args.json else _emit_text(lawlock.format_impact(report)))
     return 1 if args.strict and report["obligations"] else 0

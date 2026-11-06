@@ -50,7 +50,7 @@ class LawLockTests(unittest.TestCase):
         self.assertEqual(lawlock.to_bytes(lawlock.build(run)), lawlock.to_bytes(lock))
         code, out = self.cli("lock", "--input", self.input, "--run", run)
         self.assertEqual(code, 0)
-        self.assertIn("2 article(s) locked", out)
+        self.assertIn("2 provision(s) locked", out)
         path = self.root / "eu-law.lock"
         self.assertEqual(lawlock.read(path), lock)
         self.assertEqual(path.read_bytes(), lawlock.to_bytes(lock))
