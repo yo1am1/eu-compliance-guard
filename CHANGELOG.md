@@ -9,6 +9,13 @@
   the articles changed since the lock and the obligations, decisions and requirements
   citing them, with `--strict` for CI. The contract is generated from `models.py`
   (`LawLock`).
+- Signed decisions (2.0 bolt 018): `sign` signs a reviewed applicability decision with
+  the reviewer's SSH key (`ssh-keygen -Y sign`), covering the decision, its obligation, the
+  locked article digests, the evidence digests and the commit. `verify` checks each
+  signature against an allowed-signers file and names what changed since signing.
+- Citation guard: `cite-check` checks that cited articles exist in the retained text and
+  quotations appear verbatim in the cited article. `mcp` serves it, `article_search` and
+  `next_steps` as read-only MCP tools over stdio.
 
 ## 1.5.0 — 2026-11-06
 
