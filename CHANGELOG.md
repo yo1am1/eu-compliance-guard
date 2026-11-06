@@ -9,6 +9,11 @@
   the assessment date; also an MCP tool.
 - The Cyber Resilience Act, the European Accessibility Act and NIS2 are part of the real-text
   test set (71, 35 and 46 articles).
+- Draft starter packs: GDPR core (13 obligations), ePrivacy cookies and electronic marketing
+  (2), European Accessibility Act services (2) and Cyber Resilience Act manufacturers (3),
+  shipped in the package and listed by `pack starters`. Every pin is checked against the
+  official text and every pinned article's digest is recorded. AI-assisted, reviewed by no
+  one, no guarantee; imported with `--unsigned`, never as decisions.
 
 ## 2.2.0 — 2026-11-06
 
