@@ -7,6 +7,8 @@
 - The MCP server no longer stops on one deeply nested JSON message, limits nesting to 64
   levels on every Python, and rejects invalid request ids and NaN.
 - SARIF imports no longer print a boolean line number.
+- WEC imports read the site from `targetUrl`, as current collector versions write it (field
+  names checked against the collector's source); older `uri_ins` files still work.
 - `verify` binds each signature file to the decision it is named after and lists reviewed
   decisions left unsigned; signature files are read without following links, size-limited.
 - `pack import` imports exactly the bytes whose signature it verified.
