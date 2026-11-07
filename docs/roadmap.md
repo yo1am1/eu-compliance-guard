@@ -12,7 +12,7 @@
 | 2.1 | Precision: full audit, fuzz tests for untrusted inputs, real law-text and real-repository test sets, fixes ([intent 004](../memory-bank/intents/004-precision-and-jurisdictions-v2-5/requirements.md)) | Released |
 | 2.2 | Jurisdictions as modules; the UK (legislation.gov.uk) | Released |
 | 2.3 | CRA, EAA, NIS2, AI Act dates; application-date timeline; draft starter packs; exports | Released |
-| 2.4 | To be decided (candidate: JavaScript/TypeScript graph, graph digests in runs, Graphify import) | Open |
+| 2.4 | The project graph reads Rust (a hand-written reader, no new dependency) | In progress |
 | 2.5 | Stabilisation for 3.0: full audit, live session check, open choices | Planned |
 | 3.0 | A breakthrough once 2.5 is stable; candidates in the intent | Not approved |
 

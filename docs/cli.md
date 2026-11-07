@@ -254,12 +254,23 @@ Repeated `--apply` values are all checked first: if one is refused, none is writ
 
 ## Project graph
 
-`graph` maps the Python files under the files root: files, classes and functions, the
-imports between files, and the calls between functions. It also lists the concepts
+`graph` maps the Python and Rust files under the files root: files, classes and functions,
+the imports between files, and the calls between functions. It also lists the concepts
 each function touches (personal data, tracking, AI and others), using the same rule as
-the pull-request check. It only parses code (`ast`). Nothing is imported or run, links
-and dependency folders are skipped, and a file that does not parse is counted as
-skipped.
+the pull-request check. It only parses code: Python with `ast`, Rust with a small reader of
+its own (2.4) that needs no Rust toolchain. Nothing is imported, compiled or run, links and
+dependency folders are skipped, and a file that does not parse is counted as skipped.
+
+For Rust, `fn` items are functions; `struct`, `enum`, `trait` and `union` items are classes;
+methods are named `Type.method`. Calls resolve through the file's own items, `use` imports
+(`crate::`, `super::`, `self::`) and `mod` declarations, then a unique name in the project;
+otherwise up to five candidates are kept as ambiguous. A method call (`.send()`) only reaches
+methods, and common standard-library methods (`.clone()`, `.into()`, `.iter()` …) are never
+linked. Macros are not expanded, so functions generated inside `macro_rules!` are missed.
+Code under `#[cfg(test)]` or `#[test]`, `tests/` and `benches/` is left out. An imported
+crate's name counts for the functions that use it, so `use reqwest::Client` makes
+`Client::new().post(…)` a third-party call. Python and Rust names are never linked to each
+other. See `docs/decisions/rust-graph.md` for the measurements.
 
 Calls resolve the way Python looks names up: the same file first, then imported names
 and modules. A name that only matches several definitions elsewhere is labelled
