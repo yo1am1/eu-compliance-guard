@@ -1,6 +1,6 @@
 {
   "name": "eu-compliance-guard",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Read-only EU legal review for coding agents: map project changes to candidate EU obligations, keep declarations and gaps explicit, pin the law a review read, sign decisions and check citations. Never a compliance verdict.",
   "author": {
     "name": "Yehor Trepalin",
