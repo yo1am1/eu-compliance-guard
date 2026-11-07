@@ -27,7 +27,8 @@ FAMILIES = {
 STRONG = {"health", "medical", "diagnosis", "biometric", "pregnancy", "religion", "ethnicity", "sexual", "disability",
           "bmi", "minor", "parental", "child", "children", "consent", "cookie", "cookies", "llm", "openai", "anthropic",
           "gpt", "newsletter", "unsubscribe", "subscription", "cancellation", "refund", "withdrawal", "retention",
-          "geolocation", "fingerprint", "analytics", "tracking", "gtag", "mixpanel", "hotjar", "aria", "a11y", "dob"}
+          "geolocation", "fingerprint", "analytics", "tracking", "gtag", "mixpanel", "hotjar", "aria", "a11y", "dob",
+          "reqwest", "ureq"}  # Rust HTTP client crates: unambiguous names, unlike Python's "requests"
 GIT_PREFIXES = ("a/", "b/", "c/", "i/", "w/", "o/", "1/", "2/")  # git's default, mnemonic and --no-index prefixes
 
 

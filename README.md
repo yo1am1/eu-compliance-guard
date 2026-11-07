@@ -56,8 +56,8 @@ All screenshots show the fictional FitBox example project.
 
 **Code awareness**
 
-- Facts grounded in code lines, and a static project graph that follows data from
-  fields to network, storage and model calls (`ground`, `graph`).
+- Facts grounded in code lines, and a static project graph of Python and Rust code that
+  follows data from fields to network, storage and model calls (`ground`, `graph`).
 - A pull-request screen for legal touchpoints, with a GitHub Action (`pr-check`).
 
 **Law that stays current, decisions that stay accountable**

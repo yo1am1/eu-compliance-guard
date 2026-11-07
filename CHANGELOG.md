@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Rust in the project graph (2.4): a small reader of its own (no Rust toolchain, no new
+  dependency) finds functions, methods, structs, enums and traits, `use` imports, `mod`
+  declarations and calls, with the same data tags and flows as Python. Test code
+  (`#[cfg(test)]`, `#[test]`, `tests/`, `benches/`) is left out; macros are not expanded.
+  Measured on three real crates (see `docs/decisions/rust-graph.md`). `reqwest` and `ureq` are
+  third-party words.
+
+### Changed
+
+- "health" alone no longer marks special-category data in the graph; it needs a data word
+  next to it ("health_data", "health_record"): `release-health` and health checks were
+  tagged as health data on real projects.
+
 ## 2.3.0 — 2026-11-07
 
 The laws software teams meet now: application dates quoted from the text, draft starter packs

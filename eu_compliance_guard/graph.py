@@ -54,7 +54,8 @@ DATA_PHRASES = {
                       ("birth", "date"), ("birthdate",), ("birthday",), ("dob",), ("gender",), ("geolocation",),
                       ("latitude",), ("longitude",), ("passport",), ("ssn",), ("national", "id"), ("iban",),
                       ("credit", "card"), ("card", "number"), ("social", "security")),
-    "special_category": (("health",), ("medical",), ("diagnosis",), ("biometric",), ("biometrics",), ("pregnancy",),
+    "special_category": (("health", "data"), ("health", "record"), ("health", "records"), ("health", "condition"),
+                         ("health", "conditions"), ("health", "information"), ("health", "status", "of"), ("medical",), ("diagnosis",), ("biometric",), ("biometrics",), ("pregnancy",),
                          ("religion",), ("religious",), ("ethnicity",), ("ethnic",), ("sexual",), ("disability",),
                          ("bmi",), ("heart", "rate"), ("blood", "pressure"), ("weight", "kg"), ("weight", "lbs"),
                          ("body", "weight"), ("allergy",), ("allergies",), ("medication",)),
@@ -62,9 +63,10 @@ DATA_PHRASES = {
                  ("under", "16"), ("age", "verification"), ("age", "gate"), ("age", "check"), ("child", "account"),
                  ("child", "profile"), ("child", "user"), ("kids", "mode")),
 }
-# Words that make a data word technical next to it in the same identifier: `health_check`,
-# `check_health`, `healthz`.
-TECHNICAL = {"health": {"check", "checks", "checker", "z", "status", "probe", "endpoint"}}
+# Words that make a one-word data phrase technical next to it in the same identifier. "health"
+# alone is no longer a data word: in code it is mostly a check or a release-health metric, so it
+# counts only with a data word ("health_data", "health_record").
+TECHNICAL: dict[str, set[str]] = {}
 MAX_KEY = 40  # a string constant this short without spaces reads as a key, not prose
 
 
@@ -117,11 +119,12 @@ def _data(node: ast.AST) -> list[str]:
 
 
 def is_test_file(path: str) -> bool:
-    """Test code: a tests folder, test_*.py, *_test.py or conftest.py. Its data is fixtures, not processing."""
+    """Test code: a tests or benches folder, test_*.py, *_test.py, *_test.rs, tests.rs or conftest.py.
+    Its data is fixtures, not processing."""
     parts = path.split("/")
     name = parts[-1]
-    return any(part in ("tests", "test", "testing") for part in parts[:-1]) or name.startswith("test_") \
-        or name.endswith("_test.py") or name == "conftest.py"
+    return any(part in ("tests", "test", "testing", "benches") for part in parts[:-1]) or name.startswith("test_") \
+        or name.endswith(("_test.py", "_test.rs")) or name in ("conftest.py", "tests.rs")
 
 
 def _called(call: ast.Call) -> tuple[str | None, str] | None:
@@ -198,6 +201,151 @@ def _resolve(path: str, module: str, level: int, modules: dict[str, str]) -> str
     return modules.get(module)
 
 
+def _rust_graph(files) -> tuple[dict, set, int, int, list]:
+    """Nodes and edges of the project's Rust files (see rust_graph.py), kept apart from Python's
+    names so a Python call never links to a Rust function or the other way round."""
+    from . import rust_graph as rg
+    rust = [(path, raw, text) for path, raw, text in files if path.endswith(".rs")]
+    read, skipped = {}, 0
+    for path, _, text in rust:
+        try:
+            read[path] = (rg.read_file(path, text), text)
+        except (ValueError, RecursionError, MemoryError, IndexError):
+            skipped += 1
+    by_module = {rg.module_path(path): path for path in read}
+    nodes: dict[str, m.GraphNode] = {}
+    edges: set[tuple[str, str, str, str, int]] = set()
+    by_name: dict[str, list[str]] = {}
+    by_qualname: dict[str, list[str]] = {}
+    items_of: dict[str, dict[str, str]] = {}  # path -> qualname -> node id
+    symbols: dict[str, dict[str, tuple[str, str]]] = {}  # path -> local name -> (file, qualname there)
+    module_aliases: dict[str, dict[str, str]] = {}  # path -> local name -> module file
+    external: dict[str, dict[str, str]] = {}  # path -> local name -> external crate
+
+    def module_file(path: str, segments: list[str]) -> tuple[str | None, list[str]]:
+        """The file a `use` path's module part names, and the rest of the path inside it."""
+        crate, here = rg.module_path(path)
+        if not segments:
+            return None, []
+        head, rest = segments[0], segments[1:]
+        if head == "crate":
+            base = ()
+        elif head == "self":
+            base = here
+        elif head == "super":
+            base, rest = here[:-1], rest
+            while rest[:1] == ["super"]:
+                base, rest = base[:-1], rest[1:]
+        elif (crate, (*here, head)) in by_module:
+            base, rest = here, segments
+        elif (crate, (head,)) in by_module:
+            base, rest = (), segments
+        else:
+            return None, segments  # an external crate
+        module = base
+        while rest and (crate, (*module, rest[0])) in by_module:
+            module, rest = (*module, rest[0]), rest[1:]
+        return by_module.get((crate, module)), rest
+
+    for path, (result, text) in sorted(read.items()):
+        lines = text.splitlines()
+        file_id = node_id(path)
+        nodes[file_id] = m.GraphNode(id=file_id, kind="file", path=path, name=path, line=1,
+                                     end_line=max(1, len(lines)), concepts=_concepts(text), data=[])
+        symbols[path], module_aliases[path], external[path] = {}, {}, {}
+        for local, segments, name in result["uses"]:
+            target, rest = module_file(path, segments + ([name] if name and name != "*" else []))
+            if target is None:
+                root = (segments or [name])[0]
+                if root not in ("crate", "self", "super") and local != "*":
+                    external[path][local] = root
+                continue
+            if target != path:
+                edges.add((file_id, "imports", node_id(target), "extracted", 1))
+            if name == "*" or not rest:
+                if local != "*":
+                    module_aliases[path][local] = target
+                continue
+            symbols[path][local] = (target, ".".join(rest))
+        crate, here = rg.module_path(path)
+        for name in result["modules"]:
+            child = by_module.get((crate, (*here, name)))
+            if child is not None:
+                edges.add((file_id, "imports", node_id(child), "extracted", 1))
+                module_aliases[path][name] = child
+        items_of[path] = {}
+        tokens = result["tokens"]
+        for item in result["items"]:
+            identity = node_id(path, item["qualname"])
+            words = rg.item_words(tokens, item)
+            crates = sorted({external[path][word] for word in words if word in external[path]})
+            segment = "\n".join(lines[item["line"] - 1:item["end_line"]]) + ("\n" + " ".join(crates) if crates else "")
+            kinds = set()
+            for word in set(words):
+                kinds |= _identifier_data(word)
+            nodes[identity] = m.GraphNode(id=identity, kind=item["kind"], path=path, name=item["qualname"],
+                                          line=item["line"], end_line=max(item["line"], item["end_line"]),
+                                          concepts=_concepts(segment), data=[kind for kind in DATA if kind in kinds])
+            items_of[path][item["qualname"]] = identity
+            by_name.setdefault(item["qualname"].rsplit(".", 1)[-1], []).append(identity)
+            by_qualname.setdefault(item["qualname"], []).append(identity)
+        for item in result["items"]:
+            identity = items_of[path][item["qualname"]]
+            owner = item["qualname"].rsplit(".", 1)[0] if "." in item["qualname"] else ""
+            edges.add((items_of[path].get(owner, file_id), "defines", identity, "extracted", item["line"]))
+
+    def lookup(path: str, caller: str, qualifier: str | None, name: str) -> tuple[list[str], bool]:
+        """(targets, guessed): Rust's lookup order, then a unique project name, else candidates."""
+        own = items_of.get(path, {})
+        if qualifier is None:
+            scope = caller.rsplit(".", 1)[0] if "." in caller else ""
+            for candidate in ([f"{scope}.{name}"] if scope else []) + [name]:
+                if candidate in own:
+                    return [own[candidate]], False
+            if name in symbols.get(path, {}):
+                target, qualname = symbols[path][name]
+                found = items_of.get(target, {}).get(qualname)
+                return ([found], False) if found else ([], False)
+            if name in external.get(path, {}):
+                return [], False
+        elif qualifier in ("crate", "self", "super"):
+            target, rest = module_file(path, [qualifier, name])
+            found = items_of.get(target, {}).get(".".join(rest)) if target else None
+            return ([found], False) if found else ([], False)
+        elif qualifier == ".":
+            # A method call: only its name is known, and only a method (Type.name) can answer it.
+            methods = sorted(target for target in by_name.get(name, []) if "." in nodes[target].name)
+            return (methods, False) if len(methods) == 1 else (methods[:MAX_AMBIGUOUS], True)
+        else:
+            if qualifier in module_aliases.get(path, {}):
+                found = items_of.get(module_aliases[path][qualifier], {}).get(name)
+                return ([found], False) if found else ([], False)
+            if qualifier in external.get(path, {}):
+                return [], False  # an external crate's type or function: no guess
+            if f"{qualifier}.{name}" in own:
+                return [own[f"{qualifier}.{name}"]], False
+            if qualifier in symbols.get(path, {}):
+                target, qualname = symbols[path][qualifier]
+                found = items_of.get(target, {}).get(f"{qualname}.{name}")
+                if found:
+                    return [found], False
+            matches = sorted(by_qualname.get(f"{qualifier}.{name}", []))
+            return (matches, False) if len(matches) == 1 else (matches[:MAX_AMBIGUOUS], True)
+        targets = sorted(by_name.get(name, []))
+        return (targets, False) if len(targets) == 1 else (targets[:MAX_AMBIGUOUS], True)
+
+    for path, (result, _) in sorted(read.items()):
+        for caller, qualifier, name, line in result["calls"]:
+            source = items_of[path].get(caller)
+            if source is None:
+                continue
+            targets, guessed = lookup(path, caller, qualifier, name)
+            for target in targets:
+                if target != source:
+                    edges.add((source, "calls", target, "ambiguous" if guessed else "extracted", line))
+    return nodes, edges, len(read), skipped, rust
+
+
 def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectGraph:
     files, skipped = grounding.read_project(Path(root), exclude)
     python = [(path, raw, text) for path, raw, text in files if path.endswith(".py")]
@@ -270,14 +418,19 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
         else:
             for target in targets[:MAX_AMBIGUOUS]:
                 edges.add((caller, "calls", target, "ambiguous", line))
-    digest = m.content_digest(json.dumps(sorted((path, m.content_digest(raw)) for path, raw, _ in python)).encode("utf-8"))
+    rust_nodes, rust_edges, rust_parsed, rust_skipped, rust = _rust_graph(files)
+    nodes.update(rust_nodes)
+    edges |= rust_edges
+    parsed += rust_parsed
+    skipped += rust_skipped
+    digest = m.content_digest(json.dumps(sorted((path, m.content_digest(raw)) for path, raw, _ in [*python, *rust])).encode("utf-8"))
     ordered = sorted(edges, key=lambda edge: (edge[0], edge[1], edge[2], edge[4], edge[3]))
     unique: dict[tuple, tuple] = {}
     for edge in ordered:
         # One edge per (source, kind, target, line): an extracted reading wins over an ambiguous one.
         unique.setdefault((edge[0], edge[1], edge[2], edge[4]), edge)
     return m.ProjectGraph(
-        schema_version=1, graph_version=1, files=len(python), parsed=parsed, skipped=skipped, digest=digest,
+        schema_version=1, graph_version=1, files=len(python) + len(rust), parsed=parsed, skipped=skipped, digest=digest,
         nodes=[nodes[key] for key in sorted(nodes)],
         edges=[m.GraphEdge(source=s, kind=k, target=t, provenance=p, line=n) for s, k, t, p, n in unique.values()],
         notice=m.GRAPH_NOTICE)

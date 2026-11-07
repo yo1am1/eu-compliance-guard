@@ -46,6 +46,7 @@ CONCEPTS = {
     "ai": ("AI and model calls", {"llm", "openai", "anthropic", "gpt", "claude", "completion", "complete", "prompt",
            "embedding", "model", "chatbot", "inference"}),
     "third_party": ("Third parties and transfers", {"api", "requests", "fetch", "axios", "webhook", "stripe", "twilio",
+                    "reqwest", "ureq",
                     "s3", "bucket", "upload", "vendor", "processor", "endpoint"}),
     "retention": ("Retention and deletion", {"delete", "deletion", "purge", "ttl", "expire", "expiry", "retention",
                   "retain", "days", "max", "remove"}),
