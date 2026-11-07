@@ -43,7 +43,7 @@ API. The tool's name stays "EU Compliance Guard" through 2.x; a rename is a 3.0 
 |---|---|
 | 2.1 | **Precision.** Audit by area (parsers, file handling, signing, MCP, plugin); fuzz tests for the article, citation, WEC, SARIF, diff and MCP inputs; committed extracts of real EUR-Lex text as a parser and citation test set; grounding and graph measured on real open-source repositories. |
 | 2.2 (done 2026-11-06) | **Jurisdictions, starting with the UK.** A jurisdiction becomes a module (verified hosts, identifiers, screening families); the EU is the first; the UK the second. |
-| 2.3 | **Laws software teams meet now.** Cyber Resilience Act, European Accessibility Act, NIS2 screening, the AI Act's phased dates; an application-date timeline quoted from the text; starter packs as unreviewed drafts; exports (a draft Article 30 record, DPIA screening inputs). |
+| 2.3 (done 2026-11-07) | **Laws software teams meet now.** Cyber Resilience Act, European Accessibility Act, NIS2 screening, the AI Act's phased dates; an application-date timeline quoted from the text; starter packs as unreviewed drafts; exports (a draft Article 30 record, DPIA screening inputs). |
 | 2.4 | **To be decided by the Owner (2026-11-06).** Candidate: more of the code. A JavaScript/TypeScript graph through a pinned optional parser; graph digests in runs so a code change reopens decisions as a law change does; a Graphify import. |
 | 2.5 | **Stabilisation for 3.0.** A full audit of 2.2 to 2.4, a live session check of the band and panel, and the open choices (the unused React page, Dependabot updates). |
 
