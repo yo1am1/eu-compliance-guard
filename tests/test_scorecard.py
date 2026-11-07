@@ -38,7 +38,7 @@ def assemble(payload: dict, root: Path = FIXTURE.parent) -> m.RevalidationBundle
 
 
 def synthetic_scorecard() -> bytes:
-    """The scorecard of the synthetic fixture, as `view` writes it; the frontend and band tests read it."""
+    """The scorecard of the synthetic fixture, as `view` writes it; the band tests read it."""
     payload = json.loads(FIXTURE.read_bytes())
     declared = r.load_input(FIXTURE)
     with r._parent(FIXTURE) as (fd, _):
@@ -130,7 +130,7 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(m.parse_record(m.Scorecard, first), s.score(bundle))
 
     def test_fixture_file_matches_the_synthetic_run(self):
-        # The band and the React dashboard tests read this file; it must stay what `view` would write.
+        # The band tests read this file; it must stay what `view` would write.
         current = synthetic_scorecard()
         if os.environ.get("EUCG_UPDATE_FIXTURES") == "1":
             SCORECARD_FIXTURE.write_bytes(current)

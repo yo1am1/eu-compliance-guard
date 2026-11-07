@@ -504,13 +504,11 @@ class RevalidationModelTests(unittest.TestCase):
     def test_generated_contracts_export_the_offline_records(self):
         from eu_compliance_guard.schema import contract_schema
         schema = contract_schema()
-        typescript = (FIXTURE_PATH.parent.parent / "frontend/src/lib/contract.ts").read_text()
         for record in (m.DeclaredRequirement, m.SourceTarget, m.SelectedSource, m.SelectedEvidence,
                        m.FamilyScreening, m.ApplicabilityDecision, m.EvidenceReview,
                        m.RequirementAssessment, m.RevalidationInput, m.RevalidationBundle, m.RunCompletion):
             with self.subTest(record=record.__name__):
                 self.assertIn(record.__name__, schema["$defs"])
-                self.assertRegex(typescript, rf"export (?:type|interface) {record.__name__}\b")
 
     def test_completion_marker_has_only_generated_artifacts_and_no_self_hash(self):
         files = [{"path": name, "digest": m.content_digest(name.encode())}

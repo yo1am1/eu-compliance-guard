@@ -14,12 +14,11 @@ keeps the record.
 
 ## Setup
 
-Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/), Node.js, npm and make.
+Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/) and make.
 
 ```sh
 uv sync --locked
-npm --prefix frontend ci --ignore-scripts
-make check           # unit tests, JSON Schema and TypeScript drift, compile, dashboard tests and build
+make check           # unit tests, JSON Schema drift and compile
 make plugin-check    # claude plugin validate . and the band tests (needs Claude Code)
 ```
 

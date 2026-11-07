@@ -1,4 +1,4 @@
-"""Export the one Python contract for generated frontend types and drift checks."""
+"""Export the one Python contract as JSON Schema and check it for drift."""
 
 import argparse
 import json

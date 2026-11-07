@@ -8,12 +8,6 @@ updates:
       interval: weekly
     cooldown:
       default-days: 14
-  - package-ecosystem: npm
-    directory: /frontend
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 14
   - package-ecosystem: github-actions
     directory: /
     schedule:

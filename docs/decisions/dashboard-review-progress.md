@@ -28,7 +28,8 @@ note records the refinement instead.
 4. **A file for the React dashboard.** `view` also writes
    `views/<run>.scorecard.json` (mode 0600, written like the HTML view), and the
    local `frontend/` dashboard page renders it with types generated from
-   `eu_compliance_guard/models.py`.
+   `eu_compliance_guard/models.py`. (Owner, 2026-11-07: the React page was removed in
+   2.5.0; the static HTML view is the dashboard and the JSON file stays as data.)
 
 ## How this refines "No compliance score"
 
