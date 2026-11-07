@@ -16,12 +16,9 @@ permissions:
 
 env:
   BRANCHES: >-
-    claude/publish-2.2.0
-    claude/drop-us
-    claude/timeline
-    claude/starter-packs
-    claude/exports
-    claude/release-2.3.0
+    claude/publish-2.3.0
+    claude/rust-graph
+    claude/release-2.4.0
 
 jobs:
   prune:
