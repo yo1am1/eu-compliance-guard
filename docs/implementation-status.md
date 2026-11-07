@@ -33,10 +33,12 @@ library is imported into the standalone repository.
   containment/admission requirements remain unmet; fake tests are not that evidence.
 - A locked Python environment (uv.lock), package selection, and license notices.
 
-## Current state (v2.4.0, 2026-11-07) and what remains
+## Current state (v2.5.0, 2026-11-07) and what remains
 
-Released: 1.0 to 2.4. 2.4 taught the project graph Rust (`docs/decisions/rust-graph.md`). 2.3 added the application-date timeline, draft starter packs and the
-Article 30 and DPIA exports. 2.2 added jurisdictions as modules and the UK (legislation.gov.uk). 2.2 added jurisdictions as modules and the UK (legislation.gov.uk); see
+Released: 1.0 to 2.5. 2.5 fixed what an audit of 2.2 to 2.4 found (three quadratic parsers,
+CSV cells, duplicate names in the graph) and removed the unused React page and `api` extra.
+2.4 taught the project graph Rust (`docs/decisions/rust-graph.md`). 2.3 added the application-date timeline, draft starter packs and the
+Article 30 and DPIA exports. 2.2 added jurisdictions as modules and the UK (legislation.gov.uk); see
 `docs/decisions/jurisdictions.md`. 2.1 tested the base on hostile input, real official texts and real
 projects, and fixed what fell short (see the changelog). The 2.0 summary follows. The read-only workflow covers:
 
