@@ -1,0 +1,471 @@
+{
+  "id": "pack-eu-gdpr-core",
+  "law": [
+    {
+      "articles": [
+        {
+          "digest": "sha256:94fe152d32b98c1234e86d927d7ec1d64b5de60b034d4844f0c0e340b6b217ee",
+          "key": "Article 12"
+        },
+        {
+          "digest": "sha256:845e5225dc15b58f7944472a155bb96b0a305f11e35b913918bf8dd44eefa379",
+          "key": "Article 13"
+        },
+        {
+          "digest": "sha256:a66f0dfd394c68ce391ed5f2ee83306f0f27223ef5c6caa1e63935523c72def5",
+          "key": "Article 14"
+        },
+        {
+          "digest": "sha256:cdd2a5cb556b3281a34e01231f15df16f2a89e270134082ca093e631b629fd28",
+          "key": "Article 15"
+        },
+        {
+          "digest": "sha256:0476e89e73da5e4893c619e97943a96d2ea7fe760e53de2940484ac4dede25b5",
+          "key": "Article 17"
+        },
+        {
+          "digest": "sha256:e01b57f372c100f1d2f2c10be4d4486e3771d7dd59a480d97a8fa62278f3397d",
+          "key": "Article 20"
+        },
+        {
+          "digest": "sha256:c2a6e925d5e2d2c8999f69cccc90614e331f63488f0146921a8f507799ab064c",
+          "key": "Article 21"
+        },
+        {
+          "digest": "sha256:0806d621713107ab70d1ac1cbea4b58723b8419a8d622c1f313ab919b6226b45",
+          "key": "Article 28"
+        },
+        {
+          "digest": "sha256:5eed07658389798bb8b48d6689917fee04b266621789777dd5b7aab1fa8fc900",
+          "key": "Article 30"
+        },
+        {
+          "digest": "sha256:43b8c3f105720f75a9ac3a2daceb0c6a392cb9dbc9d10904888add06f4ae8d07",
+          "key": "Article 32"
+        },
+        {
+          "digest": "sha256:ce44d16e4b5198f033967b754f85eab2ae92ae0ac7d95c1a12403a0a0bc155f5",
+          "key": "Article 33"
+        },
+        {
+          "digest": "sha256:4b8e14f7657c9be979d8011f111174a7abe6724cf3101b5b3d237c3f350d79d9",
+          "key": "Article 34"
+        },
+        {
+          "digest": "sha256:c46b0de2b1a45ddb45ca461d4c92e558479b68c75be377f413cc55a9eadb14e8",
+          "key": "Article 35"
+        },
+        {
+          "digest": "sha256:fed9f3c522ecb791d8141f64097a7c32f409366eaed1e18d760687a3c706c81a",
+          "key": "Article 44"
+        },
+        {
+          "digest": "sha256:80c04f762b2ac609c5854541cf5981c4359edeb02c9e9e50eae759ea0e73c874",
+          "key": "Article 45"
+        },
+        {
+          "digest": "sha256:621d48b1818ae3cecdef9558c00326744c7fe7e6e57f8fa93f3e1182c1e7e647",
+          "key": "Article 46"
+        },
+        {
+          "digest": "sha256:259357d3d9ff95bdc4096c72c083628312d7a24aaf52ced9971f0bc19c65e78b",
+          "key": "Article 6"
+        },
+        {
+          "digest": "sha256:233da0572e3cdb2423bfe1ad4728e73a0424cbdb85b67b90559e54cb80c22f8f",
+          "key": "Article 7"
+        },
+        {
+          "digest": "sha256:72ebed70dc3377aca2f8c8fa315486d863b0ce5cde59e32659e964ef8b2e29f6",
+          "key": "Article 8"
+        }
+      ],
+      "source_digest": "sha256:962539af03738bf552319ff4ce42d69e5f95a576307c4dfed7bf87e81b646b9d",
+      "target_id": "target-eu-gdpr",
+      "version": "32016R0679"
+    }
+  ],
+  "limitations": [
+    "Starter pack: candidate obligations only; whether each applies is a named reviewer's decision.",
+    "Draft written with AI assistance from the article text; reviewed by no one; no guarantee.",
+    "Directives bind Member States; national transposition is not covered.",
+    "Not legal advice: workflow evidence for a named reviewer, who decides and is responsible. Provided without warranty; see LICENSE and NOTICE."
+  ],
+  "obligations": [
+    {
+      "classification": "duty",
+      "conditions": [
+        "A data subject asks for access to their personal data."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-gdpr-access",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 15",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "A personal data breach occurs: notify the supervisory authority within 72 hours where feasible, unless it is unlikely to result in a risk; tell data subjects when it is likely to result in a high risk."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-gdpr-breach-notification",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 33",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        },
+        {
+          "locator": "Article 34",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "An information society service is offered directly to a child and processing relies on consent."
+      ],
+      "control_ids": [],
+      "exceptions": [
+        "A child of at least 16 can consent; Member States may set a lower age, not below 13."
+      ],
+      "family": "gdpr",
+      "id": "obligation-gdpr-child-consent",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 8(1)",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "A type of processing is likely to result in a high risk to the rights and freedoms of natural persons."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-gdpr-dpia",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 35",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "A data subject asks for erasure and one of the grounds in Article 17(1) applies."
+      ],
+      "control_ids": [],
+      "exceptions": [
+        "The exceptions in Article 17(3), such as a legal obligation to keep the data."
+      ],
+      "family": "gdpr",
+      "id": "obligation-gdpr-erasure",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 17",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "Personal data are collected from the data subject (Article 13) or obtained otherwise (Article 14)."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-gdpr-information",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 12",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        },
+        {
+          "locator": "Article 13",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        },
+        {
+          "locator": "Article 14",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "Personal data are processed.",
+        "Where the basis is consent, the controller can demonstrate it (Article 7)."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-gdpr-lawful-basis",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 6(1)",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        },
+        {
+          "locator": "Article 7",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "Processing is based on Article 6(1)(e) or (f), or is for direct marketing."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-gdpr-objection",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 21",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "Processing is based on consent or a contract and carried out by automated means."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-gdpr-portability",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 20",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "A processor processes personal data on the controller's behalf."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-gdpr-processor-contract",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 28",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "The controller or processor processes personal data."
+      ],
+      "control_ids": [],
+      "exceptions": [
+        "Fewer than 250 employees, unless the processing is likely to result in a risk, is not occasional, or includes special categories or criminal-offence data (Article 30(5))."
+      ],
+      "family": "gdpr",
+      "id": "obligation-gdpr-records",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 30",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "Personal data are processed."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-gdpr-security",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 32",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    },
+    {
+      "classification": "duty",
+      "conditions": [
+        "Personal data are transferred to a third country or an international organisation."
+      ],
+      "control_ids": [],
+      "exceptions": [],
+      "family": "gdpr",
+      "id": "obligation-gdpr-transfers",
+      "limitations": [
+        "Draft written with AI assistance from the article text; reviewed by no one; no guarantee."
+      ],
+      "overlay_ids": [],
+      "required_methods": [],
+      "revision": 0,
+      "source_provisions": [
+        {
+          "locator": "Article 44",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        },
+        {
+          "locator": "Article 45",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        },
+        {
+          "locator": "Article 46",
+          "revision": null,
+          "source_id": null,
+          "source_target_id": "target-eu-gdpr"
+        }
+      ]
+    }
+  ],
+  "pack_version": 1,
+  "revision": 0,
+  "schema_version": 1,
+  "source_targets": [
+    {
+      "family": "gdpr",
+      "id": "target-eu-gdpr",
+      "intended_identifier": "32016R0679",
+      "intended_type": "eu_act",
+      "intended_url": "https://publications.europa.eu/resource/celex/32016R0679",
+      "jurisdiction": "EU",
+      "language": "en",
+      "publisher": "Publications Office of the European Union",
+      "redirect_hosts": [],
+      "revision": 0
+    }
+  ],
+  "status": "draft",
+  "synthetic": false,
+  "title": "GDPR core obligations for an online service"
+}

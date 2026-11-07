@@ -414,8 +414,20 @@ never one project's source copy, controls or overlays, so a pack moves between p
   an article the pack was reviewed against, import names it.
 
 Import never maps a requirement and never decides applicability: map with `accept`, then
-a named reviewer records each decision. 2.0 ships the format only; no
-pack content is included yet.
+a named reviewer records each decision.
+
+### Starter packs
+
+`pack starters` lists the draft packs shipped with the tool (2.3): GDPR core obligations for
+an online service (13 obligations), ePrivacy cookies and electronic marketing (2), European
+Accessibility Act services (2) and Cyber Resilience Act manufacturers (3). Each obligation
+pins exact articles, states its conditions and exceptions from the text, and the pack
+records each pinned article's digest, so `pack import` names any article whose text in your
+project differs. They were written with AI assistance and reviewed by no one: they carry no
+guarantee, are unsigned, and are imported with `pack import <path> --unsigned`. Directives
+(ePrivacy, the EAA) bind Member States, and the national rules are not covered.
+`scripts/build_starter_packs.py` rebuilds them from the official texts in
+`fixtures/official/`.
 
 ## Importing other tools' results
 
