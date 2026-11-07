@@ -314,7 +314,7 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
             return ([found], False) if found else ([], False)
         elif qualifier == ".":
             # A method call: only its name is known, and only a method (Type.name) can answer it.
-            methods = sorted(target for target in by_name.get(name, []) if "." in nodes[target].name)
+            methods = sorted({target for target in by_name.get(name, []) if "." in nodes[target].name})
             return (methods, False) if len(methods) == 1 else (methods[:MAX_AMBIGUOUS], True)
         else:
             if qualifier in module_aliases.get(path, {}):
@@ -329,9 +329,9 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
                 found = items_of.get(target, {}).get(f"{qualname}.{name}")
                 if found:
                     return [found], False
-            matches = sorted(by_qualname.get(f"{qualifier}.{name}", []))
+            matches = sorted(set(by_qualname.get(f"{qualifier}.{name}", [])))
             return (matches, False) if len(matches) == 1 else (matches[:MAX_AMBIGUOUS], True)
-        targets = sorted(by_name.get(name, []))
+        targets = sorted(set(by_name.get(name, [])))  # a name defined twice (cfg, if/else) is one node
         return (targets, False) if len(targets) == 1 else (targets[:MAX_AMBIGUOUS], True)
 
     for path, (result, _) in sorted(read.items()):
@@ -412,7 +412,7 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
             continue
         if qualifier is not None and qualifier in scopes.get(path, ({}, {}))[1]:
             continue  # a project module's attribute that defines nothing by that name: no guess
-        targets = sorted(by_name.get(name, []))
+        targets = sorted(set(by_name.get(name, [])))  # a name defined twice (cfg, if/else) is one node
         if len(targets) == 1:
             edges.add((caller, "calls", targets[0], "extracted", line))
         else:

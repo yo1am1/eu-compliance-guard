@@ -10,6 +10,8 @@ the citations and quotations match the retained text; it says nothing about thei
 """
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
+
 from . import articles, jurisdictions as _jurisdictions
 
 OPEN, CLOSE = "\"“„«", "\"”“»"  # “ closes a German „quotation“
@@ -127,8 +129,8 @@ def _quotes(text: str) -> list[tuple[int, str]]:
 
 def _window(text: str, position: int, starts: list[int]) -> str:
     """The text after a citation, up to the next citation, the end of the sentence or ACT_WINDOW characters."""
-    following = [start for start in starts if start > position]
-    end = min([position + ACT_WINDOW, *following[:1]])
+    at = bisect_right(starts, position)  # starts are sorted: binary search keeps long texts linear
+    end = min(position + ACT_WINDOW, starts[at]) if at < len(starts) else position + ACT_WINDOW
     window = text[position:end]
     for stop in (". ", ";", "\n\n"):
         at = window.find(stop, 12)  # "Art. 5" is not the end of a sentence
@@ -159,11 +161,12 @@ def check(text: str, catalogue: dict[str, dict[str, dict]], names: dict[str, lis
             sorted(source for source, items in catalogue.items() if key in items)
         citations.append({"article": key, "act": act, "found_in": acts, "ok": bool(acts)})
     quotations = []
+    positions = [at for at, _, _ in named]  # in text order
     for position, quoted in _quotes(text):
         needle = _normal(quoted)
         matches = sorted(f"{source} {key}" for (source, key), body in normal.items() if needle in body)
-        before = [(key, act) for at, key, act in named if at < position]
-        attributed, attributed_act = before[-1] if before else (None, None)
+        last = bisect_left(positions, position) - 1
+        attributed, attributed_act = (named[last][1], named[last][2]) if last >= 0 else (None, None)
         expected = None if attributed is None else f"{attributed_act} {attributed}" if attributed_act else attributed
         ok = bool(matches) and (expected is None or any(match == expected or (attributed_act is None and
                                                                               match.endswith(" " + attributed))

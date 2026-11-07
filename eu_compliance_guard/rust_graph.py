@@ -171,10 +171,15 @@ def _matching(tokens, start: int, opening: str, closing: str) -> int:
     return len(tokens) - 1
 
 
+MAX_GENERICS = 256  # tokens; real generic arguments are far shorter, and a cap keeps reading linear
+
+
 def _skip_generics(tokens, index: int) -> int:
-    """Past a `<…>` that starts at index (angle brackets nest; `->` and `=>` are single tokens)."""
+    """Past a `<…>` that starts at index (angle brackets nest; `->` and `=>` are single tokens).
+    A `<` that does not close within MAX_GENERICS tokens is not generics."""
     depth = 0
-    while index < len(tokens):
+    start = index
+    while index < len(tokens) and index - start <= MAX_GENERICS:
         kind, value, _ = tokens[index]
         if kind == "punct" and value == "<":
             depth += 1
@@ -185,7 +190,7 @@ def _skip_generics(tokens, index: int) -> int:
         elif kind == "punct" and value in ("{", ";") and depth:
             return index  # not generics after all
         index += 1
-    return index
+    return start + 1 if index - start > MAX_GENERICS else index
 
 
 def _use_tree(tokens, index: int, prefix: list[str], found: list[tuple[str, list[str], str]]) -> int:

@@ -78,6 +78,14 @@ class RustGraphTests(unittest.TestCase):
         self.assertIn(("src/coach.rs:5", "src/llm.rs:4", "extracted"), flows)
         self.assertIn(("src/analytics.rs:4", "src/analytics.rs:8", "extracted"), flows)
 
+    def test_a_name_defined_twice_still_resolves_to_one_node(self):
+        (self.root / "src/platform.rs").write_text('#[cfg(unix)]\nfn open_db() {}\n#[cfg(windows)]\nfn open_db() {}\n'
+                                                   'pub fn start() { open_db(); unique_helper(); }\n')
+        (self.root / "src/helpers.rs").write_text("pub fn unique_helper() {}\n")
+        calls = {(provenance, target) for provenance, source, target in self.calls(g.build_graph(self.root))
+                 if source == "src/platform.rs::start"}
+        self.assertEqual(calls, {("extracted", "src/platform.rs::open_db"), ("extracted", "src/helpers.rs::unique_helper")})
+
     def test_deterministic_and_separate_from_python(self):
         (self.root / "helper.py").write_text("def ask_model(prompt):\n    return prompt\n\n\ndef caller():\n    ask_model('x')\n")
         first = g.build_graph(self.root)

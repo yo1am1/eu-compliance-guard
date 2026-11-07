@@ -248,6 +248,7 @@ class _LegislationUk(HTMLParser):
         self.found: dict[str, dict] = {}
         self.current: str | None = None
         self.stack: list[tuple[str, bool, bool]] = []  # tag, skipping, in a title
+        self.open: dict[str, list[int]] = {}  # tag -> stack positions where it is open, so end tags are found in O(1)
         self.pending_title: list[str] = []
         self.title_parts: list[str] | None = None
         self.size = 0
@@ -271,28 +272,32 @@ class _LegislationUk(HTMLParser):
             self.title_parts = []
         skipping = self._skipping() or bool(classes & UK_SKIPPED_CLASSES) or tag in SKIPPED
         if tag not in VOID:
+            self.open.setdefault(tag, []).append(len(self.stack))
             self.stack.append((tag, skipping, in_title))
         if self.current and not skipping and not in_title and (tag in BREAKS or "LegRHS" in classes):
             # A paragraph, or the text column beside a number label: "(1) It is", never "(1)It is".
             self.found[self.current]["text"].append("\n" if tag in BREAKS else " ")
 
     def handle_endtag(self, tag):
-        for index in range(len(self.stack) - 1, -1, -1):
-            if self.stack[index][0] == tag:
-                closing_title = self.stack[index][2] and (index == 0 or not self.stack[index - 1][2])
-                del self.stack[index:]
-                if closing_title and self.title_parts is not None:
-                    title = " ".join(" ".join(self.title_parts).split())
-                    self.title_parts = None
-                    item = self.found.get(self.current) if self.current else None
-                    # A title right after the anchor names this provision. Any other title starts the
-                    # next provision: the current one ends, and the title waits for the next anchor.
-                    if item is not None and not item["title"] and not "".join(item["text"]).strip():
-                        item["title"] = title
-                    else:
-                        self.pending_title = [title]
-                        self.current = None
-                return
+        positions = self.open.get(tag)
+        if not positions:
+            return  # an end tag with no open start tag is ignored
+        index = positions[-1]
+        closing_title = self.stack[index][2] and (index == 0 or not self.stack[index - 1][2])
+        for name, _, _ in self.stack[index:]:
+            self.open[name].pop()  # each closed tag is the last open one of its name
+        del self.stack[index:]
+        if closing_title and self.title_parts is not None:
+            title = " ".join(" ".join(self.title_parts).split())
+            self.title_parts = None
+            item = self.found.get(self.current) if self.current else None
+            # A title right after the anchor names this provision. Any other title starts the
+            # next provision: the current one ends, and the title waits for the next anchor.
+            if item is not None and not item["title"] and not "".join(item["text"]).strip():
+                item["title"] = title
+            else:
+                self.pending_title = [title]
+                self.current = None
 
     def handle_data(self, data):
         if self._skipping():
