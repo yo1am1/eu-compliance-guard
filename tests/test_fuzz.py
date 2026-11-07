@@ -10,7 +10,7 @@ from pathlib import Path
 import random
 import unittest
 
-from eu_compliance_guard import articles, citations, imports, mcp_server, prcheck, sources, timeline
+from eu_compliance_guard import articles, citations, imports, mcp_server, prcheck, rust_graph, sources, timeline
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 TOKENS = ["Article", "article", "Art.", "Articles", " ", "\n", '"', "“", "”", "„", "«", "»", "(", ")", "1", "9", "12a",
@@ -42,6 +42,11 @@ class FuzzTests(unittest.TestCase):
             return [self.value(depth + 1) for _ in range(self.rng.randint(0, 3))]
         return {self.rng.choice(KEYS): self.value(depth + 1) for _ in range(self.rng.randint(0, 4))}
 
+    def rust(self, size=60):
+        pieces = ["fn ", "impl ", "use ", "mod ", "struct ", "trait ", "x", "::", "{", "}", "(", ")", "<", ">", ";", "'a",
+                  "'}'", '"', 'r#"', '"#', "/*", "*/", "//", "\n", "#[cfg(test)]", "macro_rules! ", "!", ".", "as ", "*", ","]
+        return "".join(self.rng.choice(pieces) for _ in range(self.rng.randint(0, size)))
+
     def mutate(self, text):
         chars = list(text)
         for _ in range(self.rng.randint(1, 12)):
@@ -68,6 +73,7 @@ class FuzzTests(unittest.TestCase):
             self.survives(lambda: articles.parse(raw, "text/plain"))
             self.survives(lambda: articles.parse(raw, "text/html"))
             self.survives(lambda: citations.check(text, CATALOGUE))
+            self.survives(lambda: rust_graph.read_file("src/lib.rs", self.rust()))
             self.survives(lambda: timeline.timeline({"act": {"Article 1": {"title": "", "text": text + " shall apply from 2 May 2030;"}}},
                                                     "2026-01-01"))
             self.survives(lambda: prcheck.pr_check(text))
