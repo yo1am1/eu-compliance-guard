@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+From the 2.5 audit of what 2.2 to 2.4 added:
+
+- Three parsers were quadratic on hostile input, so a crafted file or text could stall
+  `pr-check` in CI or the MCP server: the UK parser on unmatched end tags (20,000 took 15 s),
+  the citation guard on many citations and quotations (20,000 took 10 s), and the Rust reader on
+  unclosed generic arguments (8,000 took 11 s). All three are linear now, with tests that fail
+  if they regress.
+- CSV exports keep a cell starting with a tab or carriage return as text, as they already did
+  for `=`, `+`, `-` and `@` (spreadsheet formula injection).
+- A function defined twice in one file (`#[cfg(unix)]` and `#[cfg(windows)]` in Rust, or an
+  `if`/`else` in Python) made its unique calls look ambiguous; a name now resolves to its one node.
+
 ## 2.4.0 — 2026-11-07
 
 The project graph reads Rust, next to Python, because the Owner's projects use both. A small
