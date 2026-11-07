@@ -164,6 +164,7 @@ def to_csv(export: dict) -> str:
                "; ".join(activity["data_categories"]), _fact_text(activity["lawful_basis"]), join(activity["roles"]),
                join(activity["recipients"]), join(activity["locations_and_transfers"]), join(activity["storage"]),
                join(activity["retention"]), "not declared"]
-        # A cell starting with =, +, - or @ is a formula in spreadsheets; it is kept as text.
-        writer.writerow(["'" + cell if cell[:1] in ("=", "+", "-", "@") else cell for cell in row])
+        # A cell starting with =, +, -, @, a tab or a carriage return is a formula in spreadsheets; it
+        # is kept as text.
+        writer.writerow(["'" + cell if cell[:1] in ("=", "+", "-", "@", "\t", "\r") else cell for cell in row])
     return out.getvalue()

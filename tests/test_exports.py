@@ -79,6 +79,11 @@ class ExportTests(unittest.TestCase):
         self.assertTrue(markdown.rstrip().endswith(LEGAL_NOTICE))
         rows = list(csv.reader(io.StringIO(exports.to_csv(record))))
         self.assertEqual(rows[2][2][:1], "'")  # a formula is kept as text
+        data = declarations()
+        data["scope"]["activities"][1]["purpose"] = "\tcmd|' /C calc'!A0"
+        tab_declared = m.parse_record(m.RevalidationInput, json.dumps(data).encode())
+        tab_rows = list(csv.reader(io.StringIO(exports.to_csv(exports.ropa(tab_declared)))))
+        self.assertEqual(tab_rows[2][2][:2], "'\t")
         self.assertEqual(exports.to_markdown(exports.ropa(self.declared)), markdown)
         with self.assertRaises(ValueError):
             exports.to_csv(exports.dpia(self.declared))
