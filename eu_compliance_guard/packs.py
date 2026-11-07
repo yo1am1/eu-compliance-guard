@@ -20,6 +20,7 @@ from . import grounding, lawlock, models as m, revalidation as r, signing
 from .notice import LEGAL_NOTICE
 
 NAMESPACE = "eucg-pack"
+STARTERS = Path(__file__).resolve().parent / "starter_packs"
 SIG_FORMAT = "eucg-pack-signature-v1"
 
 
@@ -163,6 +164,24 @@ def import_pack(declarations: str | os.PathLike, path: str | os.PathLike, allowe
             grounding._replace(parent_fd, name, content)
     return {"pack": pack.id, "revision": pack.revision, "status": pack.status,
             "signed_by": checked["principal"] if checked else None, "added": added, "law_mismatches": mismatches}
+
+
+def starters() -> list[dict]:
+    """The draft starter packs shipped with the tool: unreviewed, unsigned, imported with --unsigned."""
+    found = []
+    for path in sorted(STARTERS.glob("*.pack.json")):
+        pack, _ = load(path)
+        found.append({"path": str(path), "id": pack.id, "title": pack.title, "status": pack.status,
+                      "obligations": len(pack.obligations), "targets": [item.id for item in pack.source_targets]})
+    return found
+
+
+def format_starters(found: list[dict]) -> str:
+    lines = [f"- {item['id']} ({item['status']}, {item['obligations']} obligations): {item['title']}\n    {item['path']}"
+             for item in found]
+    lines.append("Drafts written with AI assistance, reviewed by no one, with no guarantee. Import one with "
+                 "`pack import <path> --unsigned`; it adds candidate obligations only.")
+    return "\n".join(lines)
 
 
 def format_verify(result: dict) -> str:

@@ -182,6 +182,8 @@ def _command(argv: list[str] | None) -> int:
     pack_verify.add_argument("pack", help="Pack file")
     pack_verify.add_argument("--allowed-signers", required=True, help="ssh-keygen allowed-signers file")
     pack_verify.add_argument("--json", action="store_true", help="Print the result as JSON")
+    pack_starters = packs.add_parser("starters", help="List the draft starter packs shipped with the tool", allow_abbrev=False)
+    pack_starters.add_argument("--json", action="store_true", help="Print the result as JSON")
     pack_import = packs.add_parser("import", help="Add a pack's targets and obligations to the declarations",
                                    allow_abbrev=False)
     pack_import.add_argument("pack", help="Pack file")
@@ -477,6 +479,9 @@ def _pack(args) -> int:
         elif args.pack_command == "sign":
             path = packs.sign(args.pack, args.key, args.principal)
             text, result = f"{path}: pack signed by {args.principal}.", None
+        elif args.pack_command == "starters":
+            result = packs.starters()
+            text = packs.format_starters(result)
         elif args.pack_command == "verify":
             result = packs.verify(args.pack, args.allowed_signers)
             text = packs.format_verify(result)

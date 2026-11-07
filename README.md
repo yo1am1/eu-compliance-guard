@@ -70,7 +70,9 @@ All screenshots show the fictional FitBox example project.
   must be verbatim (`cite-check`).
 - An application-date timeline: when each act, or each part of it, applies, quoted from the
   text and marked reached or upcoming against the assessment date (`timeline`).
-- Signed, reusable obligation packs, as a format (`pack`).
+- Signed, reusable obligation packs, and four draft starter packs (GDPR core, ePrivacy
+  cookies, Accessibility Act services, Cyber Resilience Act), unreviewed and without
+  guarantee (`pack`).
 - Imports of EDPS Website Evidence Collector and SARIF results as untrusted evidence
   (`import-evidence`).
 - An MCP server for any agent, with read-only `cite_check`, `article_search`, `ground`,
@@ -146,7 +148,7 @@ Every command, its options and exit codes are in the
   bounded Linux execution helper is not an enabled scanner, and its real
   containment is unverified.
 - Scanners of our own, a Graphify import, the API (optional `api` extra) and remediation
-  automation are later work. Obligation packs ship as a format only. No lawyer reviews packs or outputs, and nothing is guaranteed. The dashboard shows one run's review progress from a local file; it
+  automation are later work. The starter packs are AI-assisted drafts: no lawyer reviews packs or outputs, and nothing is guaranteed. The dashboard shows one run's review progress from a local file; it
   manages nothing.
 
 ## Documentation
