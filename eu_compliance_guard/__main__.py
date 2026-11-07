@@ -148,6 +148,12 @@ def _command(argv: list[str] | None) -> int:
     verify.add_argument("--allowed-signers", required=True, help="ssh-keygen allowed-signers file")
     verify.add_argument("--lock", help="Lockfile (default: eu-law.lock beside the declarations, if present)")
     verify.add_argument("--json", action="store_true", help="Print the result as JSON")
+    export = commands.add_parser("export", help="Draft a record of processing (Art. 30) or DPIA screening inputs (Art. 35)",
+                                 allow_abbrev=False)
+    export.add_argument("kind", choices=["ropa", "dpia"], help="ropa: record of processing; dpia: DPIA screening inputs")
+    export.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    export.add_argument("--format", choices=["md", "json", "csv"], default="md", help="Output format (csv: ropa only)")
+    export.add_argument("--output", help="Write to this file (never through a link) instead of printing")
     when = commands.add_parser("timeline", help="List application, entry-into-force and transposition dates quoted from the retained text",
                                allow_abbrev=False)
     when.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
@@ -271,6 +277,8 @@ def _command(argv: list[str] | None) -> int:
         return _cite_check(args)
     if args.command == "timeline":
         return _timeline(args)
+    if args.command == "export":
+        return _export(args)
     if args.command == "import-evidence":
         return _import(args)
     if args.command == "pack":
@@ -404,6 +412,32 @@ def _signing(args) -> int:
     (_emit(json.dumps(results, indent=2)) if args.json else _emit_text(signing.format_verify(results)))
     # A missing signature is listed but is not a failure: signing is optional.
     return 0 if all(item["signature"] in ("valid", "missing") and not item["changed"] for item in results) else 1
+
+
+def _export(args) -> int:
+    import json
+    from . import exports, lawlock
+    from .revalidation import load_input
+    try:
+        if args.format == "csv" and args.kind != "ropa":
+            raise ValueError("invalid-input")
+        declared = load_input(args.input)
+        result = exports.ropa(declared) if args.kind == "ropa" else exports.dpia(declared)
+        text = (json.dumps(result, indent=2, ensure_ascii=False) + "\n" if args.format == "json"
+                else exports.to_csv(result) if args.format == "csv" else exports.to_markdown(result))
+        if args.output:
+            lawlock.write_bytes(args.output, text.encode("utf-8"))
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None) or (str(error) if str(error) in _ERROR_CODES else None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'export-failed'}: export failed", file=sys.stderr)
+        return 2
+    if args.output:
+        _emit_text(f"{args.output}: draft {args.kind} export written ({args.format}). Review it before relying on it.")
+    else:
+        _emit(text, end="")
+    return 0
 
 
 def _timeline(args) -> int:
