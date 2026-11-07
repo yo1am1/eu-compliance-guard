@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 2.5.0 — 2026-11-07
+
+Stabilisation before 3.0: an audit of everything 2.2 to 2.4 added, and the open choices
+settled. The Owner chose to remove the unused React page and the `api` extra; the plugin's
+dashboard (band, side panel, Dashboard button, the static HTML view) is unchanged. The live
+check of the band and panel in a real Claude Code session is still the Owner's to run.
 
 ### Removed
 
