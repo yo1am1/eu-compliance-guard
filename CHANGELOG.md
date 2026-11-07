@@ -4,6 +4,11 @@
 
 ### Added
 
+- Exports (2.3): `export ropa` drafts a record of processing activities in the shape of GDPR
+  Article 30(1), with each fact's basis and every gap listed; `export dpia` drafts DPIA
+  screening inputs (Article 35(3) and the WP248 criteria) with the signals the declarations
+  show and no answers. Markdown, JSON, and CSV for the record.
+
 - Application-date timeline (2.3): `timeline` lists the dated application, entry-into-force
   and transposition clauses of the retained text, word for word, reached or upcoming against
   the assessment date; also an MCP tool.

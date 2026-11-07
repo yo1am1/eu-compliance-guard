@@ -27,6 +27,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `import-evidence --kind wec\|sarif <file> [--json]` | Keep an EDPS Website Evidence Collector or SARIF result as untrusted evidence, summarised by concept |
 | `accept <requirement>=<target>:<article>` | Map a requirement to a candidate obligation citing an article; no decision |
 | `graph [--input <file>] [--json] [--view [--open]]` | Map the project's Python files, functions, imports, calls and data flows (static) |
+| `export ropa\|dpia [--input <file>] [--format md\|json\|csv] [--output <file>]` | Draft a record of processing activities (Art. 30(1)) or DPIA screening inputs (Art. 35, WP248 criteria) from the declarations |
 | `timeline [--input <file>] [--run <run dir>] [--json]` | List application, entry-into-force and transposition dates quoted from the retained text, reached or upcoming against the assessment date |
 | `mcp [--input <file>]` | Serve `cite_check`, `article_search`, `ground`, `pr_check`, `timeline` and `next_steps` as read-only MCP tools over stdio |
 
@@ -331,6 +332,21 @@ review again. An act whose text the newer run did not retain is reported as not 
 never as removed, and a lock from another project is refused. Nothing is reopened or
 decided automatically. `--strict` exits 1 when a
 declared obligation cites a changed article, so CI can flag it.
+
+## Exports
+
+`export ropa` drafts a record of processing activities in the shape of GDPR Article 30(1):
+the controller's establishment and roles, then one entry per declared activity with its
+purpose, data subjects, personal data, lawful basis, recipients, locations and transfers,
+storage and retention. Every fact keeps its basis (observed, declared, assumed, unknown),
+and the record lists its gaps: empty fields, assumed or unknown facts, and the security
+measures, which the declarations do not hold. `export dpia` drafts DPIA screening inputs: the
+three cases of Article 35(3) (law) and the nine criteria of the WP29 guidelines endorsed by
+the EDPB (WP248 rev.01, guidance), each with the words in the declarations that suggest it.
+Signals are not answers, and "large scale" is never guessed. Both are drafts for a reviewer,
+as Markdown (default), JSON or, for the record, CSV that compliance tools and spreadsheets
+import; a CSV cell that would start a formula is kept as text. `--output` writes the file
+atomically and never through a link.
 
 ## Application-date timeline
 

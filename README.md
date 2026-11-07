@@ -68,6 +68,8 @@ All screenshots show the fictional FitBox example project.
   evidence (`sign`, `verify`).
 - A citation guard for agent-written text: cited articles must exist and quotations
   must be verbatim (`cite-check`).
+- Drafts for record keeping: a record of processing activities (Article 30) and DPIA
+  screening inputs (Article 35), as Markdown, JSON or CSV, with every gap listed (`export`).
 - An application-date timeline: when each act, or each part of it, applies, quoted from the
   text and marked reached or upcoming against the assessment date (`timeline`).
 - Signed, reusable obligation packs, as a format (`pack`).
