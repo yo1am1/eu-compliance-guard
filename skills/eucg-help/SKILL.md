@@ -61,6 +61,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 - `pack starters` lists the draft starter packs (GDPR core, ePrivacy cookies, EAA services, CRA); import one with `pack import <path> --unsigned`.
 - `pack build|sign|verify|import` drafts, SSH-signs, verifies and imports reusable obligation packs; import adds candidate obligations only, never a mapping or a decision.
 - `import-evidence --kind wec|sarif <file>` keeps an EDPS Website Evidence Collector or SARIF result as untrusted evidence under `imports/`, summarised by concept; the declarations are never changed.
+- `export ropa|dpia [--format md|json|csv] [--output <file>]` drafts a record of processing (Art. 30) or DPIA screening inputs (Art. 35), with every gap listed; never a decision.
 - `timeline [--json]` lists the dates each retained act applies from (and transposition deadlines), quoted from the text, reached or upcoming against the assessment date.
 - `cite-check <file|->` checks that cited articles exist and quotations are verbatim in the retained text; `mcp` serves it, `article_search`, `ground`, `pr_check` and `next_steps` as read-only MCP tools.
 - `accept <requirement>=<target>:<Article N> [--input <file>] [--json]` maps a requirement to a candidate obligation citing that article (reused or created); it never decides applicability.
