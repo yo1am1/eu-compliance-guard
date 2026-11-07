@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 2.3.0 — 2026-11-07
+
+The laws software teams meet now: application dates quoted from the text, draft starter packs
+for the GDPR, ePrivacy cookies, the Accessibility Act and the Cyber Resilience Act, and drafts
+for record keeping. The US is not added (Owner decision); 2.4 is left to be decided.
+
+Acceptance: the timeline was checked on the real final provisions of the AI Act, the CRA, the
+EAA, NIS2 and the GDPR, every quotation verbatim. Every starter-pack pin was checked against
+the official text; the GDPR pack was imported into a project, the GDPR fetched live and locked,
+and a second import reported no text difference. The exports were tested on synthetic
+activities, with hostile text kept out of Markdown and CSV formulas.
 
 ### Added
 
