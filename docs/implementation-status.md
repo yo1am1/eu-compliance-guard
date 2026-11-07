@@ -23,15 +23,15 @@ library is imported into the standalone repository.
 
 - Shared validated records and closed commands for scope, sources, evidence,
   findings, assessments, conversations, proposals, capabilities, and progress.
-- Generated JSON Schema and frontend TypeScript definitions with drift checks.
+- Generated JSON Schema with a drift check.
 - An offline requirement/report CLI, synthetic first-run fixture, bounded selected
   file reads, accountable mapping/evidence gaps and private immutable run artifacts.
 - Synthetic foundation, contract, offline workflow, CLI and escaped-report tests,
-  with generated schema/type drift checks and TypeScript compilation.
+  with a generated schema drift check.
 - Static native-protocol inspection and bounded reply validation.
 - An offline Linux executor helper that rejects unverified cleanup. Its live
   containment/admission requirements remain unmet; fake tests are not that evidence.
-- Separate Python/frontend lock files, package selection, and license notices.
+- A locked Python environment (uv.lock), package selection, and license notices.
 
 ## Current state (v2.4.0, 2026-11-07) and what remains
 
@@ -64,8 +64,8 @@ second Claude agent).
 Candidates for 2.1 (see the [roadmap](roadmap.md)): exports to GRC tools, graph digests
 in runs so a code change reopens decisions as a law change does, an application-date
 timeline, quoted articles in the PR screen, and a Graphify import. A full audit for
-defects is planned and waits for the Owner's approval. Open choice: keep or remove the
-unused React page in `frontend/` (the plugin uses the static dashboard).
+defects is planned and waits for the Owner's approval. (2.5.0 removed the unused React
+page in `frontend/` and the `api` extra; the plugin uses the static dashboard.)
 
 Still not built: an operational compliance audit, an API or hosted service, a reviewed
 legal corpus or reviewed packs, scanners of our own, browser checks, and managed
@@ -77,8 +77,8 @@ Owner decision recorded in `docs/decisions/dashboard-review-progress.md`: separa
 meters, points out of 10, no total, never a compliance score. Implemented: the pure
 `eu_compliance_guard/scorecard.py` (`Scorecard` contract in `models.py`), the `score`
 command, a Review progress section at the top of the HTML view, `views/<run>.scorecard.json`
-written by `view`, meter lines in the band and panel, and a local React dashboard page
-in `frontend/` (`npm test` covers its parsing and wording; `npm run build` its bundle).
+written by `view`, and meter lines in the band and panel. (A React page in `frontend/`
+also rendered the file until 2.5.0 removed it.)
 Screening is a coverage line and "style" is unscored record hygiene. All tests use the
 synthetic fixture; a scorecard says nothing about real compliance.
 
@@ -87,7 +87,7 @@ synthetic fixture; a scorecard says nothing about real compliance.
 Order of priority: security, then determinism, then features.
 
 - **Supply chain.** New releases wait 14 days: `exclude-newer = "14 days"` for uv and
-  Dependabot `cooldown` for uv, npm and GitHub Actions. Security updates are exempt.
+  Dependabot `cooldown` for uv and GitHub Actions. Security updates are exempt.
   Actions are pinned to commit SHAs.
 - **Official hosts.** `docs/official-hosts.md` names each host's operator and purpose.
   `make verify-hosts` re-checks reachability with consent. On 2026-11-05 all six
@@ -329,7 +329,7 @@ commit rule excludes; they were left as published.
 file digests, target fetchability, and with `--previous` the records needing a new
 revision. Cross-reference errors in the models now name their JSON location. 1.0.0
 also adds the `eu-compliance-guard` console command and keeps only Pydantic as a
-runtime dependency (FastAPI and Uvicorn are the optional `api` extra). The plugin
+runtime dependency (FastAPI and Uvicorn were an optional `api` extra until 2.5.0). The plugin
 audit flow now runs `init` → `check` → `revalidate` and covers manually downloaded
 official documents. Other changes:
 

@@ -220,10 +220,7 @@ recorded parent and used the same tool version; the trend never changes the stat
 
 `view` also writes `<parent>/views/<run>.scorecard.json` (0600) as data for other
 tools. The plugin never needs it: its **Dashboard** button opens the static page above.
-For a future hosted service, `frontend/` holds a React page that renders such a file
-(`npm --prefix frontend run build`, then `npm --prefix frontend run preview`; choose
-or drop the file). It is read in the browser only; the page's Content Security Policy blocks every
-connection, and its types are generated from `eu_compliance_guard/models.py`.
+The file follows the `Scorecard` record in `eu_compliance_guard/contract.schema.json`.
 
 ## Accepting a suggestion
 
