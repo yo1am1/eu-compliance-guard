@@ -1,4 +1,4 @@
-"""Synthetic trust-boundary cases for the shared engine/frontend/host contracts."""
+"""Synthetic trust-boundary cases for the shared engine and host contracts."""
 
 from copy import deepcopy
 import json
@@ -197,8 +197,6 @@ class ContractTests(unittest.TestCase):
         self.assertIn("CurrentAssessment", schema["$defs"])
         self.assertEqual(len(schema["oneOf"]), 16)
         self.assertEqual(SCHEMA_PATH.read_bytes(), schema_bytes())
-        from fastapi.sse import EventSourceResponse
-        self.assertIsNotNone(EventSourceResponse)
 
 
 if __name__ == "__main__":

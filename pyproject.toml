@@ -23,13 +23,6 @@ dependencies = [
     "pydantic==2.14.1",
 ]
 
-[project.optional-dependencies]
-# The planned local API; the CLI and Claude Code plugin need only Pydantic.
-api = [
-    "fastapi==0.159.1",
-    "uvicorn==0.54.0",
-]
-
 [project.urls]
 Homepage = "https://github.com/yo1am1/eu-compliance-guard"
 Documentation = "https://github.com/yo1am1/eu-compliance-guard/blob/main/docs/cli.md"
@@ -56,12 +49,6 @@ packages = ["eu_compliance_guard"]
 include = [
     "/README.md",
     "/eu_compliance_guard",
-    "/frontend/src",
-    "/frontend/scripts",
-    "/frontend/package.json",
-    "/frontend/package-lock.json",
-    "/frontend/tsconfig.json",
-    "/frontend/.gitignore",
     "/fixtures",
     "/tests",
     "/.claude-plugin",
@@ -80,6 +67,3 @@ include = [
     "/docs/plugin.md",
 ]
 exclude = ["**/__pycache__", "**/*.pyc"]
-
-[dependency-groups]
-dev = ["fastapi==0.159.1", "httpx==0.28.1"]

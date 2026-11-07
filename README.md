@@ -149,7 +149,7 @@ Every command, its options and exit codes are in the
 - Processing budgets are cooperative, not a hard CPU or filesystem deadline. The
   bounded Linux execution helper is not an enabled scanner, and its real
   containment is unverified.
-- Scanners of our own, a Graphify import, the API (optional `api` extra) and remediation
+- Scanners of our own, a Graphify import, an API and remediation
   automation are later work. The starter packs are AI-assisted drafts: no lawyer reviews packs or outputs, and nothing is guaranteed. The dashboard shows one run's review progress from a local file; it
   manages nothing.
 

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Removed
+
+- The unused React page in `frontend/`, with its npm build, Node.js CI steps and Dependabot
+  entry. The plugin's dashboard is the static HTML view; `view` still writes
+  `views/<run>.scorecard.json` as data.
+- The optional `api` extra (FastAPI, Uvicorn) and the dev dependency group. Nothing used them;
+  the CLI and plugin need only Pydantic.
+
 ### Fixed
 
 From the 2.5 audit of what 2.2 to 2.4 added:
