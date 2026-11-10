@@ -488,6 +488,20 @@ class HistoryTests(unittest.TestCase):
         changed = self.successor("source-changed")
         self.assertEqual(self.overlay(changed).freshness, "stale")
 
+    def test_changed_review_for_the_assessment_date_is_seen_beside_one_kept_for_another_date(self):
+        earlier = deepcopy(self.payload["source_reviews"][0])
+        earlier["assessment_date"] = "2020-01-01"
+        self.payload["source_reviews"].append(earlier)
+        self.save()
+        r.run(self.input, self.root / "both")
+        self.payload["source_reviews"][0]["review_notes"]["identity"] = "FICTIONAL changed identity note"
+        self.save()
+        successor = r.run(self.input, self.root / "next", previous=self.root / "both")
+        self.assertEqual([(item.kind, item.identity) for item in successor.comparison.changes],
+                         [("source_review", "source-example")])
+        self.assertEqual(self.overlay(successor).freshness, "stale")
+        self.assertEqual(successor.effective_applicability_decisions[0].applicability, "unresolved")
+
     def test_same_bytes_failed_refresh_and_changed_downloads_keep_distinct_freshness(self):
         from test_retrieval_workflow import result
         source = self.payload["sources"][0]
