@@ -370,7 +370,7 @@ PROVISION_WORDS = (("article", "Article"), ("art.", "Article"), ("art", "Article
 
 def article_key(locator: str) -> str | None:
     """A provision's canonical key: 'Article 9(2)(a)', 'Art. 9' -> 'Article 9'; 'section 170(1)',
-    's. 170' -> 'Section 170'; 'regulation 6', 'reg. 6' -> 'Regulation 6'. An act's own number is
+    's. 170' -> 'Section 170'; 'section 74aa' -> 'Section 74AA'; 'regulation 6', 'reg. 6' -> 'Regulation 6'. An act's own number is
     never a provision: 'Regulation 2016/679' and 'Regulation (EU) 2016/679' give None."""
     rest = locator.lstrip()
     for prefix, name in PROVISION_WORDS:
@@ -384,12 +384,13 @@ def article_key(locator: str) -> str | None:
         digits += 1
     if not digits:
         return None
-    after = rest[digits:]
-    if after[:1] == "/":
+    if rest[digits:digits + 1] == "/":
         return None  # 2016/679 is an act number
-    suffix = after[:1]
-    letters = suffix if suffix.isascii() and suffix.isalpha() else ""
-    if letters and name != "Article":
+    end = digits
+    while end < len(rest) and rest[end].isascii() and rest[end].isalpha():
+        end += 1  # every letter of an insertion: section 74AA is not section 74A
+    letters = rest[digits:end]
+    if name != "Article":
         letters = letters.upper()  # UK insertions are capital letters: section 16A
     return f"{name} {rest[:digits]}{letters}"
 

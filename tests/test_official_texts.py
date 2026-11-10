@@ -174,7 +174,12 @@ class UkOfficialTextTests(unittest.TestCase):
         self.assertEqual((len(pecr), list(pecr)[0], list(pecr)[-1]), (50, "Regulation 1", "Regulation 37"))
         self.assertEqual(pecr["Regulation 6"]["title"], "Storing information in the terminal equipment of a subscriber or user")
         self.assertTrue(pecr["Regulation 6"]["text"].startswith("—(1) Subject to Schedule A1, a person must not store"))
-        self.assertEqual((len(dpa), list(dpa)[0], list(dpa)[-1]), (259, "Section 1", "Section 215"))
+        self.assertEqual((len(dpa), list(dpa)[0], list(dpa)[-1]), (261, "Section 1", "Section 215"))
+        # Sections 74AA and 74AB are provisions of their own, not a second and third section 74A.
+        self.assertEqual([key for key in dpa if key.startswith("Section 74")],
+                         ["Section 74", "Section 74A", "Section 74AA", "Section 74AB", "Section 74B"])
+        self.assertTrue(dpa["Section 74AA"]["title"] and dpa["Section 74AA"]["title"] != dpa["Section 74A"]["title"])
+        self.assertIn("Article 8ZA", gdpr)
         # A prospective section without an anchor (164B) must not shift the titles after it.
         self.assertEqual(dpa["Section 165"]["title"], "Complaints by data subjects to the Commission")
         self.assertEqual(dpa["Section 170"]["title"], "Unlawful obtaining etc of personal data")

@@ -215,6 +215,10 @@ class ArticleTests(unittest.TestCase):
         self.assertEqual(a.article_key("Art. 17"), "Article 17")
         self.assertEqual(a.article_key("article 8"), "Article 8")
         self.assertIsNone(a.article_key("Recital 38"))
+        # Every letter of an inserted provision counts: 74AA is not 74A.
+        self.assertEqual(a.article_key("section 74aa(2)"), "Section 74AA")
+        self.assertEqual(a.article_key("Article 8ZA"), "Article 8ZA")
+        self.assertEqual(a.article_key("Article 6a"), "Article 6a")
 
     def test_suggestions_bridge_engineering_words_to_legal_vocabulary(self):
         catalogue = {"fixture": a.parse(XHTML, "application/xhtml+xml")}
