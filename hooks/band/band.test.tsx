@@ -285,6 +285,18 @@ test('the side panel shows ranked steps, owner questions and gaps by area, never
   await ui.unmount()
 })
 
+test('an open technical fact is a question for the owner too', async ($, on) => {
+  const bundle = JSON.parse(BUNDLE)
+  bundle.declarations.scope.technical = [{ id: 'fact-cookies', basis: 'assumed' }, { id: 'fact-tls', basis: 'observed' }]
+  host(on, { bundle: JSON.stringify(bundle) })
+  await $.session.start({ cwd: PROJECT, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: /Questions for the owner \(3\)/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^cookies\? · now assumed$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /tls/ })).toBeUndefined()
+  await ui.unmount()
+})
+
 test('the panel opens from its command and from the band', async ($, on) => {
   const { opened } = host(on)
   await $.session.start({ cwd: PROJECT, surface: 'terminal', isInteractive: true })

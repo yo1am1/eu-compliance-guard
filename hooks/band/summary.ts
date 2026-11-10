@@ -34,7 +34,7 @@ function areas(gaps: unknown): { area: string; count: number }[] {
 function questions(scope: any): { id: string; basis: string }[] {
   // Every open fact; the summary keeps the first 50 and the total.
   const list = (value: unknown) => (Array.isArray(value) ? value : [])
-  const facts = [...list(scope?.roles), ...list(scope?.size_and_sector)]
+  const facts = [...list(scope?.roles), ...list(scope?.size_and_sector), ...list(scope?.technical)]
   for (const activity of list(scope?.activities)) {
     facts.push(activity?.lawful_basis, ...list(activity?.roles), ...list(activity?.recipients),
       ...list(activity?.locations), ...list(activity?.stores), ...list(activity?.retention))
