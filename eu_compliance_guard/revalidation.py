@@ -1125,10 +1125,13 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
             from . import consolidation
             versions = consolidation.requests(declared)
             options = {"transport_factory": transport_factory} if transport_factory else {}
+            network_started = time.monotonic()
             try:
                 retrievals = sources.retrieve(requests, **options)
                 # The same consent, host registry and bounds: is a newer consolidated version in force?
-                notes = consolidation.notes(versions, sources.retrieve([item[2] for item in versions], **options)) if versions else []
+                # Both retrievals share the run's one network time budget.
+                notes = consolidation.notes(versions, sources.retrieve([item[2] for item in versions], **options,
+                    network_seconds=sources.NETWORK_SECONDS - (time.monotonic() - network_started))) if versions else []
             except sources.RetrievalHelperError:
                 raise RevalidationError("retrieval-failed") from None
             # The network has its own fixed budget; local assembly keeps its cooperative budget.
