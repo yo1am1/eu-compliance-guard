@@ -127,7 +127,9 @@ class SealTests(unittest.TestCase):
         allowed.write_text("reviewer@example.invalid " + (self.root / "key.pub").read_text())
         self.run_named("run-1")
         self.assertEqual(cli("seal", "--input", self.input, "--key", key, "--principal", "reviewer@example.invalid")[0], 0)
-        self.assertIn("not verified: give --allowed-signers", cli("seal", "--check", "--input", self.input)[1])
+        unverified = cli("seal", "--check", "--input", self.input)[1]
+        self.assertIn("signed (not verified: give --allowed-signers)", unverified)
+        self.assertNotIn("reviewer@example.invalid", unverified)  # a name nobody verified is not shown as the signer
         code, out = cli("seal", "--check", "--input", self.input, "--allowed-signers", allowed)
         self.assertEqual(code, 0, out)
         self.assertIn("signature of reviewer@example.invalid valid", out)
@@ -139,6 +141,11 @@ class SealTests(unittest.TestCase):
         self.assertEqual(cli("seal", "--input", self.input, "--key", key)[0], 0)  # already sealed: nothing to sign
         self.run_named("run-2")
         self.assertEqual(cli("seal", "--input", self.input, "--key", key)[0], 2)  # a key needs a principal
+        # An entry without a signature is named when signatures are checked, and only then.
+        self.assertEqual(cli("seal", "--input", self.input)[0], 0)
+        code, out = cli("seal", "--check", "--input", self.input, "--allowed-signers", allowed)
+        self.assertEqual((code, out.count("; NOT signed")), (0, 1))
+        self.assertNotIn("NOT signed", cli("seal", "--check", "--input", self.input)[1])
 
 
 if __name__ == "__main__":
