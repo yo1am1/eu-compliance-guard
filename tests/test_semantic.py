@@ -50,7 +50,8 @@ class FusionTests(unittest.TestCase):
         os.environ.pop("EUCG_SEMANTIC", None)
 
     def test_word_search_is_the_default_and_says_so(self):
-        index = articles.ArticleIndex(CATALOGUE)
+        with mock.patch.object(semantic, "status", side_effect=AssertionError("the model is not checked when off")):
+            index = articles.ArticleIndex(CATALOGUE)
         self.assertEqual(index.method, "words")
         found = index.suggest("erase personal data")
         self.assertEqual((found[0]["article"], found[0]["via"]), ("Article 1", ["words"]))
@@ -78,7 +79,8 @@ class FusionTests(unittest.TestCase):
         self.assertEqual(semantic.chunks("Title", ""), ["Title. "])
 
     def test_a_failing_model_never_breaks_suggestions(self):
-        with mock.patch.object(semantic, "status", return_value={"active": True}), \
+        with mock.patch.dict(os.environ, {"EUCG_SEMANTIC": "on"}), \
+                mock.patch.object(semantic, "status", return_value={"active": True}), \
                 mock.patch.object(semantic, "SemanticIndex", side_effect=RuntimeError("boom")):
             index = articles.ArticleIndex(CATALOGUE)
         self.assertEqual(index.method, "words")

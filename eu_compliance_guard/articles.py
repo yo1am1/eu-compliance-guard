@@ -482,7 +482,7 @@ class ArticleIndex:
         self.semantic = None
         if semantic is None and self.keys:
             from . import semantic as model
-            if model.status()["active"]:
+            if model.wanted() and model.status()["active"]:  # status hashes the model file: only when turned on
                 try:
                     self.semantic = model.SemanticIndex(catalogue, self.keys)
                 except Exception:  # an optional ranking never breaks a report: word search still answers
