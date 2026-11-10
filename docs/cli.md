@@ -23,10 +23,10 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `sign --decision <id> --key <ssh key> --principal <name> [--lock <file>]` | Sign a reviewed applicability decision against the locked law and its evidence |
 | `verify --allowed-signers <file> [--json]` | Check each signed decision: valid and current, changed since signing, or invalid |
 | `cite-check <file\|-> [--run <run dir>] [--json]` | Check cited articles and verbatim quotations against the retained official text |
-| `pack build\|sign\|verify\|import …` | Draft, SSH-sign, verify and import reusable obligation packs (candidate obligations only) |
+| `pack build\|sign\|verify\|import\|starters …` | Draft, SSH-sign, verify and import reusable obligation packs (candidate obligations only); list the draft starter packs |
 | `import-evidence --kind wec\|sarif <file> [--json]` | Keep an EDPS Website Evidence Collector or SARIF result as untrusted evidence, summarised by concept |
 | `accept <requirement>=<target>:<article>` | Map a requirement to a candidate obligation citing an article; no decision |
-| `graph [--input <file>] [--json] [--view [--open]]` | Map the project's Python files, functions, imports, calls and data flows (static) |
+| `graph [--input <file>] [--json] [--view [--open]]` | Map the project's Python and Rust files, functions, imports, calls and data flows (static) |
 | `export ropa\|dpia [--input <file>] [--format md\|json\|csv] [--output <file>]` | Draft a record of processing activities (Art. 30(1)) or DPIA screening inputs (Art. 35, WP248 criteria) from the declarations |
 | `timeline [--input <file>] [--run <run dir>] [--json]` | List application, entry-into-force and transposition dates quoted from the retained text, reached or upcoming against the assessment date |
 | `mcp [--input <file>]` | Serve `cite_check`, `article_search`, `ground`, `pr_check`, `timeline` and `next_steps` as read-only MCP tools over stdio |

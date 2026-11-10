@@ -7,10 +7,12 @@
 A Claude Code plugin and command-line tool that keeps a project's EU and UK legal review
 traceable. It maps declared project requirements to candidate obligations and
 official sources, then keeps every unanswered question visible as a review gap. It
-writes private, tamper-evident reports and revalidates them when the project or the
-law changes.
+writes private, checksummed reports and revalidates them when the project or the law
+changes.
 
-It is read-only and never gives a compliance verdict. A named human reviewer makes
+It is read-only towards the law and the project's code: it never changes code or decides
+anything legal. It writes only its own records (the declarations, the law lock, signatures and
+imports under `.eu-compliance-guard/`) and its private runs. It never gives a compliance verdict. A named human reviewer makes
 every legal decision, and the tool records who decided what, against which text and
 evidence. No output, test or example implies a real compliance audit.
 
@@ -146,6 +148,11 @@ Every command, its options and exit codes are in the
   shows who recorded a decision against which text, not that it is right.
 - Retrieval checks cannot prove a document's identity or currency; a reviewer must.
   National hosts and PDFs need manual review.
+- A run's checksums detect accidental change or a partial write. They are not tamper
+  evidence: anyone who can write the private run folder can rewrite a report and its
+  checksums. Only a signed decision (`sign`) shows who recorded it.
+- It runs on Linux and macOS (POSIX); CI tests Linux only. Windows is not supported: the CLI
+  refuses non-POSIX systems, and the plugin's hook and band assume POSIX paths.
 - Processing budgets are cooperative, not a hard CPU or filesystem deadline. The
   bounded Linux execution helper is not an enabled scanner, and its real
   containment is unverified.

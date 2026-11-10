@@ -52,6 +52,22 @@
 - The Markdown report had the legal notice only near the top, although the README says every
   output ends with it. It now ends with it too.
 
+### Changed (documentation)
+
+- Claims the code does not support are corrected: runs are checksummed, not tamper-evident
+  (anyone who can write the run folder can rewrite a report and its checksums); the dependency
+  notices and the `eucg` skill said MIT, but the project is AGPL-3.0-only from 1.2.0; licence
+  files of removed dependencies are gone and every runtime package is listed. The package no
+  longer claims "OS Independent": Linux and macOS are supported, Windows is not, and the
+  README and plugin guide say so. "Read-only" is defined: the tool writes only its own records.
+- The plugin guide recommended allowing `uv run --project * …`, which would let uv run any
+  other project's code. It now gives the plugin's own path, and says what allowing it means for
+  network consent. The guide's band paragraph, cut off in 2.x, is whole again.
+- Stale help: `mcp` lists all six tools, `graph` says Python and Rust, the command table lists
+  `pack starters`, the example PR workflow no longer calls its pin 1.1.0 and says its
+  dependencies are not locked, and CONTRIBUTING no longer says the band's types are generated.
+- The UK GDPR test text now also credits EUR-Lex, since it derives from Regulation (EU) 2016/679.
+
 ## 2.5.0 — 2026-11-07
 
 Stabilisation before 3.0: an audit of everything 2.2 to 2.4 added, and the open choices

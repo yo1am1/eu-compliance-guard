@@ -28,6 +28,9 @@ Source: © European Union, https://eur-lex.europa.eu. Reuse is authorised under 
 Decision 2011/833/EU. Only European Union legislation published in the Official Journal is
 deemed authentic; these copies are for testing only.
 
+The UK GDPR is assimilated Regulation (EU) 2016/679: its text derives from © European Union,
+https://eur-lex.europa.eu, reused under Commission Decision 2011/833/EU, as amended under UK law.
+
 UK texts: contains public sector information licensed under the Open Government Licence v3.0
 (https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/), from
 legislation.gov.uk (The National Archives). "Latest revised" texts may list changes not yet
