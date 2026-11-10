@@ -40,6 +40,15 @@ def hybrid_index():
 
 
 class FusionTests(unittest.TestCase):
+    def setUp(self):
+        # Whatever the caller's settings, these tests start with semantic search not turned on.
+        home = tempfile.TemporaryDirectory(prefix="eucg-semantic-")
+        self.addCleanup(home.cleanup)
+        patcher = mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": home.name})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        os.environ.pop("EUCG_SEMANTIC", None)
+
     def test_word_search_is_the_default_and_says_so(self):
         index = articles.ArticleIndex(CATALOGUE)
         self.assertEqual(index.method, "words")

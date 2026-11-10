@@ -153,6 +153,9 @@ Every command, its options and exit codes are in the
   checksums. Only a signed decision (`sign`) shows who recorded it.
 - It runs on Linux and macOS (POSIX); CI tests Linux only. Windows is not supported: the CLI
   refuses non-POSIX systems, and the plugin's hook and band assume POSIX paths.
+- Article suggestions use word search. An optional local model (the `semantic` extra, off by
+  default) improves them for requirements in everyday words; see the
+  [command-line reference](docs/cli.md#optional-semantic-search). It only orders what to read.
 - Processing budgets are cooperative, not a hard CPU or filesystem deadline. The
   bounded Linux execution helper is not an enabled scanner, and its real
   containment is unverified.

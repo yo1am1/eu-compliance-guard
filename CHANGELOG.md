@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Optional semantic ranking of article suggestions. Word search stays the default and the only
+  thing a default install has. With the `semantic` extra installed, turned on
+  (`EUCG_SEMANTIC=on` or `"semantic": true` in the config file) and set up once
+  (`semantic setup`), suggestions merge the word ranking with a small local embedding model
+  (BAAI/bge-small-en-v1.5, MIT, about 67 MB, pinned by SHA-256) and label each hit "word
+  match" or "semantic match". It only orders articles to read; nothing is mapped or decided.
+  Using the model is offline; only `semantic setup` downloads, from huggingface.co.
+- Measured on a new test set of 40 plain-language requirements against the real GDPR text
+  (`fixtures/eval/gdpr-v1.json`): a right article in the top 3 for 28 of 40 with word search
+  and 34 of 40 with the hybrid; top 1 for 23 and 26. The model alone (30 of 40) is worse than
+  the hybrid, and it misses cases word search finds. The cases were written by the project,
+  so the numbers show direction, not precision. `make eval` reports both, and
+  `fixtures/eval/baseline.json` holds the floors.
+- `semantic status|setup`, `make semantic-check`, and a CI job that runs the real model.
+
 ## 2.5.1 — 2026-11-10
 
 Fixes from a full audit of 2.5.0 (nine auditors, one verifier, findings re-checked against the

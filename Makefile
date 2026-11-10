@@ -4,6 +4,10 @@ check:
 	uv run --locked python -m eu_compliance_guard.schema --check
 contracts:
 	uv run --locked python -m eu_compliance_guard.schema
+semantic-check:
+	uv run --locked --extra semantic python -m eu_compliance_guard semantic setup
+	EUCG_SEMANTIC=on uv run --locked --extra semantic python -m unittest discover -s tests -p 'test_semantic.py' -v
+	EUCG_SEMANTIC=on uv run --locked --extra semantic python -m eu_compliance_guard.evaluation
 plugin-check:
 	claude plugin validate .
 	claude plugin test .
