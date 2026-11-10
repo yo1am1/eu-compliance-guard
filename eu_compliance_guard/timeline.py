@@ -45,12 +45,17 @@ def _number(word: str) -> bool:
     return word.isascii() and word.isdigit()
 
 
+def _day(word: str) -> str:
+    """'11th' -> '11', as UK statutory instruments write the day; any other word is unchanged."""
+    return word[:-2] if word[-2:] in ("st", "nd", "rd", "th") and _number(word[:-2]) else word
+
+
 def _dates(clause: str) -> list[str]:
-    """ISO dates written as '2 August 2026' or 'August 2, 2026' in a clause.
+    """ISO dates written as '2 August 2026', '11th December 2003' or 'August 2, 2026' in a clause.
 
     A date right after "of" is the date of a cited act ("Directive 2002/21/EC … of 7 March
     2002"), not an application date, and is left out; "as of 2 August 2026" is kept."""
-    words = [word.strip(",.;:()") for word in clause.split()]
+    words = [_day(word.strip(",.;:()")) for word in clause.split()]
     found = []
     for index in range(len(words) - 2):
         a, b, c = words[index], words[index + 1], words[index + 2]

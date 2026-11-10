@@ -167,6 +167,15 @@ class TimelineTests(unittest.TestCase):
         self.assertEqual([(e["date"], e["article"], e["kind"], e["status"]) for e in entries],
                          [("2003-10-31", "Article 17", "transposition", "reached")])
 
+    def test_a_uk_commencement_date_with_an_ordinal_day_is_read(self):
+        from eu_compliance_guard import timeline
+        entries = timeline.timeline({"pecr": load("pecr-uksi-2003-2426")}, "2026-11-06")
+        self.assertIn(("2003-12-11", "Regulation 1", "in force", "reached"),
+                      [(e["date"], e["article"], e["kind"], e["status"]) for e in entries])
+        self.assertEqual(timeline._dates("come into force on 1st May 2021, 2nd May 2021 or May 3rd, 2021"),
+                         ["2021-05-01", "2021-05-02", "2021-05-03"])
+        self.assertEqual(timeline._dates("come into force on the 4th of May 2021 or 32nd May 2021 or th May 2021"), [])
+
     def test_status_boundary_and_text_output(self):
         from eu_compliance_guard import timeline
         acts = {"cra": self.acts["cra"]}
