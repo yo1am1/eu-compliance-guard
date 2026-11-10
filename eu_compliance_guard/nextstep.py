@@ -60,9 +60,14 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         return True
 
     retrieved = {item.source_target_id for item in bundle.source_attempts if item.retrieved_source}
-    missing = [target for target in unselected if target.id not in retrieved and fetchable(target)]
+    missing = []
     for target in unselected:
-        if target.id not in retrieved and not fetchable(target):
+        if target.id in retrieved:
+            steps.append(_step("source", target.id, citing(target.id),
+                               f"Read the retrieved text of {target.id}, then select it as a source with an accountable review."))
+        elif fetchable(target):
+            missing.append(target)
+        else:
             steps.append(_step("source", target.id, citing(target.id),
                                f"Download {target.id} by hand (the official fetch refuses it), then declare it as a selected source."))
     if missing:
@@ -70,10 +75,6 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         steps.append(_step("retrieve", "", unblocks,
                            f"Retrieve the official text of {len(missing)} declared source target(s) so provisions can be read.",
                            "eu-compliance-guard revalidate --fetch-official --input <declarations> --output <new run>"))
-    for target in unselected:
-        if target.id in retrieved:
-            steps.append(_step("source", target.id, citing(target.id),
-                               f"Read the retrieved text of {target.id}, then select it as a source with an accountable review."))
     # A selected source with open gaps blocks every open requirement that cites it. The run records
     # them as "Source <id>: <problem>"; a reviewer's own gap text is noted, never repeated.
     for item in declared.sources:
