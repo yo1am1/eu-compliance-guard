@@ -947,6 +947,33 @@ class DependencyComparison(Record):
         return self
 
 
+# The review rules that assembling a run (revalidation.py) and checking a finished bundle both apply.
+BINDING_SOURCE_TYPES = ("eu_act", "national_act", "judgment", "synthetic_fixture")
+
+
+def accountable(record) -> bool:
+    """A named reviewer, a review time and a stated rationale."""
+    return bool(record.reviewer and record.reviewer.strip() and record.reviewed_at and record.rationale.strip())
+
+
+def open_fact(fact: Fact) -> bool:
+    return fact.basis in ("assumed", "unknown") or bool(fact.conflicts)
+
+
+def same_identity(source: LegalSource, target: SourceTarget) -> bool:
+    return ((source.type, source.url, source.identifier, source.publisher, source.language, source.jurisdiction)
+            == (target.intended_type, target.intended_url, target.intended_identifier, target.publisher,
+                target.language, target.jurisdiction))
+
+
+def evidence_admitted(identity: str, evidence: dict, retained) -> bool:
+    """Retained evidence; an independent verification also rests on another retained documented or observed record."""
+    item = evidence[identity]
+    return retained(identity) and (item.provenance != "independently_verified" or any(
+        ref != identity and ref in evidence and retained(ref)
+        and evidence[ref].provenance in ("documented", "observed") for ref in item.source_refs))
+
+
 class _BundleCheck:
     """The invariants of a finished run's bundle, checked in a fixed order: the first one broken is the
     error reported. Each step may rely on the lookups the earlier steps built."""
@@ -1114,9 +1141,7 @@ class _BundleCheck:
                     and selected.file and observed_files.get(selected.file.path) == source.content_digest
                     and selected.media_type.lower() in ("text/plain", "text/html", "application/xhtml+xml")
                     and (selected.charset is None or selected.charset.lower() == "utf-8")
-                    and source.type == target.intended_type and source.url == target.intended_url
-                    and source.identifier == target.intended_identifier and source.publisher == target.publisher
-                    and source.language == target.language and source.jurisdiction == target.jurisdiction
+                    and same_identity(source, target)
                     and review and review.state == "reviewed_for_assessment"
                     and review.reviewer and review.reviewer.strip() and review.last_successful_verification
                     and not review.gaps and all(review.review_notes.get(topic, "").strip()
@@ -1135,12 +1160,12 @@ class _BundleCheck:
                     and observed_files.get(selected.path) == item.digest)
 
     def admitted_evidence(self, identity: str) -> bool:
-        evidence, retained_evidence = self.evidence, self.retained_evidence
-        item = evidence[identity]
-        proof = item.provenance != "independently_verified" or any(
-            ref != identity and ref in evidence and retained_evidence(ref)
-            and evidence[ref].provenance in ("documented", "observed") for ref in item.source_refs)
-        return retained_evidence(identity) and proof
+        return evidence_admitted(identity, self.evidence, self.retained_evidence)
+
+    def open_fact_pins(self, pins: list[SourceRef]) -> bool:
+        facts = self.facts
+        return any(open_fact(facts[pin.id]) or not all(self.admitted_evidence(identity) for identity in facts[pin.id].evidence_ids)
+                   for pin in pins)
 
     def effective_decisions(self) -> None:
         """A resolved decision is the declared, accountable one, resting on admitted facts, sources and evidence."""
@@ -1174,12 +1199,9 @@ class _BundleCheck:
             original = next((item for item in declared.applicability_decisions if item.id == decision.id), None)
             if decision.applicability != "unresolved" and (
                     original is None or decision.model_dump(exclude={"synthetic"}) != original.model_dump(exclude={"synthetic"})
-                    or not decision.reviewer or not decision.reviewer.strip() or not decision.reviewed_at
-                    or not decision.rationale.strip() or decision.gaps
+                    or not accountable(decision) or decision.gaps
                     or decision.assessment_date != declared.scope.assessment_date
-                    or not decision.fact_refs or any(facts[pin.id].basis in ("assumed", "unknown") or facts[pin.id].conflicts
-                        or any(not admitted_evidence(eid) for eid in facts[pin.id].evidence_ids)
-                        for pin in decision.fact_refs)
+                    or not decision.fact_refs or self.open_fact_pins(decision.fact_refs)
                     or not decision.jurisdictions or any(j not in declared.scope.jurisdictions for j in decision.jurisdictions)
                     or not decision.provisions or any(pin.source_id is None or not pin.locator.strip()
                         or pin.locator not in source_by_id[pin.source_id].provisions
@@ -1219,27 +1241,24 @@ class _BundleCheck:
                         or not obligations[disposition.obligation_id].source_provisions
                         or any(pin.source_id is None or not admitted_source(pin.source_id)
                                or (obligations[disposition.obligation_id].classification == "duty"
-                                   and source_by_id[pin.source_id].type not in
-                                   ("eu_act", "national_act", "judgment", "synthetic_fixture"))
+                                   and source_by_id[pin.source_id].type not in BINDING_SOURCE_TYPES)
                                for pin in obligations[disposition.obligation_id].source_provisions)
                         or any(
-                            reviews[identity].state != "reviewed" or not reviews[identity].reviewer
-                            or not reviews[identity].reviewer.strip() or not reviews[identity].reviewed_at
-                            or not reviews[identity].rationale.strip() or not reviews[identity].period.strip()
+                            reviews[identity].state != "reviewed" or not accountable(reviews[identity])
+                            or not reviews[identity].period.strip()
                             or not reviews[identity].owner.strip() or reviews[identity].missing_evidence
                             or reviews[identity].contrary_evidence or not reviews[identity].evidence_ids
                             or not all(admitted_evidence(eid) for eid in reviews[identity].evidence_ids)
                             for identity in method.review_ids)):
                     raise ValueError("passed documentary method lacks admitted sources, applicability or evidence")
                 if method.outcome == "observed_failure" and not any(
-                        reviews[identity].state == "insufficient" and reviews[identity].reviewer
-                        and reviews[identity].reviewer.strip() and reviews[identity].reviewed_at
-                        and reviews[identity].rationale.strip() for identity in method.review_ids):
+                        reviews[identity].state == "insufficient" and accountable(reviews[identity])
+                        for identity in method.review_ids):
                     raise ValueError("documentary failure lacks an accountable insufficient review")
 
     def requirement_assessments(self) -> None:
         """A supported requirement has a complete supported mapping."""
-        bundle, evidence, requirements, reviews, dispositions, facts, observed_files, admitted_evidence = self.bundle, self.evidence, self.requirements, self.reviews, self.dispositions, self.facts, self.observed_files, self.admitted_evidence
+        bundle, evidence, requirements, reviews, dispositions, observed_files, admitted_evidence = self.bundle, self.evidence, self.requirements, self.reviews, self.dispositions, self.observed_files, self.admitted_evidence
         for assessment in bundle.requirement_assessments:
             _require_pin(assessment.requirement, requirements)
             _require_ids(assessment.obligation_disposition_ids, dispositions)
@@ -1255,9 +1274,7 @@ class _BundleCheck:
                     not mapped or assessment.gaps or not assessment.rationale.strip()
                     or not set(requirement.evidence_ids) <= set(assessment.evidence_ids)
                     or any(not admitted_evidence(identity) for identity in assessment.evidence_ids)
-                    or any(facts[pin.id].basis in ("assumed", "unknown") or facts[pin.id].conflicts
-                           or any(not admitted_evidence(identity) for identity in facts[pin.id].evidence_ids)
-                           for pin in requirement.fact_refs)
+                    or self.open_fact_pins(requirement.fact_refs)
                     or (requirement.origin is not None
                         and observed_files.get(requirement.origin.path) != requirement.origin.digest)
                     or any(dispositions[identity].manual_review != "supported"
@@ -1271,7 +1288,7 @@ class _BundleCheck:
 
     def family_screenings(self) -> None:
         """All families are screened; a resolved screening is the declared, accountable one."""
-        bundle, declared, source_by_id, facts, admitted_source, admitted_evidence = self.bundle, self.declared, self.source_by_id, self.facts, self.admitted_source, self.admitted_evidence
+        bundle, declared, source_by_id, facts, admitted_source = self.bundle, self.declared, self.source_by_id, self.facts, self.admitted_source
         screenings = _unique_records(bundle.family_screenings, lambda item: item.family)
         if set(screenings) != set(LEGAL_FAMILIES):
             raise ValueError("bundle must screen every candidate legal family")
@@ -1293,12 +1310,8 @@ class _BundleCheck:
             original = next((original for original in declared.family_screenings if original.family == item.family), None)
             if item.applicability != "unresolved" and (
                     original is None or item.model_dump(exclude={"synthetic"}) != original.model_dump(exclude={"synthetic"})
-                    or item.assessment_date != declared.scope.assessment_date or not item.reviewer
-                    or not item.reviewer.strip() or not item.reviewed_at or not item.rationale.strip()
-                    or item.gaps or not item.fact_refs or not item.source_refs
-                    or any(facts[pin.id].basis in ("assumed", "unknown") or facts[pin.id].conflicts
-                           or any(not admitted_evidence(eid) for eid in facts[pin.id].evidence_ids)
-                           for pin in item.fact_refs)
+                    or item.assessment_date != declared.scope.assessment_date or not accountable(item)
+                    or item.gaps or not item.fact_refs or not item.source_refs or self.open_fact_pins(item.fact_refs)
                     or not all(admitted_source(pin.id) for pin in item.source_refs)):
                 raise ValueError("resolved screening lacks accountable admitted review")
 
