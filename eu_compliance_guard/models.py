@@ -168,6 +168,9 @@ class Scope(Record):
     customer_types: Texts
     roles: list[Fact]
     size_and_sector: list[Fact]
+    # What the software does ("sets analytics cookies", "sends weight to a model"): the facts code
+    # can show. Organisational facts stay in roles and size_and_sector, which are never searched in code.
+    technical: Annotated[list[Fact], Field(max_length=200)] = Field(default_factory=list)
     jurisdictions: Texts
     included_scenarios: Texts
     exclusions: Texts
@@ -707,7 +710,7 @@ def _require_pin(pin: SourceRef, records: dict) -> None:
 
 def scope_fact_locations(scope: Scope) -> list[tuple[str, Fact]]:
     """Each explicit fact occurrence with its JSON location, in scope_facts() order."""
-    located = [(f"scope.{name}[{index}]", fact) for name in ("roles", "size_and_sector")
+    located = [(f"scope.{name}[{index}]", fact) for name in ("roles", "size_and_sector", "technical")
                for index, fact in enumerate(getattr(scope, name))]
     for number, activity in enumerate(scope.activities):
         where = f"scope.activities[{number}]"

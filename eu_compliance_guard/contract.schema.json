@@ -3124,6 +3124,14 @@
           },
           "title": "Size And Sector",
           "type": "array"
+        },
+        "technical": {
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "maxItems": 200,
+          "title": "Technical",
+          "type": "array"
         }
       },
       "required": [

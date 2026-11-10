@@ -354,6 +354,30 @@ class GroundingTests(unittest.TestCase):
             g.apply(self.declarations, "fact-page", "app/page.py:1")
         self.assertEqual(raised.exception.code, "unrelated-line")
 
+    def test_a_technical_fact_has_its_own_slot_and_is_grounded_from_there(self):
+        data = json.loads(self.declarations.read_text())
+        self.assertEqual(data["scope"]["technical"], [])  # init writes the slot
+        data["scope"]["technical"] = [fact("fact-renewal", "Subscriptions auto renew")]
+        data["scope"]["size_and_sector"] = [fact("fact-cancel", "Cancellation only by email")]
+        self.declarations.write_text(json.dumps(data, indent=2))
+        report = g.ground(self.declarations)
+        by_id = {item["fact"]: item for item in report["facts"]}
+        self.assertTrue(by_id["fact-renewal"]["observable"])
+        self.assertTrue(by_id["fact-renewal"]["candidates"][0]["location"].startswith("app/billing.py"))
+        self.assertEqual((by_id["fact-cancel"]["observable"], by_id["fact-cancel"]["slot"]), (False, "size_and_sector"))
+        self.assertIn("a fact about what the software does belongs in scope.technical", g.format_ground(report))
+        g.apply(self.declarations, "fact-renewal", "app/billing.py:2")
+        stored = json.loads(self.declarations.read_text())["scope"]["technical"][0]
+        self.assertEqual((stored["basis"], stored["revision"]), ("observed", 1))
+        self.assertTrue(a.check(self.declarations)["valid"])
+
+    def test_declarations_written_before_the_technical_slot_stay_valid(self):
+        data = json.loads(self.declarations.read_text())
+        del data["scope"]["technical"]
+        self.declarations.write_text(json.dumps(data, indent=2))
+        self.assertTrue(a.check(self.declarations)["valid"])
+        self.assertEqual(r.load_input(self.declarations).scope.technical, [])
+
     def test_line_numbers_match_editors_despite_form_feeds_and_no_null_term(self):
         (self.project / "app/web.py").write_text("import os\n\x0c\n# section\nx = 1\n" + CODE["app/web.py"])
         index = g.build_index(self.project)

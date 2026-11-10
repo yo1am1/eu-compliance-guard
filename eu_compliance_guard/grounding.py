@@ -374,6 +374,7 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
     # old line numbers of a changed one, may hold other touchpoints.
     cited = {ref for item in declared.evidence if item.evidence.id in current for ref in item.evidence.source_refs}
     unobservable = not_observable(declared.scope)
+    sized = {fact.id for fact in declared.scope.size_and_sector}
     results, covered = [], set()
     terms_at = {f"{line.path}:{line.number}": line.terms for line in index.lines}
     for fact in facts.values():
@@ -387,6 +388,7 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
         # the fact, so it stays listed as a touchpoint no fact covers.
         covered.update(item["location"] for item in candidates if set(query) & set(terms_at[item["location"]]))
         results.append({"fact": fact.id, "key": fact.key, "basis": fact.basis, "observable": observable,
+                        "slot": "size_and_sector" if fact.id in sized else None,
                         "stale": stale, "candidates": candidates,
                         "next": ("pinned evidence changed or is missing; " if stale else "")
                         + ("confirm a candidate with --apply, or ask the owner" if candidates
@@ -422,7 +424,9 @@ def format_ground(report: dict) -> str:
         stale = ", pinned evidence changed or missing" if fact["stale"] else ""
         lines.append(f"\nfact {fact['fact']} ({fact['basis']}{stale}): {fact['key']}")
         if not fact["observable"]:
-            lines.append("  organisational: code cannot show this; ask the owner")
+            lines.append("  organisational: code cannot show this; ask the owner"
+                         + (" (declared under scope.size_and_sector; a fact about what the software does belongs in scope.technical)"
+                            if fact.get("slot") == "size_and_sector" else ""))
         for item in fact["candidates"]:
             lines.append(f"  {item['location']}  score {item['score']}  [{', '.join(item['concepts']) or '-'}]  {item['snippet']}")
             lines.append("    matched: " + explain(item["matched"]))
@@ -567,7 +571,7 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
                  declared.scope.id: (declared.scope.revision, declared.scope.revision + 1)}
     scope = data["scope"]
     scope["revision"] += 1
-    copies = [*scope.get("roles", []), *scope.get("size_and_sector", [])]
+    copies = [*scope.get("roles", []), *scope.get("size_and_sector", []), *scope.get("technical", [])]
     for activity in scope.get("activities", []):
         copies += [activity["lawful_basis"], *(item for key in ("roles", "recipients", "locations", "stores", "retention")
                                                for item in activity.get(key, []))]

@@ -205,7 +205,7 @@ class _Report:
         emit, record, declared = self.emit, self.record, self.declared
         emit("## Declared scope, jurisdictions and exclusions")
         emit()
-        record("Scope", declared.scope, exclude={"roles", "size_and_sector", "activities"})
+        record("Scope", declared.scope, exclude={"roles", "size_and_sector", "technical", "activities"})
         for activity in declared.scope.activities:
             record("Processing activity", activity)
         emit("## Facts and retained uncertainty")

@@ -39,10 +39,11 @@ def seed(declarations: Path) -> None:
     """Add requirements, facts and the two acts to a file `init --project-id fitbox --synthetic` wrote."""
     data = json.loads(declarations.read_text())
     data["files_root"] = "project"
-    # Technical facts go under roles: size_and_sector facts are organisational by design and never searched in code.
-    data["scope"]["roles"] = [_fact("fact-controller", "Acts as controller for user accounts", "declared", "yes"),
-                              _fact("fact-health", "Processes users' body weight (health data) for meal coaching", "assumed", "yes"),
-                              _fact("fact-cookies", "Sets analytics cookies on the landing page", "unknown", None)]
+    data["scope"]["roles"] = [_fact("fact-controller", "Acts as controller for user accounts", "declared", "yes")]
+    # What the software does goes under technical: those are the facts `ground` looks for in the code.
+    data["scope"]["technical"] = [
+        _fact("fact-health", "Processes users' body weight (health data) for meal coaching", "assumed", "yes"),
+        _fact("fact-cookies", "Sets analytics cookies on the landing page", "unknown", None)]
     data["requirements"] = [
         _requirement("req-delete", "Users can delete their account and all their personal data.", "fact-controller"),
         _requirement("req-cookies", "Ask for consent before storing analytics cookies.", "fact-cookies"),

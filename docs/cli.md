@@ -64,7 +64,11 @@ candidate obligations, applicability decisions, evidence references and reviews.
 File paths resolve relative to the declarations file, or to the project folder (its
 parent) when `"files_root": "project"`, which `init` sets for the default `.eu-compliance-guard/` folder (elsewhere it sets `"declarations_dir"`). Only explicitly selected
 regular files are read; nothing is discovered, crawled or executed. Facts keep their
-basis (`declared`, `observed`, `assumed`, `unknown`). Changing a versioned record
+basis (`declared`, `observed`, `assumed`, `unknown`). A fact goes where its kind belongs:
+`scope.technical` for what the software does ("sets analytics cookies"), which `ground` can
+look for in the code; `scope.roles` and `scope.size_and_sector` for organisational facts only
+the owner can confirm, which are never searched in code; and each activity's own lists for
+its lawful basis, recipients, locations, stores and retention. Changing a versioned record
 requires a higher `revision`; `check` names the exact location of every stale pin, and
 with `--previous` every record that needs a higher revision, including those whose pins
 must follow a raised revision.
