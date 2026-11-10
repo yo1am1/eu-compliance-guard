@@ -146,8 +146,8 @@ def to_markdown(export: dict) -> str:
 
 
 def _cell(line: str) -> str:
-    """Declared text never breaks the Markdown: no line breaks inside a line, no raw HTML."""
-    return " ".join(line.splitlines()).replace("<", "&lt;").replace(">", "&gt;")
+    """Declared text never breaks the Markdown: no line breaks inside a line, no raw HTML, no link or image."""
+    return " ".join(line.splitlines()).replace("<", "&lt;").replace(">", "&gt;").replace("](", "]&#40;")
 
 
 def to_csv(export: dict) -> str:
