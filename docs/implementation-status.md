@@ -62,7 +62,7 @@ projects, and fixed what fell short (see the changelog). The 2.0 summary follows
   `ground`, `pr_check`, `next_steps`; `timeline` from 2.3), the `pack` format, and `import-evidence` (EDPS
   Website Evidence Collector and SARIF).
 
-CI runs `make check` on every pull request. Supply-chain, determinism, regex and
+CI runs `make check`, `make e2e`, the semantic check and the pull-request screen on every pull request. Supply-chain, determinism, regex and
 legal-notice rules are enforced by tests.
 
 How 2.0 was verified: unit tests (a real throwaway ed25519 key for signing), then a

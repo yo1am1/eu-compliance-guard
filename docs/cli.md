@@ -14,22 +14,22 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `revalidate --input <file> --output <new run dir> [--offline \| --fetch-official] [--previous <run dir>]` | Assemble and publish a private run |
 | `ground [--input <file>] [--top N] [--json] [--apply <fact>=<path>:<line>]…` | Rank code evidence for each assumed or unknown fact, and each fact whose pinned evidence changed, with a local index. `--apply` marks a confirmed technical fact `observed`, pinned to that file's digest |
 | `state-dir [--input <file>]` | Print and create (0700) the private run storage for the declared `project_id` |
-| `next [--run <run dir>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
-| `score [--run <run dir>] [--against <run dir>] [--top N] [--json]` | Show the review progress of the newest (or given) run: separate meters, points out of 10, never a compliance score. Exit 0 whatever the points |
+| `next [--run <run dir>] [--input <file>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
+| `score [--run <run dir>] [--input <file>] [--against <run dir>] [--top N] [--json]` | Show the review progress of the newest (or given) run: separate meters, points out of 10, never a compliance score. Exit 0 whatever the points |
 | `pr-check [--diff <file>\|-] [--input <file>] [--markdown\|--json] [--strict]` | Screen a diff's added lines for legal touchpoints, undeclared concepts and pinned evidence in changed files; `--strict` exits 1 when something needs attention |
 | `view --run <run dir> [--dashboard] [--open]` | Verify a run and write `<parent>/views/<run>.html`, `<run>.dashboard.html` and `<run>.scorecard.json` (all 0600); print and optionally open the report, or with `--dashboard` the dashboard |
 | `lock [--input <file>] [--run <run dir>] [--output <file>]` | Record each act's version and article digests from a run in `eu-law.lock` |
 | `impact [--input <file>] [--run <run dir>] [--lock <file>] [--json] [--strict]` | List the articles changed since the lock and the obligations, decisions and requirements citing them |
-| `sign --decision <id> --key <ssh key> --principal <name> [--lock <file>]` | Sign a reviewed applicability decision against the locked law and its evidence |
-| `verify --allowed-signers <file> [--json]` | Check each signed decision: valid and current, changed since signing, or invalid |
-| `cite-check <file\|-> [--run <run dir>] [--json]` | Check cited articles and verbatim quotations against the retained official text |
+| `sign --decision <id> --key <ssh key> --principal <name> [--input <file>] [--lock <file>]` | Sign a reviewed applicability decision against the locked law and its evidence |
+| `verify --allowed-signers <file> [--input <file>] [--lock <file>] [--json]` | Check each signed decision: valid and current, changed since signing, or invalid |
+| `cite-check <file\|-> [--input <file>] [--run <run dir>] [--json]` | Check cited articles and verbatim quotations against the retained official text |
 | `pack build\|sign\|verify\|import\|starters …` | Draft, SSH-sign, verify and import reusable obligation packs (candidate obligations only); list the draft starter packs |
-| `import-evidence --kind wec\|sarif <file> [--json]` | Keep an EDPS Website Evidence Collector or SARIF result as untrusted evidence, summarised by concept |
-| `accept <requirement>=<target>:<article>` | Map a requirement to a candidate obligation citing an article; no decision |
+| `import-evidence --kind wec\|sarif <file> [--input <file>] [--json]` | Keep an EDPS Website Evidence Collector or SARIF result as untrusted evidence, summarised by concept |
+| `accept <requirement>=<target>:<article> [--input <file>] [--json]` | Map a requirement to a candidate obligation citing an article; no decision |
 | `graph [--input <file>] [--json] [--view [--open]]` | Map the project's Python and Rust files, functions, imports, calls and data flows (static) |
 | `export ropa\|dpia [--input <file>] [--format md\|json\|csv] [--output <file>]` | Draft a record of processing activities (Art. 30(1)) or DPIA screening inputs (Art. 35, WP248 criteria) from the declarations |
 | `timeline [--input <file>] [--run <run dir>] [--json]` | List application, entry-into-force and transposition dates quoted from the retained text, reached or upcoming against the assessment date |
-| `seal [--run <run dir>] [--key <ssh key> --principal <name>]` · `seal --check [--allowed-signers <file>] [--json]` | Append a run to the tamper-evident log `runs.log`; check the chain, the sealed runs and signatures (exit 1 on a break) |
+| `seal [--run <run dir>] [--input <file>] [--key <ssh key> --principal <name>]` · `seal --check [--allowed-signers <file>] [--json]` | Append a run to the tamper-evident log `runs.log`; check the chain, the sealed runs and signatures (exit 1 on a break) |
 | `semantic status\|setup [--json]` | Optional semantic ranking of article suggestions: show whether it is on and ready, or download the pinned model once |
 | `mcp [--input <file>]` | Serve `cite_check`, `article_search`, `ground`, `pr_check`, `timeline` and `next_steps` as read-only MCP tools over stdio |
 
@@ -124,7 +124,7 @@ not be read, becomes a review gap on the run; the declarations are never changed
 - DNS answers must all be public, and the connection is pinned to a validated
   address. TLS is verified.
 - At most three validated redirects are followed. Limits are 8 MiB per response,
-  20 s per target and 300 s per run.
+  20 s per target (45 s on legislation.gov.uk) and 300 s per run.
 - Fictional fixture targets are never contacted.
 
 Each target gets a recorded attempt. Accepted bytes are retained as unreviewed
@@ -133,8 +133,8 @@ establishes neither binding status, completeness, applicability nor currency.
 
 EUR-Lex answers scripted clients with a bot challenge, which is recorded as a safe
 failure. Download the act yourself (PDF or HTML) and declare it as a selected
-source; `/eucg-audit` walks through this, and `check` reports the digest to use. In
-1.0, only text and HTML sources can support a mapping. A PDF can be declared and
+source; `/eucg-audit` walks through this, and `check` reports the digest to use.
+Only text and HTML sources can support a mapping. A PDF can be declared and
 reviewed, but it always remains a "needs manual identity review" gap, so also save
 the HTML version of an act you want to rely on. Some official pages, such as EDPB's, change bytes on every request, so
 exact-byte comparison reports them as changed. See the
@@ -314,7 +314,7 @@ from `git diff --color` are ignored; input that names no changed file (prose or 
 `--stat` summary) or holds hunk lines a unified diff cannot (such as `--word-diff`
 output) exits 2 with `invalid-input` instead of passing unread. A merge's combined diff
 (`git show <merge>`) is screened too: a line added against any parent counts. With
-declarations, it also maps the checked-out Python code (as `graph` does) and lists each
+declarations, it also maps the checked-out Python and Rust code (as `graph` does) and lists each
 data flow whose functions gained an added line, with the facts pinned on that flow, or
 says that no fact covers it. Each counts as an item needing attention. In a monorepo,
 run it from the repository top with `--input <project>/.eu-compliance-guard/declarations.json`;

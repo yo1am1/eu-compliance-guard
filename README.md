@@ -187,7 +187,7 @@ Every command, its options and exit codes are in the
 | --- | --- |
 | [Plugin guide](docs/plugin.md) | Slash commands, band, side panel, dashboard, session hook, permissions |
 | [Command-line reference](docs/cli.md) | Every command; declarations, runs, official sources and the 2.0 features |
-| [Official hosts](docs/official-hosts.md) | The verified EU hosts and how they are checked |
+| [Official hosts](docs/official-hosts.md) | The verified EU and UK hosts and how they are checked |
 | [Implementation status](docs/implementation-status.md) | What exists, what was verified and how |
 | [Roadmap](docs/roadmap.md) | Released versions and what comes next |
 | [Decisions](docs/decisions/) | Recorded design decisions and measurements |
