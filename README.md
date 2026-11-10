@@ -148,9 +148,11 @@ Every command, its options and exit codes are in the
   shows who recorded a decision against which text, not that it is right.
 - Retrieval checks cannot prove a document's identity or currency; a reviewer must.
   National hosts and PDFs need manual review.
-- A run's checksums detect accidental change or a partial write. They are not tamper
-  evidence: anyone who can write the private run folder can rewrite a report and its
-  checksums. Only a signed decision (`sign`) shows who recorded it.
+- A run's checksums detect accidental change or a partial write, not tampering: anyone who
+  can write the private run folder can rewrite a report and its checksums. `seal` adds the
+  run to a hash-chained log in the project (`runs.log`); committed to Git or signed with an
+  SSH key, it makes a later change to a sealed run detectable (`seal --check`). It proves
+  nothing against someone who can rewrite the log and its Git history or holds the key.
 - It runs on Linux and macOS (POSIX); CI tests Linux only. Windows is not supported: the CLI
   refuses non-POSIX systems, and the plugin's hook and band assume POSIX paths.
 - Article suggestions use word search. An optional local model (the `semantic` extra, off by

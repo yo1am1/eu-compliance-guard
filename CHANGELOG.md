@@ -18,6 +18,12 @@
   so the numbers show direction, not precision. `make eval` reports both, and
   `fixtures/eval/baseline.json` holds the floors.
 - `semantic status|setup`, `make semantic-check`, and a CI job that runs the real model.
+- Tamper evidence for runs. `seal` appends a run to `.eu-compliance-guard/runs.log`: its id, the
+  digest of its completion marker and the digest of the previous line, optionally signed with
+  an SSH key. `seal --check` verifies the chain, every sealed run still on the machine and the
+  signatures. A report rewritten together with its own checksums, which a run alone cannot
+  detect, is reported as changed (tested). The log is evidence when committed to Git or
+  signed; the docs say what it does not prove.
 
 ## 2.5.1 — 2026-11-10
 
