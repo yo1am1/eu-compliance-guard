@@ -63,7 +63,7 @@ def project_id(project: Path) -> str | None:
         value = json.loads(raw).get("project_id") if len(raw) <= MAX_DECLARATION_BYTES else None
     except (OSError, ValueError, AttributeError):
         return None
-    return value if isinstance(value, str) and PROJECT_ID.match(value) else None
+    return value if isinstance(value, str) and PROJECT_ID.fullmatch(value) else None
 
 
 def state_dir(identity: str) -> Path:
@@ -74,7 +74,7 @@ def state_dir(identity: str) -> Path:
 
 
 def _safe(value) -> str:
-    return value if isinstance(value, str) and SAFE.match(value) else "unrecorded"
+    return value if isinstance(value, str) and SAFE.fullmatch(value) else "unrecorded"
 
 
 def latest_run(identity: str | None) -> str:
@@ -82,13 +82,13 @@ def latest_run(identity: str | None) -> str:
     if identity is None:
         return "No completed run yet; use /eucg-audit."
     try:
-        runs = [path for path in state_dir(identity).iterdir() if path.name.startswith("run-")
-                and not path.is_symlink() and path.is_dir() and (path / "complete.json").is_file()]
+        runs = [((path / "complete.json").stat().st_mtime_ns, path.name, path) for path in state_dir(identity).iterdir()
+                if path.name.startswith("run-") and not path.is_symlink() and path.is_dir() and (path / "complete.json").is_file()]
     except OSError:
         runs = []
     if not runs:
         return "No completed run yet; use /eucg-audit."
-    newest = max(runs, key=lambda path: path.name)  # Run names carry their UTC start time, as the band reads them.
+    newest = max(runs)[2]  # Completed last, then by name: the run `next` and the band pick.
     try:
         with open(newest / "bundle.json", "rb") as handle:
             raw = handle.read(MAX_BUNDLE_BYTES + 1)
@@ -104,11 +104,13 @@ def latest_run(identity: str | None) -> str:
         confirmed = sum(1 for item in attempts if item.get("state") == "retrieved"
                         and isinstance(item.get("retrieval"), dict) and item["retrieval"].get("admission") == "accepted")
         gaps = len(bundle.get("gaps", []))
+        run_id, ended, state = (_safe(run.get(key)) for key in ("id", "ended_at", "state"))
+        assessed = _safe(scope.get("assessment_date"))
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return "Latest run directory could not be summarized; use /eucg-status."
     label = "FICTIONAL / SYNTHETIC run. " if bundle.get("synthetic") is True else ""
-    summary = (f"{label}Latest run {_safe(run.get('id'))} ended {_safe(run.get('ended_at'))}: state {_safe(run.get('state'))}, "
-               f"assessment date {_safe(scope.get('assessment_date'))}, {gaps} open gaps, "
+    summary = (f"{label}Latest run {run_id} ended {ended}: state {state}, "
+               f"assessment date {assessed}, {gaps} open gaps, "
                f"requirements {states.count('supported')} supported / {states.count('unresolved')} unresolved / "
                f"{states.count('conflicting')} conflicting")
     if attempts:

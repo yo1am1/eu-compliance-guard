@@ -36,16 +36,19 @@ def _module(path: str) -> str:
     return ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
 
 
-def _concepts(text: str) -> list[str]:
-    """pr-check's rule: a strong term counts alone, otherwise two of a concept's terms must appear."""
-    return prcheck.concepts_in(text)
+def _concepts(lines: list[set[str]], extra: str = "") -> list[str]:
+    """pr-check's rule on a run of lines, given as each line's terms: a strong term counts alone,
+    otherwise two of a concept's terms must appear. A term never spans lines, so a file is
+    tokenized once and each definition only joins the terms of its lines."""
+    return prcheck.term_concepts(set(grounding.tokens(extra)).union(*lines))
 
 
 # Kinds of data, recognised from identifiers and short string keys only (never comments or
 # docstrings), as whole word sequences within one identifier: `birth_date`, `emailAddress`,
 # `row["phone"]`. Generic words such as `user`, `name`, `account`, `child` or `age` are not
 # enough on their own: in code they mostly mean something technical (child spans, JWT `kid`,
-# `max_age`), which real repositories showed.
+# `max_age`), which real repositories showed. "health" alone is mostly a check or a release-health
+# metric, so it counts only with a data word ("health_data", "health_record").
 DATA_PHRASES = {
     "personal_data": (("email",), ("e", "mail"), ("phone",), ("mobile", "number"), ("first", "name"), ("last", "name"),
                       ("full", "name"), ("given", "name"), ("family", "name"), ("surname",), ("street",),
@@ -63,57 +66,21 @@ DATA_PHRASES = {
                  ("under", "16"), ("age", "verification"), ("age", "gate"), ("age", "check"), ("child", "account"),
                  ("child", "profile"), ("child", "user"), ("kids", "mode")),
 }
-# Words that make a one-word data phrase technical next to it in the same identifier. "health"
-# alone is no longer a data word: in code it is mostly a check or a release-health metric, so it
-# counts only with a data word ("health_data", "health_record").
-TECHNICAL: dict[str, set[str]] = {}
 MAX_KEY = 40  # a string constant this short without spaces reads as a key, not prose
-
-
-def _identifiers(node: ast.AST) -> list[str]:
-    """Names, attributes, parameters, keyword names and short string keys within a definition."""
-    found = []
-    for item in ast.walk(node):
-        if isinstance(item, ast.Name):
-            found.append(item.id)
-        elif isinstance(item, ast.Attribute):
-            found.append(item.attr)
-        elif isinstance(item, ast.arg):
-            found.append(item.arg)
-        elif isinstance(item, ast.keyword) and item.arg:
-            found.append(item.arg)
-        elif isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            found.append(item.name)
-        elif isinstance(item, ast.Constant) and isinstance(item.value, str) and len(item.value) <= MAX_KEY \
-                and item.value and not any(char.isspace() for char in item.value):
-            found.append(item.value)
-    return found
 
 
 @functools.lru_cache(maxsize=65536)
 def _identifier_data(identifier: str) -> frozenset[str]:
     """The kinds of data one identifier names; cached, since identifiers repeat across a project."""
     words = [word.lower() for word in grounding._words(identifier)]
-    kinds = set()
-    for kind, phrases in DATA_PHRASES.items():
-        for phrase in phrases:
-            size = len(phrase)
-            for at in range(len(words) - size + 1):
-                if tuple(words[at:at + size]) != phrase:
-                    continue
-                neighbours = set(words[max(at - 1, 0):at]) | set(words[at + size:at + size + 1])
-                if size == 1 and TECHNICAL.get(phrase[0], set()) & neighbours:
-                    continue
-                kinds.add(kind)
-                break
-            if kind in kinds:
-                break
-    return frozenset(kinds)
+    return frozenset(kind for kind, phrases in DATA_PHRASES.items()
+                     if any(tuple(words[at:at + len(phrase)]) == phrase
+                            for phrase in phrases for at in range(len(words) - len(phrase) + 1)))
 
 
-def _data(node: ast.AST) -> list[str]:
+def _data(identifiers: set[str]) -> list[str]:
     kinds = set()
-    for identifier in set(_identifiers(node)):
+    for identifier in identifiers:
         kinds |= _identifier_data(identifier)
     return [kind for kind in DATA if kind in kinds]
 
@@ -128,12 +95,16 @@ def is_test_file(path: str) -> bool:
 
 
 def _called(call: ast.Call) -> tuple[str | None, str] | None:
-    """(qualifier, name): `f()` -> (None, "f"); `module.f()` -> ("module", "f"); `a.b.f()` -> (None, "f")."""
+    """(qualifier, name): `f()` -> (None, "f"); `module.f()` -> ("module", "f"); `a.b.f()` -> ("a.b", "f");
+    `x().f()` -> ("", "f"). Only a bare name is looked up as this file's own function."""
     if isinstance(call.func, ast.Name):
         return None, call.func.id
     if isinstance(call.func, ast.Attribute):
-        owner = call.func.value
-        return (owner.id if isinstance(owner, ast.Name) else None), call.func.attr
+        parts, owner = [], call.func.value
+        while isinstance(owner, ast.Attribute):
+            parts.append(owner.attr)
+            owner = owner.value
+        return (".".join([owner.id, *reversed(parts)]) if isinstance(owner, ast.Name) else ""), call.func.attr
     return None
 
 
@@ -141,9 +112,14 @@ class _FileVisitor(ast.NodeVisitor):
     """Definitions, calls and imports of one file; qualified names follow nesting."""
 
     def __init__(self, path: str, text: str):
-        self.path, self.text = path, text
-        self.lines = text.splitlines(keepends=True)  # split once: per-definition splitting was quadratic
+        self.path = path
+        # Split once, at the line ends the parser counts (\n, \r\n, \r): a form feed stays inside its line.
+        self.terms = [set(grounding.tokens(line))
+                      for line in grounding._lines(text.replace("\r\n", "\n").replace("\r", "\n"))]
         self.scope = [(node_id(path), "")]
+        # Names, attributes, parameters, keyword names and short string keys, per open definition:
+        # gathered in the one walk of the file, so nested definitions are not walked again.
+        self.identifiers: list[set[str]] = [set()]
         self.definitions: list[tuple] = []  # id, kind, qualname, line, end line, concepts, data, parent
         self.calls: list[tuple[str, str | None, str, int]] = []  # caller id, qualifier, called name, line
         self.imports: list[tuple[str, int, int]] = []  # module, level, line
@@ -154,12 +130,16 @@ class _FileVisitor(ast.NodeVisitor):
         parent, prefix = self.scope[-1]
         qualname = f"{prefix}.{node.name}" if prefix else node.name
         identity = node_id(self.path, qualname)
-        segment = "".join(self.lines[node.lineno - 1:node.end_lineno or node.lineno]) or node.name
-        self.definitions.append((identity, kind, qualname, node.lineno, node.end_lineno or node.lineno,
-                                 _concepts(segment), _data(node), parent))
+        slot = len(self.definitions)  # definitions stay in source order, outer before inner
+        self.definitions.append(())
         self.scope.append((identity, qualname))
+        self.identifiers.append({node.name})
         self.generic_visit(node)
         self.scope.pop()
+        found = self.identifiers.pop()
+        self.identifiers[-1] |= found  # a definition's identifiers include those of the ones inside it
+        self.definitions[slot] = (identity, kind, qualname, node.lineno, node.end_lineno or node.lineno,
+                                  _concepts(self.terms[node.lineno - 1:node.end_lineno or node.lineno]), _data(found), parent)
 
     def visit_ClassDef(self, node):
         self._define(node, "class")
@@ -170,6 +150,27 @@ class _FileVisitor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node):
         self._define(node, "function")
 
+    def visit_Name(self, node):
+        self.identifiers[-1].add(node.id)
+
+    def visit_Attribute(self, node):
+        self.identifiers[-1].add(node.attr)
+        self.generic_visit(node)
+
+    def visit_arg(self, node):
+        self.identifiers[-1].add(node.arg)
+        self.generic_visit(node)
+
+    def visit_keyword(self, node):
+        if node.arg:
+            self.identifiers[-1].add(node.arg)
+        self.generic_visit(node)
+
+    def visit_Constant(self, node):
+        value = node.value
+        if isinstance(value, str) and value and len(value) <= MAX_KEY and not any(char.isspace() for char in value):
+            self.identifiers[-1].add(value)
+
     def visit_Call(self, node):
         called = _called(node)
         if called is not None:
@@ -179,8 +180,9 @@ class _FileVisitor(ast.NodeVisitor):
     def visit_Import(self, node):
         for alias in node.names:
             self.imports.append((alias.name, 0, node.lineno))
-            if alias.asname:
-                self.aliases.append((alias.asname, alias.name, 0))
+            # `import a.b as c` binds the module a.b; `import a.b` binds only its top package a.
+            module = alias.name if alias.asname else alias.name.split(".")[0]
+            self.aliases.append((alias.asname or module, module, 0))
 
     def visit_ImportFrom(self, node):
         base = node.module or ""
@@ -192,6 +194,14 @@ class _FileVisitor(ast.NodeVisitor):
             self.imports.append((submodule, node.level, node.lineno))
             self.aliases.append((local, submodule, node.level))
             self.symbols.append((local, base, alias.name, node.level))
+
+
+def _guess(candidates: list[str]) -> tuple[list[str], bool]:
+    """(targets, guessed) for a call known by name only, in Python and Rust alike: a name the project
+    defines once is that definition; otherwise the first MAX_AMBIGUOUS candidates are guesses.
+    A name defined twice in one place (cfg, if/else) is one node."""
+    targets = sorted(set(candidates))
+    return (targets, False) if len(targets) == 1 else (targets[:MAX_AMBIGUOUS], True)
 
 
 def _resolve(path: str, module: str, level: int, modules: dict[str, str]) -> str | None:
@@ -249,10 +259,10 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
         return by_module.get((crate, module)), rest
 
     for path, (result, text) in sorted(read.items()):
-        lines = text.splitlines()
+        lines = [set(grounding.tokens(line)) for line in grounding._lines(text)]  # at \n only, as the tokenizer counts
         file_id = node_id(path)
         nodes[file_id] = m.GraphNode(id=file_id, kind="file", path=path, name=path, line=1,
-                                     end_line=max(1, len(lines)), concepts=_concepts(text), data=[])
+                                     end_line=max(1, len(lines)), concepts=_concepts(lines), data=[])
         symbols[path], module_aliases[path], external[path] = {}, {}, {}
         for local, segments, name in result["uses"]:
             target, rest = module_file(path, segments + ([name] if name and name != "*" else []))
@@ -280,13 +290,10 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
             identity = node_id(path, item["qualname"])
             words = rg.item_words(tokens, item)
             crates = sorted({external[path][word] for word in words if word in external[path]})
-            segment = "\n".join(lines[item["line"] - 1:item["end_line"]]) + ("\n" + " ".join(crates) if crates else "")
-            kinds = set()
-            for word in set(words):
-                kinds |= _identifier_data(word)
             nodes[identity] = m.GraphNode(id=identity, kind=item["kind"], path=path, name=item["qualname"],
                                           line=item["line"], end_line=max(item["line"], item["end_line"]),
-                                          concepts=_concepts(segment), data=[kind for kind in DATA if kind in kinds])
+                                          concepts=_concepts(lines[item["line"] - 1:item["end_line"]], " ".join(crates)),
+                                          data=_data(set(words)))
             items_of[path][item["qualname"]] = identity
             by_name.setdefault(item["qualname"].rsplit(".", 1)[-1], []).append(identity)
             by_qualname.setdefault(item["qualname"], []).append(identity)
@@ -309,14 +316,13 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
                 return ([found], False) if found else ([], False)
             if name in external.get(path, {}):
                 return [], False
-        elif qualifier in ("crate", "self", "super"):
-            target, rest = module_file(path, [qualifier, name])
+        elif qualifier.split("::")[0] in ("crate", "self", "super"):
+            target, rest = module_file(path, [*qualifier.split("::"), name])
             found = items_of.get(target, {}).get(".".join(rest)) if target else None
             return ([found], False) if found else ([], False)
         elif qualifier == ".":
             # A method call: only its name is known, and only a method (Type.name) can answer it.
-            methods = sorted({target for target in by_name.get(name, []) if "." in nodes[target].name})
-            return (methods, False) if len(methods) == 1 else (methods[:MAX_AMBIGUOUS], True)
+            return _guess([target for target in by_name.get(name, []) if "." in nodes[target].name])
         else:
             if qualifier in module_aliases.get(path, {}):
                 found = items_of.get(module_aliases[path][qualifier], {}).get(name)
@@ -330,10 +336,8 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
                 found = items_of.get(target, {}).get(f"{qualname}.{name}")
                 if found:
                     return [found], False
-            matches = sorted(set(by_qualname.get(f"{qualifier}.{name}", [])))
-            return (matches, False) if len(matches) == 1 else (matches[:MAX_AMBIGUOUS], True)
-        targets = sorted(set(by_name.get(name, [])))  # a name defined twice (cfg, if/else) is one node
-        return (targets, False) if len(targets) == 1 else (targets[:MAX_AMBIGUOUS], True)
+            return _guess(by_qualname.get(f"{qualifier}.{name}", []))
+        return _guess(by_name.get(name, []))
 
     for path, (result, _) in sorted(read.items()):
         for caller, qualifier, name, line in result["calls"]:
@@ -351,6 +355,11 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
     files, skipped = grounding.read_project(Path(root), exclude)
     python = [(path, raw, text) for path, raw, text in files if path.endswith(".py")]
     modules = {_module(path): path for path, _, _ in python}
+    # shortcut: only a top-level src/ folder is a source root (src/app/x.py is also `app.x`); a project
+    # with other roots keeps name guesses, until a root can be declared.
+    for name, path in list(modules.items()):
+        if name.startswith("src."):
+            modules.setdefault(name[4:], path)
     nodes: dict[str, m.GraphNode] = {}
     edges: set[tuple[str, str, str, str, int]] = set()  # source, kind, target, provenance, line
     by_name: dict[str, list[str]] = {}
@@ -372,7 +381,7 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
             skipped += 1
             continue
         nodes[node_id(path)] = m.GraphNode(id=node_id(path), kind="file", path=path, name=path, line=1,
-                                           end_line=max(1, len(text.splitlines())), concepts=_concepts(text), data=[])
+                                           end_line=max(1, len(visitor.terms)), concepts=_concepts(visitor.terms), data=[])
         for identity, kind, qualname, line, end, concepts, data, parent in visitor.definitions:
             nodes[identity] = m.GraphNode(id=identity, kind=kind, path=path, name=qualname, line=line, end_line=end,
                                           concepts=concepts, data=data)
@@ -392,9 +401,13 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
             target = _resolve(path, module, level, modules)
             if target is not None and target != path:
                 edges.add((node_id(path), "imports", node_id(target), "extracted", line))
+    def module_of(path: str, qualifier: str) -> str | None:
+        """The project file an owner names: an imported name, or a dotted module path (`app.storage`)."""
+        return scopes.get(path, ({}, {}))[1].get(qualifier) or (modules.get(qualifier) if "." in qualifier else None)
+
     def lookup(path: str, qualifier: str | None, name: str) -> str | None:
         """Python's own lookup order: this file's definitions, then imported names and modules."""
-        symbols, aliases = scopes.get(path, ({}, {}))
+        symbols = scopes.get(path, ({}, {}))[0]
         if qualifier is None:
             if name in top_level.get(path, {}):
                 return top_level[path][name]
@@ -403,7 +416,7 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
                 source = _resolve(path, module, int(level), modules)
                 return top_level.get(source, {}).get(imported) if source else None
             return None
-        source = aliases.get(qualifier)
+        source = module_of(path, qualifier)
         return top_level.get(source, {}).get(name) if source else None
 
     for path, caller, qualifier, name, line in pending_calls:
@@ -411,14 +424,11 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
         if found is not None:
             edges.add((caller, "calls", found, "extracted", line))
             continue
-        if qualifier is not None and qualifier in scopes.get(path, ({}, {}))[1]:
+        if qualifier is not None and module_of(path, qualifier):
             continue  # a project module's attribute that defines nothing by that name: no guess
-        targets = sorted(set(by_name.get(name, [])))  # a name defined twice (cfg, if/else) is one node
-        if len(targets) == 1:
-            edges.add((caller, "calls", targets[0], "extracted", line))
-        else:
-            for target in targets[:MAX_AMBIGUOUS]:
-                edges.add((caller, "calls", target, "ambiguous", line))
+        targets, guessed = _guess(by_name.get(name, []))
+        for target in targets:
+            edges.add((caller, "calls", target, "ambiguous" if guessed else "extracted", line))
     rust_nodes, rust_edges, rust_parsed, rust_skipped, rust = _rust_graph(files)
     nodes.update(rust_nodes)
     edges |= rust_edges
@@ -452,10 +462,13 @@ def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
     These are possible paths found by static parsing; they show where to look, never a finding.
     """
     nodes = {node.id: node for node in graph.nodes}
+    sinks_of = {node.id: [concept for concept in node.concepts if concept in SINKS] for node in graph.nodes}
     calls: dict[str, list[tuple[str, str]]] = {}
     for edge in graph.edges:
         if edge.kind == "calls":
             calls.setdefault(edge.source, []).append((edge.target, edge.provenance))
+    for targets in calls.values():
+        targets.sort(key=lambda item: (item[1] != "extracted", item))  # extracted calls are followed first
     found = []
     for start in sorted(node.id for node in graph.nodes
                         if node.kind == "function" and node.data and not is_test_file(node.path)):
@@ -465,7 +478,7 @@ def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
         for _ in range(max_depth + 1):
             following = []
             for current in frontier:
-                sinks = [concept for concept in nodes[current].concepts if concept in SINKS]
+                sinks = sinks_of[current]
                 if sinks:
                     hops, cursor, provenance = [], current, "extracted"
                     while cursor is not None:
@@ -479,9 +492,12 @@ def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
                                   "hops": [{"name": nodes[hop].name, "location": f"{nodes[hop].path}:{nodes[hop].line}",
                                             "end_line": nodes[hop].end_line} for hop in hops]})
                     continue  # the first sink on a route ends it; what it calls is the sink's own detail
-                for target, provenance in sorted(calls.get(current, []), key=lambda item: (item[1] != "extracted", item)):
+                for target, provenance in calls.get(current, []):
                     count = guesses[current] + (provenance == "ambiguous")
-                    if target not in previous and count <= MAX_AMBIGUOUS_HOPS:
+                    # A function first reached through a guess is taken again by a route with fewer
+                    # guesses: that route may go on where the guessed one had to stop.
+                    if count <= MAX_AMBIGUOUS_HOPS and (target not in previous
+                                                        or (count < guesses[target] and not sinks_of[target])):
                         previous[target] = (current, provenance)
                         guesses[target] = count
                         following.append(target)
@@ -501,6 +517,21 @@ def covers(flow: dict, refs: set[str]) -> bool:
             if ref_path == path and number.isdigit() and int(start) <= int(number) <= hop["end_line"]:
                 return True
     return False
+
+
+def facts_by_evidence(declared: m.RevalidationInput) -> dict[str, set[str]]:
+    """Evidence id -> ids of the facts that cite it."""
+    found: dict[str, set[str]] = {}
+    for fact in m.scope_facts(declared.scope):
+        for evidence in fact.evidence_ids:
+            found.setdefault(evidence, set()).add(fact.id)
+    return found
+
+
+def facts_on(flow: dict, declared: m.RevalidationInput, by_evidence: dict[str, set[str]]) -> list[str]:
+    """Ids of the facts whose pinned evidence lies inside one of the flow's functions."""
+    return sorted({fact for item in declared.evidence if covers(flow, set(item.evidence.source_refs))
+                   for fact in by_evidence.get(item.evidence.id, ())})
 
 
 def describe_flow(flow: dict) -> str:

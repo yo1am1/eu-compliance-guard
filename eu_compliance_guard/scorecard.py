@@ -368,16 +368,23 @@ STEP_TEXT = {
     "fact": "Confirm fact {subject}",
     "source": "Read and select the source text of {subject}",
     "applicability": "Record whether {subject} applies",
-    "mapping": "Map {subject} to a candidate obligation",
+    "mapping": "Map or remap {subject} to a candidate obligation",
     "review": "Review the evidence for {subject}",
     "family": "Screen the eleven legal families",
 }
 
 
-def describe_step(step: m.ScoreNextStep) -> str:
+def step_title(step: m.ScoreNextStep) -> str:
     """Fixed words per kind with the step's validated id; never a run's free text."""
-    what = STEP_TEXT[step.kind].replace("{subject}", step.subject or "")
-    return f"{what} · unblocks {step.unblocks} open requirement{'' if step.unblocks == 1 else 's'}"
+    return STEP_TEXT[step.kind].replace("{subject}", step.subject or "")
+
+
+def step_unblocks(step: m.ScoreNextStep) -> str:
+    return f"unblocks {step.unblocks} open requirement{'' if step.unblocks == 1 else 's'}"
+
+
+def describe_step(step: m.ScoreNextStep) -> str:
+    return f"{step_title(step)} · {step_unblocks(step)}"
 
 
 def format_text(card: m.Scorecard) -> str:

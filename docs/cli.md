@@ -14,22 +14,22 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `revalidate --input <file> --output <new run dir> [--offline \| --fetch-official] [--previous <run dir>]` | Assemble and publish a private run |
 | `ground [--input <file>] [--top N] [--json] [--apply <fact>=<path>:<line>]…` | Rank code evidence for each assumed or unknown fact, and each fact whose pinned evidence changed, with a local index. `--apply` marks a confirmed technical fact `observed`, pinned to that file's digest |
 | `state-dir [--input <file>]` | Print and create (0700) the private run storage for the declared `project_id` |
-| `next [--run <run dir>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
-| `score [--run <run dir>] [--against <run dir>] [--top N] [--json]` | Show the review progress of the newest (or given) run: separate meters, points out of 10, never a compliance score. Exit 0 whatever the points |
+| `next [--run <run dir>] [--input <file>] [--top N] [--json]` | Rank the open steps of the newest (or given) run by how many open requirements each unblocks |
+| `score [--run <run dir>] [--input <file>] [--against <run dir>] [--top N] [--json]` | Show the review progress of the newest (or given) run: separate meters, points out of 10, never a compliance score. Exit 0 whatever the points |
 | `pr-check [--diff <file>\|-] [--input <file>] [--markdown\|--json] [--strict]` | Screen a diff's added lines for legal touchpoints, undeclared concepts and pinned evidence in changed files; `--strict` exits 1 when something needs attention |
 | `view --run <run dir> [--dashboard] [--open]` | Verify a run and write `<parent>/views/<run>.html`, `<run>.dashboard.html` and `<run>.scorecard.json` (all 0600); print and optionally open the report, or with `--dashboard` the dashboard |
 | `lock [--input <file>] [--run <run dir>] [--output <file>]` | Record each act's version and article digests from a run in `eu-law.lock` |
 | `impact [--input <file>] [--run <run dir>] [--lock <file>] [--json] [--strict]` | List the articles changed since the lock and the obligations, decisions and requirements citing them |
-| `sign --decision <id> --key <ssh key> --principal <name> [--lock <file>]` | Sign a reviewed applicability decision against the locked law and its evidence |
-| `verify --allowed-signers <file> [--json]` | Check each signed decision: valid and current, changed since signing, or invalid |
-| `cite-check <file\|-> [--run <run dir>] [--json]` | Check cited articles and verbatim quotations against the retained official text |
+| `sign --decision <id> --key <ssh key> --principal <name> [--input <file>] [--lock <file>]` | Sign a reviewed applicability decision against the locked law and its evidence |
+| `verify --allowed-signers <file> [--input <file>] [--lock <file>] [--json]` | Check each signed decision: valid and current, changed since signing, or invalid |
+| `cite-check <file\|-> [--input <file>] [--run <run dir>] [--json]` | Check cited articles and verbatim quotations against the retained official text |
 | `pack build\|sign\|verify\|import\|starters …` | Draft, SSH-sign, verify and import reusable obligation packs (candidate obligations only); list the draft starter packs |
-| `import-evidence --kind wec\|sarif <file> [--json]` | Keep an EDPS Website Evidence Collector or SARIF result as untrusted evidence, summarised by concept |
-| `accept <requirement>=<target>:<article>` | Map a requirement to a candidate obligation citing an article; no decision |
+| `import-evidence --kind wec\|sarif <file> [--input <file>] [--json]` | Keep an EDPS Website Evidence Collector or SARIF result as untrusted evidence, summarised by concept |
+| `accept <requirement>=<target>:<article> [--input <file>] [--json]` | Map a requirement to a candidate obligation citing an article; no decision |
 | `graph [--input <file>] [--json] [--view [--open]]` | Map the project's Python and Rust files, functions, imports, calls and data flows (static) |
 | `export ropa\|dpia [--input <file>] [--format md\|json\|csv] [--output <file>]` | Draft a record of processing activities (Art. 30(1)) or DPIA screening inputs (Art. 35, WP248 criteria) from the declarations |
 | `timeline [--input <file>] [--run <run dir>] [--json]` | List application, entry-into-force and transposition dates quoted from the retained text, reached or upcoming against the assessment date |
-| `seal [--run <run dir>] [--key <ssh key> --principal <name>]` · `seal --check [--allowed-signers <file>] [--json]` | Append a run to the tamper-evident log `runs.log`; check the chain, the sealed runs and signatures (exit 1 on a break) |
+| `seal [--run <run dir>] [--input <file>] [--key <ssh key> --principal <name>]` · `seal --check [--allowed-signers <file>] [--json]` | Append a run to the tamper-evident log `runs.log`; check the chain, the sealed runs and signatures (exit 1 on a break) |
 | `semantic status\|setup [--json]` | Optional semantic ranking of article suggestions: show whether it is on and ready, or download the pinned model once |
 | `mcp [--input <file>]` | Serve `cite_check`, `article_search`, `ground`, `pr_check`, `timeline` and `next_steps` as read-only MCP tools over stdio |
 
@@ -124,7 +124,8 @@ not be read, becomes a review gap on the run; the declarations are never changed
 - DNS answers must all be public, and the connection is pinned to a validated
   address. TLS is verified.
 - At most three validated redirects are followed. Limits are 8 MiB per response,
-  20 s per target and 300 s per run.
+  20 s per target (45 s on legislation.gov.uk) and 300 s per run, which the act retrieval and
+  the consolidation queries share.
 - Fictional fixture targets are never contacted.
 
 Each target gets a recorded attempt. Accepted bytes are retained as unreviewed
@@ -133,8 +134,8 @@ establishes neither binding status, completeness, applicability nor currency.
 
 EUR-Lex answers scripted clients with a bot challenge, which is recorded as a safe
 failure. Download the act yourself (PDF or HTML) and declare it as a selected
-source; `/eucg-audit` walks through this, and `check` reports the digest to use. In
-1.0, only text and HTML sources can support a mapping. A PDF can be declared and
+source; `/eucg-audit` walks through this, and `check` reports the digest to use.
+Only text and HTML sources can support a mapping. A PDF can be declared and
 reviewed, but it always remains a "needs manual identity review" gap, so also save
 the HTML version of an act you want to rely on. Some official pages, such as EDPB's, change bytes on every request, so
 exact-byte comparison reports them as changed. See the
@@ -270,16 +271,19 @@ dependency folders are skipped, and a file that does not parse is counted as ski
 For Rust, `fn` items are functions; `struct`, `enum`, `trait` and `union` items are classes;
 methods are named `Type.method`. Calls resolve through the file's own items, `use` imports
 (`crate::`, `super::`, `self::`) and `mod` declarations, then a unique name in the project;
+a call written as a full path (`crate::net::send()`, `super::super::f()`) resolves without a `use`;
 otherwise up to five candidates are kept as ambiguous. A method call (`.send()`) only reaches
 methods, and common standard-library methods (`.clone()`, `.into()`, `.iter()` …) are never
 linked. Macros are not expanded, so functions generated inside `macro_rules!` are missed.
-Code under `#[cfg(test)]` or `#[test]`, `tests/` and `benches/` is left out. An imported
+Code under `#[cfg(test)]`, `#[test]` or a runtime's test attribute (`#[tokio::test]`), and in
+`tests/` and `benches/`, is left out, whatever its visibility; `#[cfg(not(test))]` code is kept. An imported
 crate's name counts for the functions that use it, so `use reqwest::Client` makes
 `Client::new().post(…)` a third-party call. Python and Rust names are never linked to each
 other. See `docs/decisions/rust-graph.md` for the measurements.
 
 Calls resolve the way Python looks names up: the same file first, then imported names
-and modules. A name that only matches several definitions elsewhere is labelled
+and modules (`import module` then `module.f()`, and dotted `pkg.module.f()`). A top-level
+`src/` folder is treated as a source root; other source roots fall back to name matches. A name that only matches several definitions elsewhere is labelled
 `ambiguous`, never guessed. The same files always give a byte-identical graph
 (`--json`) with one digest. Static parsing misses dynamic calls, so paths through the
 graph are possible paths, and an empty graph never shows compliance.
@@ -314,7 +318,7 @@ from `git diff --color` are ignored; input that names no changed file (prose or 
 `--stat` summary) or holds hunk lines a unified diff cannot (such as `--word-diff`
 output) exits 2 with `invalid-input` instead of passing unread. A merge's combined diff
 (`git show <merge>`) is screened too: a line added against any parent counts. With
-declarations, it also maps the checked-out Python code (as `graph` does) and lists each
+declarations, it also maps the checked-out Python and Rust code (as `graph` does) and lists each
 data flow whose functions gained an added line, with the facts pinned on that flow, or
 says that no fact covers it. Each counts as an item needing attention. In a monorepo,
 run it from the repository top with `--input <project>/.eu-compliance-guard/declarations.json`;
@@ -356,7 +360,8 @@ declared obligation cites a changed article, so CI can flag it.
 the controller's establishment and roles, then one entry per declared activity with its
 purpose, data subjects, personal data, lawful basis, recipients, locations and transfers,
 storage and retention. Every fact keeps its basis (observed, declared, assumed, unknown),
-and the record lists its gaps: empty fields, assumed or unknown facts, and the security
+and the record lists its gaps: empty fields, a missing establishment, assumed or unknown facts
+(controller roles included), and the security
 measures, which the declarations do not hold. `export dpia` drafts DPIA screening inputs: the
 three cases of Article 35(3) (law) and the nine criteria of the WP29 guidelines endorsed by
 the EDPB (WP248 rev.01, guidance), each with the words in the declarations that suggest it.
@@ -413,7 +418,9 @@ same run twice changes nothing, and a run id already sealed with other contents 
 run is intact, changed since it was sealed, or not on this machine (runs live outside the
 repository, so a colleague's clone has the log but not the runs; that is not a failure). It
 also names local runs that are not sealed. It exits 1 on a broken chain, a changed run or an
-invalid signature.
+invalid signature. A run id found in several run folders counts as changed if any copy differs
+from what was sealed. With `--allowed-signers`, an entry without a signature is printed as
+`NOT signed` (the exit code stays the same), and a signer's name is shown only once verified.
 
 The log is only as strong as its anchor. Commit `runs.log` to Git: rewriting a sealed run then
 also needs a visible rewrite of history. Or sign each entry with your SSH key
@@ -425,13 +432,15 @@ rewrite both.
 
 `cite-check FILE` (or `-` for standard input) checks text an agent wrote against the
 retained official text of the latest run. Every "Article N" it cites must exist in a
-retained act. Every quotation of three words or more must appear in the article cited just
+retained act, also when it is written in brackets or Markdown ("(Article 5 GDPR)",
+"**Article 5**"), without a space ("Art.5") or as a range ("Articles 5–7", both ends). Every quotation of three words or more must appear in the article cited just
 before it, word for word, ignoring case, whitespace and the style of quotation marks. A
 citation followed by an act's name or number ("Article 17 GDPR", "Article 5(3) of the
 ePrivacy Directive", "Article 99 of Regulation (EU) 2016/679") is checked in that act only;
 a well-known act the run did not retain, such as the DSA, is reported as not checked, and
 so is a citation of an act the tool does not recognise ("Article 9 of the Product Liability
-Directive" when that directive is not declared). Only the article is checked: a paragraph
+Directive" when that directive is not declared, or "Article 6 of the same Directive"). An act's
+name is read only after the citation, not before it. Only the article is checked: a paragraph
 or point ("Article 6(9)(z)"), a recital or an annex is not. UK
 citations work the same way: "section 170 of the Data Protection Act 2018", "s. 170 DPA
 2018", "regulation 6 of PECR", "Article 17 UK GDPR". A citation of "the GDPR" is never
@@ -467,7 +476,8 @@ only orders articles to read. It never maps a requirement, decides applicability
 score, and if it fails, word search answers alone. Similarities are rounded before ranking so
 small floating-point differences do not reorder results, but identical ranking on every CPU
 and operating system is not proven; a default install without the extra stays byte-for-byte
-deterministic. An act is embedded once and cached beside the model (about 12 s for the GDPR).
+deterministic. An act is embedded once and cached beside the model (about 12 s for the GDPR); the cache keeps
+its newest 32 files.
 
 ## Obligation packs
 

@@ -454,10 +454,11 @@ class AuthoringTests(unittest.TestCase):
         with env_patch.dict("os.environ", {"XDG_STATE_HOME": str(real)}):
             self.assertEqual(a.state_dir(project / ".eu-compliance-guard/declarations.json"), expected)
         self.assertEqual(expected.stat().st_mode & 0o777, 0o750)
-        (project / ".eu-compliance-guard/declarations.json").write_text('{"project_id": "../escape"}')
-        code, _, stderr = self.cli("state-dir", "--input", str(project / ".eu-compliance-guard/declarations.json"))
-        self.assertEqual(code, 2)
-        self.assertIn("invalid-input", stderr)
+        for identity in ("../escape", "abc\\n"):  # a trailing newline is not part of an id
+            (project / ".eu-compliance-guard/declarations.json").write_text('{"project_id": "%s"}' % identity)
+            code, _, stderr = self.cli("state-dir", "--input", str(project / ".eu-compliance-guard/declarations.json"))
+            self.assertEqual(code, 2)
+            self.assertIn("invalid-input", stderr)
 
     def test_a_missing_declarations_file_is_not_reported_as_an_unsafe_path(self):
         (self.root / "empty/.eu-compliance-guard").mkdir(parents=True)

@@ -12,6 +12,8 @@ Show where the project's legal revalidation stands, in one short card.
 
 ## Read
 
+Use the CLI command from the SessionStart context, written `<cli>` below.
+
 - Find the newest run under
   the directory printed by `<cli> state-dir` that has
   `complete.json`. If there is none: `No run yet. Use /eucg-audit.`
@@ -22,7 +24,7 @@ Show where the project's legal revalidation stands, in one short card.
 - Count sources: `retrieved`, `retrieval_failed` (failed) and `translation_unverified` (unverified) from `source_attempts`; `same bytes` and `changed`
   from their `retrieval.comparison`; `offline only` is each declared source
   (`declarations.sources`) whose `target_id` has no attempt in this run.
-- Declarations changed since the run when `sha256sum .eu-compliance-guard/declarations.json`
+- Declarations changed since the run when `sha256sum .eu-compliance-guard/declarations.json` (`shasum -a 256` on macOS)
   differs from the bundle's `input_digest` (`sha256:<hex>`). Do not compare against the
   run's `input.json`: it is a normalized copy, so its bytes always differ.
 

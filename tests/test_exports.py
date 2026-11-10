@@ -59,6 +59,14 @@ class ExportTests(unittest.TestCase):
         self.assertIn("activity-signup: 'Fictional email provider' is assumed", record["gaps"])
         self.assertIn("activity-newsletter: categories of data subjects (Art. 30(1)(c)) not declared", record["gaps"])
         self.assertIn("activity-signup: time limits for erasure (Art. 30(1)(f)) not declared", record["gaps"])
+        # The controller block is part of the record: its uncertain or missing fields are gaps too.
+        self.assertIn("controller: 'Fictional unknown role' is unknown", record["gaps"])
+        self.assertEqual(record["controller"]["establishment"], [])
+        self.assertEqual(record["gaps"][0], "controller: establishment (Art. 30(1)(a)) not declared")
+        data = declarations()
+        data["scope"]["establishment"] = ["Fictional establishment"]
+        named = exports.ropa(m.parse_record(m.RevalidationInput, json.dumps(data).encode()))
+        self.assertNotIn("controller: establishment (Art. 30(1)(a)) not declared", named["gaps"])
 
     def test_dpia_inputs_show_signals_and_never_answer(self):
         screening = exports.dpia(self.declared)
@@ -80,6 +88,11 @@ class ExportTests(unittest.TestCase):
         self.assertNotIn("<b>", markdown)
         self.assertIn("&lt;b&gt;newsletter&lt;/b&gt; second line", markdown)
         self.assertTrue(markdown.rstrip().endswith(LEGAL_NOTICE))
+        linked = declarations()
+        linked["scope"]["activities"][1]["purpose"] = "![fictional](https://tracker.example/pixel.png) [approved](https://x.example)"
+        linked_markdown = exports.to_markdown(exports.ropa(m.parse_record(m.RevalidationInput, json.dumps(linked).encode())))
+        self.assertNotIn("](", linked_markdown)  # declared text renders as text, never as a link or a remote image
+        self.assertIn("![fictional]&#40;https://tracker.example/pixel.png)", linked_markdown)
         rows = list(csv.reader(io.StringIO(exports.to_csv(record))))
         self.assertEqual(rows[2][2][:1], "'")  # a formula is kept as text
         data = declarations()

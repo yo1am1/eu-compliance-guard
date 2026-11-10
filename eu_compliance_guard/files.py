@@ -32,16 +32,20 @@ def _swap_in(parent_fd: int, name: str, content: bytes, mode: int, exact: bool) 
 
 
 def write_bytes(path: str | os.PathLike, content: bytes, mode: int = 0o644) -> Path:
-    """Atomically create or replace a project file, never through a link or over a folder."""
+    """Atomically create or replace a project file, never through a link or over a folder.
+
+    A replaced file never gains permission bits: one its owner made private stays private."""
     path = Path(path)
     with r._parent(path) as (parent_fd, name):
+        exact = False
         try:
             info = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
             if not stat.S_ISREG(info.st_mode):  # an existing link or folder is never replaced
                 raise r.RevalidationError("unsafe-path")
+            mode, exact = mode & stat.S_IMODE(info.st_mode), True
         except FileNotFoundError:
             pass
-        _swap_in(parent_fd, name, content, mode, exact=False)
+        _swap_in(parent_fd, name, content, mode, exact)
     return path
 
 

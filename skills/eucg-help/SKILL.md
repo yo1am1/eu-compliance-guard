@@ -49,7 +49,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 - `check [--input <file>] [--previous <run dir>] [--json]` validates declarations with located problems, observed file digests, target fetchability and (with `--previous`) records that need a higher revision and withdrawn support not yet renewed.
 - `revalidate --input <declarations.json> --output <new run dir> [--offline | --fetch-official] [--previous <run dir>]`
 
-- Offline by default. `--fetch-official` GETs only the declared targets on six fixed
+- Offline by default. `--fetch-official` GETs only the declared targets on the fixed
   official hosts, and only with your consent for that run.
 - Runs are private (0700/0600) and immutable. Use a new directory per run.
 - Exit 0: report written, possibly partial. Exit 2: invalid input or output.
@@ -63,7 +63,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 - `import-evidence --kind wec|sarif <file>` keeps an EDPS Website Evidence Collector or SARIF result as untrusted evidence under `imports/`, summarised by concept; the declarations are never changed.
 - `export ropa|dpia [--format md|json|csv] [--output <file>]` drafts a record of processing (Art. 30) or DPIA screening inputs (Art. 35), with every gap listed; never a decision.
 - `timeline [--json]` lists the dates each retained act applies from (and transposition deadlines), quoted from the text, reached or upcoming against the assessment date.
-- `cite-check <file|->` checks that cited articles exist and quotations are verbatim in the retained text; `mcp` serves it, `article_search`, `ground`, `pr_check` and `next_steps` as read-only MCP tools.
+- `cite-check <file|->` checks that cited articles exist and quotations are verbatim in the retained text; `mcp` serves it (`cite_check`), `article_search`, `ground`, `pr_check`, `timeline` and `next_steps` as read-only MCP tools.
 - `accept <requirement>=<target>:<Article N> [--input <file>] [--json]` maps a requirement to a candidate obligation citing that article (reused or created); it never decides applicability.
 - `graph [--input <file>] [--json] [--view [--open]]` maps the project's Python and Rust files, functions, imports and calls by parsing only (nothing is run); paths are possible paths, never proof.
 - `pr-check [--diff <file>|-] [--input <file>] [--markdown|--json] [--strict]` screens a unified diff's added lines for legal touchpoints and compares them with the declarations.

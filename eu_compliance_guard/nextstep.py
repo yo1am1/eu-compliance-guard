@@ -60,9 +60,14 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         return True
 
     retrieved = {item.source_target_id for item in bundle.source_attempts if item.retrieved_source}
-    missing = [target for target in unselected if target.id not in retrieved and fetchable(target)]
+    missing = []
     for target in unselected:
-        if target.id not in retrieved and not fetchable(target):
+        if target.id in retrieved:
+            steps.append(_step("source", target.id, citing(target.id),
+                               f"Read the retrieved text of {target.id}, then select it as a source with an accountable review."))
+        elif fetchable(target):
+            missing.append(target)
+        else:
             steps.append(_step("source", target.id, citing(target.id),
                                f"Download {target.id} by hand (the official fetch refuses it), then declare it as a selected source."))
     if missing:
@@ -70,10 +75,6 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         steps.append(_step("retrieve", "", unblocks,
                            f"Retrieve the official text of {len(missing)} declared source target(s) so provisions can be read.",
                            "eu-compliance-guard revalidate --fetch-official --input <declarations> --output <new run>"))
-    for target in unselected:
-        if target.id in retrieved:
-            steps.append(_step("source", target.id, citing(target.id),
-                               f"Read the retrieved text of {target.id}, then select it as a source with an accountable review."))
     # A selected source with open gaps blocks every open requirement that cites it. The run records
     # them as "Source <id>: <problem>"; a reviewer's own gap text is noted, never repeated.
     for item in declared.sources:
@@ -101,9 +102,9 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         # `ground --apply` refuses organisational facts, so only technical ones are sent there.
         observable = fact.id not in unobservable
         ask = f"ask {fact.owner or 'the project owner'}."
-        if fact.basis in ("assumed", "unknown") or fact.conflicts:
+        if m.open_fact(fact):
             steps.append(_step("fact", fact.id, relied.get(fact.id, set()),
-                               f"Confirm '{fact.key}' (now {fact.basis})"
+                               f"Confirm '{fact.key}' (now {fact.basis}{', with conflicting declarations' if fact.conflicts else ''})"
                                + (": look for code evidence." if observable else ": " + ask),
                                "eu-compliance-guard ground" if observable else None))
         elif any(identity not in ready for identity in fact.evidence_ids):
@@ -137,11 +138,18 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         if not requirement.obligation_refs:
             steps.append(_step("mapping", requirement.id, {requirement.id},
                                f"Map {requirement.id} to a candidate obligation; the report lists articles to read."))
+        excluded = [ref.id for ref in requirement.obligation_refs
+                    if ref.id in decisions and decisions[ref.id].applicability == "not_applicable"]
+        if excluded:
+            steps.append(_step("mapping", requirement.id, {requirement.id},
+                               f"Remap or exclude {requirement.id}: {', '.join(excluded)} was reviewed as not applicable "
+                               "and cannot support it."))
 
     dispositions = {item.obligation_id: item for item in bundle.obligation_dispositions}
     for obligation, mapped in sorted(by_obligation.items()):
         disposition = dispositions.get(obligation)
-        if disposition is None or disposition.applicability == "unresolved":
+        # Evidence is reviewed only for a duty that applies: no review can pass for any other.
+        if disposition is None or disposition.applicability != "applicable":
             continue
         methods = sorted(item.method for item in disposition.required_method_dispositions if item.outcome != "passed")
         if methods:

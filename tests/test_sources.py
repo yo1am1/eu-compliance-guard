@@ -403,6 +403,11 @@ class WorkerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             s.retrieve([s.TargetRequest("t", URL)] * 17)
 
+    def test_helper_that_cannot_start_is_a_recorded_failure(self):
+        with patch.object(s.multiprocessing.context.SpawnProcess, "start", side_effect=OSError("no processes")):
+            results = s.retrieve([s.TargetRequest("t", URL)], transport_factory=StaticTransport)
+        self.assertEqual([item.failure for item in results], ["worker-failed"])
+
     def test_unstoppable_helper_is_fatal(self):
         class Stuck:
             def join(self, timeout=None):

@@ -13,6 +13,8 @@ one ledger so that an unanswered gap can't quietly become an assumption.
 
 ## Find the run
 
+Use the CLI command from the SessionStart context, written `<cli>` below.
+
 The latest run is the newest directory under
 the directory printed by `<cli> state-dir` that contains
 `complete.json`. A directory without it is incomplete; skip it and say so. If no

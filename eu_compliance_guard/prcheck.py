@@ -290,7 +290,11 @@ def concepts_in(line: str) -> list[str]:
     """Concepts a line touches: a strong term, or two terms of one concept. Next to personal data,
     one special-category term ("weight", "height") or a web address (sending it to a third party)
     is enough: `{"email": user.email, "weight": user.weight_kg}` posted to "https://ads.example"."""
-    terms = set(tokens(line))
+    return term_concepts(set(tokens(line)))
+
+
+def term_concepts(terms: set[str]) -> list[str]:
+    """`concepts_in` for text already split into terms, so a caller can tokenize a file once."""
     found = {key for key, (_, vocabulary) in CONCEPTS.items()
              if (hits := vocabulary & terms - NEEDS_PERSON) and (len(hits) >= 2 or hits & STRONG)}
     if "personal_data" in found:
@@ -358,7 +362,7 @@ def pr_check(diff: str, declared: m.RevalidationInput | None = None, project_gra
     added, touched, files = parse_diff(diff)
     found: dict[str, list[str]] = {}
     for path, lines in sorted(added.items()):
-        if not _text_file(path) or path.startswith(".eu-compliance-guard/"):
+        if not _text_file(path):  # code and text only; SKIP_DIRS leaves out the tool's own folder too
             continue
         for number, text in lines:
             for concept in concepts_in(text):
@@ -372,14 +376,12 @@ def pr_check(diff: str, declared: m.RevalidationInput | None = None, project_gra
         texts += [f"{fact.key} {fact.value}" for fact in m.scope_facts(declared.scope)]
         texts += [f"{item.purpose} {' '.join(item.data_categories)}" for item in declared.scope.activities]
         vocabulary_declared = set(tokens(" ".join(texts)))
-        facts_by_evidence: dict[str, list[str]] = {}
-        for fact in m.scope_facts(declared.scope):
-            for evidence in fact.evidence_ids:
-                facts_by_evidence.setdefault(evidence, []).append(fact.id)
+        from . import graph
+        by_evidence = graph.facts_by_evidence(declared)
         for item in declared.evidence:
             if item.path in touched_declared:
                 pinned.append({"evidence": item.evidence.id, "path": base + item.path,
-                               "facts": sorted(set(facts_by_evidence.get(item.evidence.id, []))),
+                               "facts": sorted(by_evidence.get(item.evidence.id, ())),
                                "refs": list(item.evidence.source_refs)})
         requirements = [{"requirement": item.id, "path": base + item.origin.path}
                         for item in declared.requirements if item.origin and item.origin.path in touched_declared]
@@ -390,7 +392,7 @@ def pr_check(diff: str, declared: m.RevalidationInput | None = None, project_gra
             touchpoints.append({"concept": concept, "label": label, "families": FAMILIES[concept],
                                 "count": len(found[concept]), "examples": found[concept][:MAX_EXAMPLES],
                                 "declared": _mentioned(concept, vocabulary_declared)})
-    flows = (_touched_flows(added, declared, project_graph, root_prefix)
+    flows = (_touched_flows(added, declared, project_graph, root_prefix, by_evidence)
              if declared is not None and project_graph is not None else [])
     attention = sum(not item["declared"] for item in touchpoints) + len(pinned) + len(requirements) + len(flows)
     return {"files": files, "declarations": declared is not None, "touchpoints": touchpoints,
@@ -399,14 +401,10 @@ def pr_check(diff: str, declared: m.RevalidationInput | None = None, project_gra
 
 
 def _touched_flows(added: dict, declared: m.RevalidationInput, project_graph: m.ProjectGraph,
-                   root_prefix: str | None = None) -> list[dict]:
+                   root_prefix: str | None, by_evidence: dict[str, set[str]]) -> list[dict]:
     """Data flows with an added line inside one of their functions, and the facts pinned on them."""
     from . import graph
     base = _base(declared, root_prefix)
-    facts_by_evidence: dict[str, set[str]] = {}
-    for fact in m.scope_facts(declared.scope):
-        for evidence in fact.evidence_ids:
-            facts_by_evidence.setdefault(evidence, set()).add(fact.id)
     touched = []
     for flow in graph.flows(project_graph):
         changed = []
@@ -416,10 +414,8 @@ def _touched_flows(added: dict, declared: m.RevalidationInput, project_graph: m.
                         if int(start) <= number <= hop["end_line"]]
         if not changed:
             continue
-        facts = sorted({fact for item in declared.evidence
-                        if graph.covers(flow, set(item.evidence.source_refs))
-                        for fact in facts_by_evidence.get(item.evidence.id, ())})
-        touched.append({"flow": graph.describe_flow(flow), "changed": changed[:MAX_EXAMPLES], "facts": facts})
+        touched.append({"flow": graph.describe_flow(flow), "changed": changed[:MAX_EXAMPLES],
+                        "facts": graph.facts_on(flow, declared, by_evidence)})
     return touched
 
 

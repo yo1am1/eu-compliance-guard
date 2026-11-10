@@ -107,6 +107,18 @@ class PluginLayoutTests(unittest.TestCase):
         from eu_compliance_guard.sources import OFFICIAL_HOSTS
         self.assertEqual(set(re.findall(r"`([a-z.-]+\.(?:europa\.eu|gov\.uk))`", audit)), set(OFFICIAL_HOSTS))
 
+    def test_skills_cover_every_step_kind_mcp_tool_and_the_admitted_uk_url(self):
+        from eu_compliance_guard.mcp_server import TOOLS
+        from eu_compliance_guard.nextstep import KINDS
+        walk = (ROOT / "skills/eucg-next/SKILL.md").read_text()
+        for kind in KINDS:
+            self.assertIn(f"- `{kind}`:", walk)
+        help_card = (ROOT / "skills/eucg-help/SKILL.md").read_text()
+        for tool in TOOLS:
+            self.assertIn(f"`{tool['name']}`", help_card)
+        # legislation.gov.uk's /data.xht is a fragment that content screening holds for review; /data.htm is admitted.
+        self.assertNotIn("data.xht", (ROOT / "skills/eucg-audit/SKILL.md").read_text())
+
     def test_hook_config_runs_the_shipped_script(self):
         config = json.loads((ROOT / "hooks/hooks.json").read_text())
         [entry] = config["hooks"]["SessionStart"]
@@ -312,8 +324,28 @@ class SessionHookTests(unittest.TestCase):
         self.assertNotIn("rm -rf", text)
         self.assertNotIn("SECRET-GAP", text)
         self.assertIn("Latest run unrecorded", text)
+        # "$" alone would accept a trailing newline; the band's validator does not.
+        (run / "bundle.json").write_text(json.dumps({**forged, "run": {"id": "run-a\n", "state": "partial\n"}}))
+        self.assertIn("Latest run unrecorded ended unrecorded: state unrecorded,", self.hook())
         (run / "bundle.json").write_text("{not json")
         self.assertIn("could not be summarized", self.hook())
+        # A bundle of the wrong shape must not silence the hook: the level, rules and CLI still arrive.
+        (run / "bundle.json").write_text(json.dumps({**forged, "run": "x"}))
+        text = self.hook()
+        self.assertIn("could not be summarized", text)
+        self.assertIn("CLI for this machine", text)
+
+    def test_the_latest_run_is_the_last_completed_as_next_and_the_band_pick_it(self):
+        self.enable()
+        (self.project / ".eu-compliance-guard/declarations.json").write_text('{"project_id": "project-example"}')
+        for number in (9, 10):  # "run-9" sorts after "run-10" by name
+            run = self.state / f"run-{number}"
+            run.mkdir(parents=True)
+            (run / "bundle.json").write_text(json.dumps({"project_id": "project-example", "run": {"id": f"id-{number}"},
+                                                         "declarations": {"scope": {}}}))
+            (run / "complete.json").write_text("{}")
+            os.utime(run / "complete.json", (number, number))
+        self.assertIn("Latest run id-10 ", self.hook())
 
 
 if __name__ == "__main__":

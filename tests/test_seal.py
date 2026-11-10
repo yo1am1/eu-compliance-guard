@@ -64,6 +64,7 @@ class SealTests(unittest.TestCase):
     def test_a_report_rewritten_with_new_checksums_is_detected(self):
         run = self.run_named("run-1")
         self.assertEqual(cli("seal", "--input", self.input)[0], 0)
+        shutil.copytree(run, self.root / "copy")
         # What the run's own checksums cannot catch: rewrite the report, then recompute the marker.
         report = run / "report.md"
         os.chmod(report, 0o600)
@@ -80,6 +81,13 @@ class SealTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(json.loads(out)["entries"][0]["run"], "changed")
         self.assertEqual(cli("seal", "--input", self.input)[0], 2)  # and it cannot be sealed again under the same id
+        # An untouched copy of the run in another folder does not hide the change.
+        shutil.move(self.root / "copy", self.state / "run-9")
+        code, out = cli("seal", "--check", "--input", self.input, "--json")
+        self.assertEqual((code, json.loads(out)["entries"][0]["run"]), (1, "changed"))
+        shutil.rmtree(run)
+        code, out = cli("seal", "--check", "--input", self.input, "--json")
+        self.assertEqual((code, json.loads(out)["entries"][0]["run"]), (0, "intact"))
 
     def test_a_rewritten_or_reordered_log_breaks_the_chain(self):
         self.run_named("run-1")
@@ -127,7 +135,9 @@ class SealTests(unittest.TestCase):
         allowed.write_text("reviewer@example.invalid " + (self.root / "key.pub").read_text())
         self.run_named("run-1")
         self.assertEqual(cli("seal", "--input", self.input, "--key", key, "--principal", "reviewer@example.invalid")[0], 0)
-        self.assertIn("not verified: give --allowed-signers", cli("seal", "--check", "--input", self.input)[1])
+        unverified = cli("seal", "--check", "--input", self.input)[1]
+        self.assertIn("signed (not verified: give --allowed-signers)", unverified)
+        self.assertNotIn("reviewer@example.invalid", unverified)  # a name nobody verified is not shown as the signer
         code, out = cli("seal", "--check", "--input", self.input, "--allowed-signers", allowed)
         self.assertEqual(code, 0, out)
         self.assertIn("signature of reviewer@example.invalid valid", out)
@@ -139,6 +149,11 @@ class SealTests(unittest.TestCase):
         self.assertEqual(cli("seal", "--input", self.input, "--key", key)[0], 0)  # already sealed: nothing to sign
         self.run_named("run-2")
         self.assertEqual(cli("seal", "--input", self.input, "--key", key)[0], 2)  # a key needs a principal
+        # An entry without a signature is named when signatures are checked, and only then.
+        self.assertEqual(cli("seal", "--input", self.input)[0], 0)
+        code, out = cli("seal", "--check", "--input", self.input, "--allowed-signers", allowed)
+        self.assertEqual((code, out.count("; NOT signed")), (0, 1))
+        self.assertNotIn("NOT signed", cli("seal", "--check", "--input", self.input)[1])
 
 
 if __name__ == "__main__":

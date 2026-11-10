@@ -77,11 +77,12 @@ def accept(path: str | os.PathLike, value: str, *, write: bool = True) -> dict:
                             for pin in item["source_provisions"])), None)
     created = existing is None
     if created:
-        identity = f"obligation-{_slug(target_id)}-{_slug(locator)}"[:128]
+        base = f"obligation-{_slug(target_id)}-{_slug(locator)}"
         taken = {item["id"] for item in data["obligations"]}
-        suffix = 2
+        identity, suffix = base[:128], 2
         while identity in taken:
-            identity = f"obligation-{_slug(target_id)}-{_slug(locator)}-{suffix}"[:128]
+            # The suffix stays inside the 128 characters, so a long target id still yields a new id.
+            identity = base[:128 - len(f"-{suffix}")] + f"-{suffix}"
             suffix += 1
         existing = {"id": identity, "revision": 0, "family": target.family,
                     "classification": "duty" if target.intended_type in r.BINDING_SOURCE_TYPES else "recommendation",

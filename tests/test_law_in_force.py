@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from eu_compliance_guard import authoring as a, sources as s, view as v
+from eu_compliance_guard import authoring as a, jurisdictions as j, sources as s, view as v
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures/revalidation-synthetic.json"
 
@@ -37,9 +37,9 @@ class CelexTests(unittest.TestCase):
         self.assertEqual((versions["target-gdpr"], versions["target-eprivacy"]), ("as first published", "consolidated 2009-12-19"))
 
     def test_report_excerpts_name_the_version_they_come_from(self):
-        self.assertIn("consolidated version of 2009-12-19", v._version_note(s.celex_version("02002L0058-20091219")))
-        self.assertIn("not the law in force", v._version_note(s.celex_version("32016R0679")))
-        self.assertIn("check the official consolidated version", v._version_note(None))
+        self.assertIn("consolidated version of 2009-12-19", j.version_note(s.celex_version("02002L0058-20091219")))
+        self.assertIn("not the law in force", j.version_note(s.celex_version("32016R0679")))
+        self.assertIn("check the official consolidated version", j.version_note(None))
 
 
 if __name__ == "__main__":

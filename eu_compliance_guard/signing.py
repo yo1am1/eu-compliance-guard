@@ -140,13 +140,13 @@ def verify(declarations: str | os.PathLike, allowed_signers: str, lock_path: str
             continue
         if decision_id != file.stem:
             # A valid signature copied over another decision's file must not stand in for it.
-            results.append({"decision": file.stem, "signature": "invalid", "changed": [f"file holds decision {decision_id}"]})
+            results.append({"decision": file.stem, "signature": "invalid", "changed": ["file holds another decision"]})
             continue
         valid = isinstance(principal, str) and isinstance(armored, str) and \
             ssh_verify(_canonical(payload), armored, allowed_signers, principal, NAMESPACE)
         try:
             current = record(path, decision_id, lock)
-            changed = [part for part in ("decision", "obligation", "law", "evidence") if current[part] != payload[part]]
+            changed = [part for part in ("decision", "obligation", "law", "evidence") if current[part] != payload.get(part)]
         except SigningError:
             changed = ["decision removed"]
         law = payload.get("law") if isinstance(payload.get("law"), list) else []

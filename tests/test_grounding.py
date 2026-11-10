@@ -200,6 +200,12 @@ class GroundingTests(unittest.TestCase):
     def test_tokens_split_identifiers(self):
         self.assertEqual(g.tokens("response.set_cookie(maxAge=395)"), ["response", "set", "cookie", "max", "age", "395"])
 
+    def test_the_fast_word_path_splits_exactly_like_the_plain_splitter(self):
+        for text in ("setCookie_maxAge2", "HTTPServer.parseURL2x", "a", "A", "aB Ab AB ab", "x1y22Z", "naïve café_Größe",
+                     "٣٤ ²³ Ⅷ 12٣", "tab\tfeed\x0cline end", "ǅ ß", "", "  __--  ", "ID2Name IDs iOS9"):
+            self.assertEqual(g._words(text), g._split(text), text)
+        self.assertEqual(g._words("HTTPServer2 naïve"), ["HTTP", "Server", "2", "na", "ve"])
+
     def test_index_reads_only_bounded_text_files_without_symlinks_or_skipped_folders(self):
         (self.project / "node_modules/pkg").mkdir(parents=True)
         (self.project / "node_modules/pkg/index.js").write_text("set_cookie()")

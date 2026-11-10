@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 from eu_compliance_guard import consolidation as c, models as m, revalidation as r, sources as s
 from test_retrieval_workflow import CHANGED, PAGE, URL, real_target_payload
@@ -87,6 +88,18 @@ class ConsolidationTests(unittest.TestCase):
             self.assertEqual(path.read_bytes(), before)
             offline = r.run(path, root / "run-2")
             self.assertFalse([gap for gap in offline.gaps if "consolidation" in gap])
+            # The consolidation queries get only what the act retrieval left of the run's network budget.
+            clock, budgets = [1000.0], []
+
+            def slow_retrieve(requests, network_seconds=s.NETWORK_SECONDS, **options):
+                budgets.append(network_seconds)
+                clock[0] += 290
+                return [s.FetchResult(target_id=item.target_id, requested_url=item.url, started_at="2026-10-18T10:00:00Z",
+                                      ended_at="2026-10-18T10:00:01Z", failure="timeout") for item in requests]
+
+            with patch.object(s, "retrieve", slow_retrieve), patch.object(r.time, "monotonic", lambda: clock[0]):
+                r.run(path, root / "run-3", fetch_official=True)
+            self.assertEqual(budgets, [s.NETWORK_SECONDS, s.NETWORK_SECONDS - 290])
 
 
 if __name__ == "__main__":

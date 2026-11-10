@@ -176,6 +176,8 @@ def _segment(paragraphs) -> dict[str, dict]:
     current = previous = repeat = None  # repeat: the key a later occurrence of a number may take over
     expect_title = wrote = ended = final = False
     for classes, text in paragraphs:
+        if "footnote" in classes:
+            continue  # a consolidated page lists its footnotes right after the last article
         if _is_end(classes, text):
             current, expect_title, ended = None, False, ended or wrote  # annexes belong to no article
             continue
@@ -213,9 +215,11 @@ def _segment(paragraphs) -> dict[str, dict]:
 # legislation.gov.uk XHTML (2.2): a provision starts at an element whose id names it
 # ("section-170", "regulation-6", "section-Article-17" or "article-17"); its title is in a
 # `LegP1GroupTitle` element just before or after. Amendment notes, extent labels and footnote
-# markers are not the provision's text.
+# markers are not the provision's text, nor are the signatures and the "SCHEDULES" heading that
+# follow the last provision.
 UK_SKIPPED_CLASSES = frozenset({"LegAnnotations", "LegCommentaryItem", "LegExtentRestriction", "LegCommentaryLink",
-                                "LegChangeDelimiter", "LegP1No", "LegFootnoteRef", "LegAnchorID", "LegClearPblock"})
+                                "LegChangeDelimiter", "LegP1No", "LegFootnoteRef", "LegAnchorID", "LegClearPblock",
+                                "LegSignedSection", "LegSchedulesTitle"})
 UK_TITLE_CLASSES = frozenset({"LegP1GroupTitle", "LegP1GroupTitleFirst"})
 UK_ENDS = ("schedule-", "part-", "chapter-", "crossheading-", "signature", "annex-")
 VOID = frozenset({"br", "img", "hr", "meta", "link", "input", "col", "area", "base", "wbr", "source"})
@@ -370,7 +374,7 @@ PROVISION_WORDS = (("article", "Article"), ("art.", "Article"), ("art", "Article
 
 def article_key(locator: str) -> str | None:
     """A provision's canonical key: 'Article 9(2)(a)', 'Art. 9' -> 'Article 9'; 'section 170(1)',
-    's. 170' -> 'Section 170'; 'regulation 6', 'reg. 6' -> 'Regulation 6'. An act's own number is
+    's. 170' -> 'Section 170'; 'section 74aa' -> 'Section 74AA'; 'regulation 6', 'reg. 6' -> 'Regulation 6'. An act's own number is
     never a provision: 'Regulation 2016/679' and 'Regulation (EU) 2016/679' give None."""
     rest = locator.lstrip()
     for prefix, name in PROVISION_WORDS:
@@ -384,12 +388,13 @@ def article_key(locator: str) -> str | None:
         digits += 1
     if not digits:
         return None
-    after = rest[digits:]
-    if after[:1] == "/":
+    if rest[digits:digits + 1] == "/":
         return None  # 2016/679 is an act number
-    suffix = after[:1]
-    letters = suffix if suffix.isascii() and suffix.isalpha() else ""
-    if letters and name != "Article":
+    end = digits
+    while end < len(rest) and rest[end].isascii() and rest[end].isalpha():
+        end += 1  # every letter of an insertion: section 74AA is not section 74A
+    letters = rest[digits:end]
+    if name != "Article":
         letters = letters.upper()  # UK insertions are capital letters: section 16A
     return f"{name} {rest[:digits]}{letters}"
 
@@ -477,7 +482,7 @@ class ArticleIndex:
         self.semantic = None
         if semantic is None and self.keys:
             from . import semantic as model
-            if model.status()["active"]:
+            if model.wanted() and model.status()["active"]:  # status hashes the model file: only when turned on
                 try:
                     self.semantic = model.SemanticIndex(catalogue, self.keys)
                 except Exception:  # an optional ranking never breaks a report: word search still answers

@@ -85,7 +85,7 @@ def tokenize(text: str) -> list[tuple[str, str, int]]:
         elif char == "'":
             # A char literal ('a', '\n', '\u{1F600}') or a lifetime ('a, 'static).
             if text[index + 1:index + 2] == "\\":
-                end = text.find("'", index + 2)
+                end = text.find("'", index + 3)  # past the escaped character, which may itself be a quote
                 index = size if end == -1 else end + 1
                 push("char", "", line)
             elif text[index + 2:index + 3] == "'":
@@ -256,7 +256,8 @@ def read_file(path: str, text: str) -> dict:
         return pairs[start] if 0 <= start < len(tokens) and tokens[start][1] in PAIRS else len(tokens) - 1
 
     items: list[dict] = []  # qualname, kind, line, end_line, start, stop (token range)
-    calls: list[tuple[str, str | None, str, int]] = []  # caller qualname ("" for the file), qualifier, name, line
+    # caller qualname, qualifier (None, "." for a method, a name, or a whole `crate::a::b` path), name, line
+    calls: list[tuple[str, str | None, str, int]] = []
     uses: list[tuple[str, list[str], str]] = []
     modules: list[str] = []  # `mod name;` declarations
     scopes: list[tuple[str, int, str | None]] = []  # (qualname prefix, closing token index, nearest impl type)
@@ -274,8 +275,11 @@ def read_file(path: str, text: str) -> dict:
         if kind == "punct" and value == "#" and index + 1 < len(tokens) and tokens[index + 1][1] in ("[", "!"):
             opening = index + 1 if tokens[index + 1][1] == "[" else index + 2
             close = _matching(opening)
-            words = {token[1] for token in tokens[opening:close]}
-            if "test" in words and ("cfg" in words or close - opening <= 2):
+            # `feature = "test"` names a feature and `not(test)` gates production code: neither is test code.
+            words = [token[1] for token in tokens[opening + 1:close] if token[0] != "str"]
+            head = words[:words.index("(")] if "(" in words else words  # test, tokio::test, cfg
+            negated = any(words[at:at + 3] == ["not", "(", "test"] for at in range(len(words)))
+            if head[-1:] == ["test"] or (head == ["cfg"] and "test" in words and not negated):
                 test_next = True
             index = close + 1
             continue
@@ -286,8 +290,12 @@ def read_file(path: str, text: str) -> dict:
         if value == "macro_rules" and following[1] == "!":
             index = _matching(_ahead(tokens, index, ("{", "(", "["))) + 1
             continue
+        if value == "pub" and following[1] == "(":
+            index = _matching(index + 1) + 1  # pub(crate), pub(in path): a visibility, which names no code
+            continue
         if value == "use" and not functions:
-            index = _use_tree(tokens, index + 1, [], uses)
+            index = _use_tree(tokens, index + 1, [], [] if test_next else uses)
+            test_next = False  # a test-only import ends here; the next item is production code
             continue
         if value in ("mod", "fn", "struct", "enum", "union", "trait", "impl") and (
                 value == "impl" or following[0] == "ident"):
@@ -369,13 +377,21 @@ def read_file(path: str, text: str) -> dict:
             if after < len(tokens) and tokens[after][1] == "(":
                 previous = tokens[index - 1][1] if index else ""
                 qualifier = None
-                if previous == "::" and index >= 2 and tokens[index - 2][0] == "ident":
+                # `Vec::<u8>::new()`, `<T as Trait>::f()`: the owner is behind generics, so no name to look up.
+                known = previous != "::" or (index >= 2 and tokens[index - 2][0] == "ident")
+                if previous == "::" and known:
+                    start = index - 2
+                    while start >= 2 and tokens[start - 1][1] == "::" and tokens[start - 2][0] == "ident":
+                        start -= 2
                     qualifier = tokens[index - 2][1]
-                    if qualifier == "Self":
+                    if tokens[start][1] in ("crate", "self", "super"):
+                        # A path from the crate root or this module names its target exactly: keep all of it.
+                        qualifier = "::".join(token[1] for token in tokens[start:index - 1:2])
+                    elif qualifier == "Self":
                         qualifier = impl_type
                 elif previous == ".":
                     qualifier = "."
-                if not (qualifier == "." and value in STD_METHODS):
+                if known and not (qualifier == "." and value in STD_METHODS):
                     calls.append((functions[-1][0], qualifier, value, line))
         index += 1
     return {"items": items, "calls": calls, "uses": uses, "modules": modules, "tokens": tokens}

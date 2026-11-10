@@ -36,4 +36,4 @@ Last check: 2026-11-05, through this project's cloud environment.
 | `eur-lex.europa.eu` | HTTP 202. This is a bot challenge, not the page. `admit_source_content` already refuses challenge pages, so act text should come from `publications.europa.eu` (Cellar) with a consolidated CELEX number. |
 | `publications.europa.eu` | HTTP 200 |
 | `www.edpb.europa.eu` | HTTP 200 |
-| `www.legislation.gov.uk` | HTTP 200 (checked 2026-11-06). `data.xht` returns the XHTML of a whole act. `ico.org.uk` (the UK regulator) answered HTTP 403 to automated clients and is not registered. |
+| `www.legislation.gov.uk` | HTTP 200 (checked 2026-11-06). `data.htm` returns the XHTML of a whole act (`data.xht` is a fragment that content screening holds for review). `ico.org.uk` (the UK regulator) answered HTTP 403 to automated clients and is not registered. |

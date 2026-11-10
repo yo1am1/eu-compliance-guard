@@ -87,7 +87,7 @@ def _sarif(data: dict) -> tuple[str, dict, list[str]]:
         run = _dict(run)
         driver = _dict(_dict(run.get("tool")).get("driver"))
         tools.append(_plain(driver.get("name", "unknown tool")))
-        rules = {_dict(rule).get("id"): _dict(rule) for rule in _list(driver.get("rules"))}
+        rules = {rule["id"]: rule for rule in map(_dict, _list(driver.get("rules"))) if isinstance(rule.get("id"), str)}
         for result in _list(run.get("results")):
             result = _dict(result)
             rule_id = result.get("ruleId") if isinstance(result.get("ruleId"), str) else ""

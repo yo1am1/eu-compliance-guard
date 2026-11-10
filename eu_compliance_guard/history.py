@@ -14,6 +14,13 @@ def _parse(record, raw):
     return m.parse_record(record, raw, m.MAX_BUNDLE_BYTES)
 
 
+def _source_reviews(declared) -> dict:
+    """Each source's review: the one for the assessment date, the only one a run reads, wins over
+    reviews kept for other dates."""
+    current = declared.scope.assessment_date
+    return {item.source_id: item for item in sorted(declared.source_reviews, key=lambda item: item.assessment_date == current)}
+
+
 def load_run(path, deadline=None, sources_out=None):
     """Read only marker-listed files, with the workflow's byte and time bounds.
 
@@ -58,7 +65,7 @@ def load_run(path, deadline=None, sources_out=None):
                 raise r.RevalidationError("corrupt-run")
             required = {item.retrieval.artifact_path for item in bundle.source_attempts if item.retrieval.artifact_path}
             sources = {item.source.id: item.source for item in declared.sources}
-            reviews = {item.source_id: item for item in declared.source_reviews}
+            reviews = _source_reviews(declared)
             pending = [pin.source_id for decision in bundle.effective_applicability_decisions
                        if decision.applicability != "unresolved" for pin in decision.provisions if pin.source_id]
             pending.extend(pin.id for screening in bundle.family_screenings
@@ -104,7 +111,7 @@ def _records(bundle):
         identity = selected.source.id
         records["source", identity] = selected.source.model_dump(mode="json", exclude={"retrieved_at"})
         records["source_selection", identity] = selected.model_dump(mode="json", exclude={"source"})
-    records.update((("source_review", item.source_id), item.model_dump(mode="json")) for item in declared.source_reviews)
+    records.update((("source_review", identity), item.model_dump(mode="json")) for identity, item in _source_reviews(declared).items())
     records.update((("family", item.family), item.model_dump(mode="json")) for item in declared.family_screenings)
     for selected in declared.evidence:
         identity = selected.evidence.id
@@ -195,7 +202,7 @@ def _dependencies(previous, current, identity):
             if item.origin:
                 keys.add(("file", item.origin.path))
         sources = {item.source.id: item for item in declared.sources}
-        source_reviews = {item.source_id: item for item in declared.source_reviews}
+        source_reviews = _source_reviews(declared)
         pending, seen = list(source_ids), set()
         while pending:
             key = pending.pop()

@@ -188,7 +188,7 @@ class RunViewTests(unittest.TestCase):
         self.assertIn("0 of 11 families screened", section)
         self.assertIn("Record hygiene", section)
         self.assertIn(m.SCORE_NOTICE, section)
-        self.assertIn("▶ NEXT</b> Map requirement-unmapped to a candidate obligation", section)
+        self.assertIn("▶ NEXT</b> Map or remap requirement-unmapped to a candidate obligation", section)
         # The hero, five meter tiles, screening and hygiene each carry the fictional marker.
         self.assertEqual(section.count('<span class="chip fiction">fictional data</span>'), 8)
         self.assertEqual(section.count('class="tile focus"'), 1)
