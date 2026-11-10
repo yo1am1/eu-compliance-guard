@@ -40,6 +40,9 @@ def _fact_text(fact: dict) -> str:
 def ropa(declared: m.RevalidationInput) -> dict:
     scope = declared.scope
     activities, gaps = [], []
+    if not scope.establishment:
+        gaps.append("controller: establishment (Art. 30(1)(a)) not declared")
+    gaps += [f"controller: '{fact.key}' is {fact.basis}" for fact in scope.roles if fact.basis in ("assumed", "unknown")]
     for activity in scope.activities:
         entry = {"id": activity.id, "purpose": activity.purpose, "data_subjects": list(activity.subjects),
                  "data_categories": list(activity.data_categories), "lawful_basis": _fact(activity.lawful_basis),
