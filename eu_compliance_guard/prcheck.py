@@ -290,7 +290,11 @@ def concepts_in(line: str) -> list[str]:
     """Concepts a line touches: a strong term, or two terms of one concept. Next to personal data,
     one special-category term ("weight", "height") or a web address (sending it to a third party)
     is enough: `{"email": user.email, "weight": user.weight_kg}` posted to "https://ads.example"."""
-    terms = set(tokens(line))
+    return term_concepts(set(tokens(line)))
+
+
+def term_concepts(terms: set[str]) -> list[str]:
+    """`concepts_in` for text already split into terms, so a caller can tokenize a file once."""
     found = {key for key, (_, vocabulary) in CONCEPTS.items()
              if (hits := vocabulary & terms - NEEDS_PERSON) and (len(hits) >= 2 or hits & STRONG)}
     if "personal_data" in found:

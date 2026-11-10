@@ -36,9 +36,11 @@ def _module(path: str) -> str:
     return ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
 
 
-def _concepts(text: str) -> list[str]:
-    """pr-check's rule: a strong term counts alone, otherwise two of a concept's terms must appear."""
-    return prcheck.concepts_in(text)
+def _concepts(lines: list[set[str]], extra: str = "") -> list[str]:
+    """pr-check's rule on a run of lines, given as each line's terms: a strong term counts alone,
+    otherwise two of a concept's terms must appear. A term never spans lines, so a file is
+    tokenized once and each definition only joins the terms of its lines."""
+    return prcheck.term_concepts(set(grounding.tokens(extra)).union(*lines))
 
 
 # Kinds of data, recognised from identifiers and short string keys only (never comments or
@@ -70,26 +72,6 @@ TECHNICAL: dict[str, set[str]] = {}
 MAX_KEY = 40  # a string constant this short without spaces reads as a key, not prose
 
 
-def _identifiers(node: ast.AST) -> list[str]:
-    """Names, attributes, parameters, keyword names and short string keys within a definition."""
-    found = []
-    for item in ast.walk(node):
-        if isinstance(item, ast.Name):
-            found.append(item.id)
-        elif isinstance(item, ast.Attribute):
-            found.append(item.attr)
-        elif isinstance(item, ast.arg):
-            found.append(item.arg)
-        elif isinstance(item, ast.keyword) and item.arg:
-            found.append(item.arg)
-        elif isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            found.append(item.name)
-        elif isinstance(item, ast.Constant) and isinstance(item.value, str) and len(item.value) <= MAX_KEY \
-                and item.value and not any(char.isspace() for char in item.value):
-            found.append(item.value)
-    return found
-
-
 @functools.lru_cache(maxsize=65536)
 def _identifier_data(identifier: str) -> frozenset[str]:
     """The kinds of data one identifier names; cached, since identifiers repeat across a project."""
@@ -111,9 +93,9 @@ def _identifier_data(identifier: str) -> frozenset[str]:
     return frozenset(kinds)
 
 
-def _data(node: ast.AST) -> list[str]:
+def _data(identifiers: set[str]) -> list[str]:
     kinds = set()
-    for identifier in set(_identifiers(node)):
+    for identifier in identifiers:
         kinds |= _identifier_data(identifier)
     return [kind for kind in DATA if kind in kinds]
 
@@ -141,10 +123,14 @@ class _FileVisitor(ast.NodeVisitor):
     """Definitions, calls and imports of one file; qualified names follow nesting."""
 
     def __init__(self, path: str, text: str):
-        self.path, self.text = path, text
+        self.path = path
         # Split once, at the line ends the parser counts (\n, \r\n, \r): a form feed stays inside its line.
-        self.lines = grounding._lines(text.replace("\r\n", "\n").replace("\r", "\n"))
+        self.terms = [set(grounding.tokens(line))
+                      for line in grounding._lines(text.replace("\r\n", "\n").replace("\r", "\n"))]
         self.scope = [(node_id(path), "")]
+        # Names, attributes, parameters, keyword names and short string keys, per open definition:
+        # gathered in the one walk of the file, so nested definitions are not walked again.
+        self.identifiers: list[set[str]] = [set()]
         self.definitions: list[tuple] = []  # id, kind, qualname, line, end line, concepts, data, parent
         self.calls: list[tuple[str, str | None, str, int]] = []  # caller id, qualifier, called name, line
         self.imports: list[tuple[str, int, int]] = []  # module, level, line
@@ -155,12 +141,16 @@ class _FileVisitor(ast.NodeVisitor):
         parent, prefix = self.scope[-1]
         qualname = f"{prefix}.{node.name}" if prefix else node.name
         identity = node_id(self.path, qualname)
-        segment = "\n".join(self.lines[node.lineno - 1:node.end_lineno or node.lineno]) or node.name
-        self.definitions.append((identity, kind, qualname, node.lineno, node.end_lineno or node.lineno,
-                                 _concepts(segment), _data(node), parent))
+        slot = len(self.definitions)  # definitions stay in source order, outer before inner
+        self.definitions.append(())
         self.scope.append((identity, qualname))
+        self.identifiers.append({node.name})
         self.generic_visit(node)
         self.scope.pop()
+        found = self.identifiers.pop()
+        self.identifiers[-1] |= found  # a definition's identifiers include those of the ones inside it
+        self.definitions[slot] = (identity, kind, qualname, node.lineno, node.end_lineno or node.lineno,
+                                  _concepts(self.terms[node.lineno - 1:node.end_lineno or node.lineno]), _data(found), parent)
 
     def visit_ClassDef(self, node):
         self._define(node, "class")
@@ -170,6 +160,27 @@ class _FileVisitor(ast.NodeVisitor):
 
     def visit_AsyncFunctionDef(self, node):
         self._define(node, "function")
+
+    def visit_Name(self, node):
+        self.identifiers[-1].add(node.id)
+
+    def visit_Attribute(self, node):
+        self.identifiers[-1].add(node.attr)
+        self.generic_visit(node)
+
+    def visit_arg(self, node):
+        self.identifiers[-1].add(node.arg)
+        self.generic_visit(node)
+
+    def visit_keyword(self, node):
+        if node.arg:
+            self.identifiers[-1].add(node.arg)
+        self.generic_visit(node)
+
+    def visit_Constant(self, node):
+        value = node.value
+        if isinstance(value, str) and value and len(value) <= MAX_KEY and not any(char.isspace() for char in value):
+            self.identifiers[-1].add(value)
 
     def visit_Call(self, node):
         called = _called(node)
@@ -251,10 +262,10 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
         return by_module.get((crate, module)), rest
 
     for path, (result, text) in sorted(read.items()):
-        lines = grounding._lines(text)  # at \n only, as the tokenizer counts lines
+        lines = [set(grounding.tokens(line)) for line in grounding._lines(text)]  # at \n only, as the tokenizer counts
         file_id = node_id(path)
         nodes[file_id] = m.GraphNode(id=file_id, kind="file", path=path, name=path, line=1,
-                                     end_line=max(1, len(lines)), concepts=_concepts(text), data=[])
+                                     end_line=max(1, len(lines)), concepts=_concepts(lines), data=[])
         symbols[path], module_aliases[path], external[path] = {}, {}, {}
         for local, segments, name in result["uses"]:
             target, rest = module_file(path, segments + ([name] if name and name != "*" else []))
@@ -282,13 +293,10 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
             identity = node_id(path, item["qualname"])
             words = rg.item_words(tokens, item)
             crates = sorted({external[path][word] for word in words if word in external[path]})
-            segment = "\n".join(lines[item["line"] - 1:item["end_line"]]) + ("\n" + " ".join(crates) if crates else "")
-            kinds = set()
-            for word in set(words):
-                kinds |= _identifier_data(word)
             nodes[identity] = m.GraphNode(id=identity, kind=item["kind"], path=path, name=item["qualname"],
                                           line=item["line"], end_line=max(item["line"], item["end_line"]),
-                                          concepts=_concepts(segment), data=[kind for kind in DATA if kind in kinds])
+                                          concepts=_concepts(lines[item["line"] - 1:item["end_line"]], " ".join(crates)),
+                                          data=_data(set(words)))
             items_of[path][item["qualname"]] = identity
             by_name.setdefault(item["qualname"].rsplit(".", 1)[-1], []).append(identity)
             by_qualname.setdefault(item["qualname"], []).append(identity)
@@ -379,7 +387,7 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
             skipped += 1
             continue
         nodes[node_id(path)] = m.GraphNode(id=node_id(path), kind="file", path=path, name=path, line=1,
-                                           end_line=max(1, len(visitor.lines)), concepts=_concepts(text), data=[])
+                                           end_line=max(1, len(visitor.terms)), concepts=_concepts(visitor.terms), data=[])
         for identity, kind, qualname, line, end, concepts, data, parent in visitor.definitions:
             nodes[identity] = m.GraphNode(id=identity, kind=kind, path=path, name=qualname, line=line, end_line=end,
                                           concepts=concepts, data=data)
