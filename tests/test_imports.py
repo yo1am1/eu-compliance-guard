@@ -48,6 +48,10 @@ class ImportTests(unittest.TestCase):
         odd = json.dumps({"runs": [{"results": [{"ruleId": "r", "message": {"text": "t"}, "locations": [
             {"physicalLocation": {"artifactLocation": {"uri": "a.py"}, "region": {"startLine": True}}}]}]}]}).encode()
         self.assertEqual(imports.summarise(odd, "sarif")["concepts"]["unclassified"]["examples"], ["warning r at a.py: t"])
+        # A rule whose id is not a string is skipped; it used to fail the whole import.
+        odd = json.dumps({"runs": [{"tool": {"driver": {"rules": [{"id": ["r"]}, {"id": "r", "name": "cookie"}]}},
+                                    "results": [{"ruleId": "r"}]}]}).encode()
+        self.assertEqual(sorted(imports.summarise(odd, "sarif")["concepts"]), ["tracking"])
 
     def test_cli_keeps_a_copy_and_summary_and_never_changes_the_declarations(self):
         before = self.input.read_bytes()

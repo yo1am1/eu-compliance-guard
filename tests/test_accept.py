@@ -95,6 +95,15 @@ class AcceptTests(unittest.TestCase):
         self.assertTrue(mapping.accept(self.path, "requirement-unmapped=target-example:Article 3")["already_linked"])
         self.assertEqual(self.path.read_bytes(), before)
 
+    def test_a_long_target_id_still_gets_a_new_obligation_id_for_each_article(self):
+        # The 128-character limit used to cut the numeric suffix off, so the second accept never ended.
+        target = "t" * 128
+        self.path.write_text(self.path.read_text().replace('"target-example"', f'"{target}"'))
+        first = mapping.accept(self.path, f"requirement-unmapped={target}:Article 3")["obligation"]
+        second = mapping.accept(self.path, f"requirement-example={target}:Article 4")["obligation"]
+        self.assertEqual((first, second), ("obligation-" + "t" * 117, "obligation-" + "t" * 115 + "-2"))
+        self.assertTrue(a.check(self.path)["valid"])
+
     def test_bad_input_unknown_ids_and_links_change_nothing(self):
         before = self.path.read_bytes()
         for value, expected in (("requirement-unmapped", "bad-mapping"), ("requirement-unmapped=target-example:Recital 4", "bad-mapping"),

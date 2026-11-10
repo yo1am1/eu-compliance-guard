@@ -101,22 +101,24 @@ def check(declarations: str | os.PathLike, state: str | os.PathLike | None, allo
     """The chain, each sealed run still in `state`, and signatures. `ok` is False on any break."""
     from .view import ViewError, verify_run
     entries = _read(Path(declarations).parent / LOG_NAME)
-    local: dict[str, tuple[Path, str]] = {}
+    local: dict[str, list[tuple[Path, str]]] = {}  # a run id can be in several folders: a copy must not hide a change
     for folder in sorted(Path(state).iterdir()) if state and Path(state).is_dir() else []:
         found = _marker(folder) if folder.name.startswith("run-") and folder.is_dir() and not folder.is_symlink() else None
         if found:
-            local[found[0]] = (folder, found[1])
+            local.setdefault(found[0], []).append((folder, found[1]))
     results, previous = [], None
     for number, (entry, line) in enumerate(entries, 1):
         chain = entry.seq == number and entry.previous == previous
         previous = _digest(line)
-        if entry.run_id not in local:
+        copies = local.get(entry.run_id, [])
+        if not copies:
             run = "not on this machine"
-        elif local[entry.run_id][1] != entry.marker:
+        elif any(marker != entry.marker for _, marker in copies):
             run = "changed"
         else:
             try:
-                verify_run(local[entry.run_id][0])
+                for folder, _ in copies:
+                    verify_run(folder)
                 run = "intact"
             except ViewError:
                 run = "changed"
@@ -128,7 +130,7 @@ def check(declarations: str | os.PathLike, state: str | os.PathLike | None, allo
         results.append({"seq": entry.seq, "run_id": entry.run_id, "chain": chain, "run": run, "signature": signature,
                         "principal": entry.principal})
     sealed = {entry.run_id for entry, _ in entries}
-    return {"entries": results, "unsealed": sorted(set(local) - sealed),
+    return {"entries": results, "unsealed": sorted(set(local) - sealed), "signatures_checked": allowed_signers is not None,
             "ok": all(item["chain"] and item["run"] != "changed" and item["signature"] != "invalid" for item in results)}
 
 
@@ -138,7 +140,10 @@ def format_check(report: dict) -> str:
     else:
         lines = []
         for item in report["entries"]:
-            signed = {"none": "", "unverified": f"; signed by {item['principal']} (not verified: give --allowed-signers)",
+            # An unverified signer name is only a claim in the log, so it is not printed. With an allowed-signers
+            # file an entry without a signature is named: removing signatures must not look like a clean log.
+            signed = {"none": "; NOT signed" if report.get("signatures_checked") else "",
+                      "unverified": "; signed (not verified: give --allowed-signers)",
                       "valid": f"; signature of {item['principal']} valid", "invalid": "; signature INVALID"}[item["signature"]]
             state = {"intact": "run intact", "changed": "run CHANGED since it was sealed",
                      "not on this machine": "run not on this machine (not compared)"}[item["run"]]
