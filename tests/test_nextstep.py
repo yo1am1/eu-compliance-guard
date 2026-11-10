@@ -64,6 +64,13 @@ class NextStepTests(unittest.TestCase):
         steps = n.next_steps(v.verify_run(self.run_bundle()), top=10)
         self.assertEqual(sum(step["subject"] == fact["id"] for step in steps), 1)
 
+    def test_a_declared_fact_with_conflicting_declarations_says_why_it_is_open(self):
+        fact = next(item for item in self.payload["scope"]["roles"] if item["basis"] == "declared")
+        fact["conflicts"] = ["fact-unknown"]
+        steps = {step["subject"]: step for step in n.next_steps(v.verify_run(self.run_bundle()), top=100)}
+        self.assertIn("(now declared, with conflicting declarations)", steps[fact["id"]]["action"])
+        self.assertIn("(now unknown)", steps["fact-unknown"]["action"])
+
     def test_every_open_requirement_has_a_step_and_changed_evidence_asks_to_ground_again(self):
         fact = next(item for item in self.payload["scope"]["roles"] if item["basis"] == "declared")
         fact["evidence_ids"] = ["evidence-example"]

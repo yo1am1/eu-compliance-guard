@@ -103,7 +103,7 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         ask = f"ask {fact.owner or 'the project owner'}."
         if fact.basis in ("assumed", "unknown") or fact.conflicts:
             steps.append(_step("fact", fact.id, relied.get(fact.id, set()),
-                               f"Confirm '{fact.key}' (now {fact.basis})"
+                               f"Confirm '{fact.key}' (now {fact.basis}{', with conflicting declarations' if fact.conflicts else ''})"
                                + (": look for code evidence." if observable else ": " + ask),
                                "eu-compliance-guard ground" if observable else None))
         elif any(identity not in ready for identity in fact.evidence_ids):
