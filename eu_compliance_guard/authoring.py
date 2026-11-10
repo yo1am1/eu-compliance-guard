@@ -117,7 +117,7 @@ def project_id(path: str | os.PathLike) -> str:
         value = json.loads(observed.content).get("project_id")
     except (ValueError, AttributeError):
         raise r.RevalidationError("invalid-input") from None
-    if not isinstance(value, str) or not ID.match(value):
+    if not isinstance(value, str) or not ID.fullmatch(value):
         raise r.RevalidationError("invalid-input")
     return value
 
