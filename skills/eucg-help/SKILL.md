@@ -65,7 +65,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 - `timeline [--json]` lists the dates each retained act applies from (and transposition deadlines), quoted from the text, reached or upcoming against the assessment date.
 - `cite-check <file|->` checks that cited articles exist and quotations are verbatim in the retained text; `mcp` serves it, `article_search`, `ground`, `pr_check` and `next_steps` as read-only MCP tools.
 - `accept <requirement>=<target>:<Article N> [--input <file>] [--json]` maps a requirement to a candidate obligation citing that article (reused or created); it never decides applicability.
-- `graph [--input <file>] [--json] [--view [--open]]` maps the project's Python files, functions, imports and calls by parsing only (nothing is run); paths are possible paths, never proof.
+- `graph [--input <file>] [--json] [--view [--open]]` maps the project's Python and Rust files, functions, imports and calls by parsing only (nothing is run); paths are possible paths, never proof.
 - `pr-check [--diff <file>|-] [--input <file>] [--markdown|--json] [--strict]` screens a unified diff's added lines for legal touchpoints and compares them with the declarations.
 - `state-dir` prints (and creates, 0700) the private run storage for this project's `project_id`.
 - `view --run <run dir> [--dashboard] [--open]` writes
@@ -73,8 +73,11 @@ writes a static HTML view of the verified run and opens it in your browser.
 
 ## Fewer permission prompts
 
-Allow `Bash(uv run --project * --locked --no-dev python -P -m eu_compliance_guard *)`
-in `.claude/settings.json` or with `/permissions`. Fetching still needs consent.
+Allow the exact CLI command the session hook prints, with the plugin's own path:
+`Bash(uv run --project <plugin path> --locked --no-dev python -P -m eu_compliance_guard *)`
+in `.claude/settings.json` or with `/permissions`. Never a wildcard for `--project`: that
+would let uv run any other project's code. Once allowed, fetching asks for consent only as
+an instruction to the agent.
 
 ## Limits
 

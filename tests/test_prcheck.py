@@ -79,6 +79,16 @@ class PRCheckTests(unittest.TestCase):
         self.assertNotIn("`rm -rf`", markdown)  # backticks in diff text cannot break out of code spans
         self.assertIn("not a legal conclusion or a compliance verdict", markdown)
 
+    def test_health_data_sent_to_a_web_address_needs_attention(self):
+        diff = ("diff --git a/app/ads.py b/app/ads.py\n--- a/app/ads.py\n+++ b/app/ads.py\n@@ -1,0 +1,2 @@\n"
+                '+http.post("https://ads.partner.example", json={"email": user["email"], "weight": user["weight_kg"]})\n'
+                "+.title { font-weight: 700; height: 10px }\n")
+        report = p.pr_check(diff)
+        concepts = {item["concept"]: item["examples"] for item in report["touchpoints"]}
+        self.assertEqual(set(concepts), {"personal_data", "special_category", "third_party"})
+        self.assertEqual(len(concepts["special_category"]), 1)  # layout words alone are not health data
+        self.assertEqual(p.concepts_in("font-weight: 700; height: 10px"), [])
+
     def test_plain_text_says_when_no_declarations_were_read(self):
         text = p.format_text(p.pr_check(DIFF))
         self.assertNotIn("not mentioned in declarations", text)

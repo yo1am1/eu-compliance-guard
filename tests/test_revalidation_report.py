@@ -79,6 +79,8 @@ class RevalidationReportTests(unittest.TestCase):
 
     def test_supported_and_metadata_missing_cases_remain_explicit_in_attention(self):
         text = html.unescape(render_report(m.RevalidationBundle.model_validate(supported_payload())))
+        from eu_compliance_guard.notice import LEGAL_NOTICE
+        self.assertTrue(text.rstrip("\n").endswith(LEGAL_NOTICE))  # the last line, as the README promises
         attention = text.split("## Run and retained artifacts", 1)[0]
         self.assertIn("Recorded mapping support", attention)
         self.assertIn("Requirement assessment: supported", attention)

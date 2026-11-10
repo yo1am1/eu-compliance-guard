@@ -1,7 +1,10 @@
 # Claude Code plugin
 
 The plugin adds slash commands, a band above the prompt, a side panel, a static dashboard and a session hook. Install it as the [README](../README.md#quick-start-claude-code) shows.
+It runs on Linux and macOS; Windows is not supported.
 
+**Band above the prompt.** This needs Claude Code 2.1.290 or later, in the terminal or
+the desktop app. In projects with `.eu-compliance-guard/`, it shows the latest run's
 state, open gaps, supported requirements, assessment-date age and source attempts, plus
 the next best step (for example `Next: confirm fact-minimum-age · unblocks 2 open
 requirements`). It has **Next step**, **Audit**, **Review diff**, **Gaps**, **Dashboard**,
@@ -16,8 +19,8 @@ counted by area, with
 buttons to work on step 1, open the report, list gaps or refresh.
 
 **Dashboard** opens a one-page view of review progress: the meters, the next best
-steps and the owner's open questions, with a link to the full report. Like Ponytail's
-board, it is a single self-contained HTML file written beside the report, with no
+steps and the owner's open questions, with a link to the full report. Like the board of
+the Ponytail plugin, it is a single self-contained HTML file written beside the report, with no
 build, no server and no scripts, opened straight from disk in your browser
 (`view --run <run dir> --dashboard --open`).
 
@@ -41,16 +44,20 @@ requires, so the path never depends on the current folder. Keep runs out of Git.
 
 ## Fewer permission prompts
 
-Each CLI step asks for permission by default. To allow the plugin's own read-only CLI
-in a project, add this to `.claude/settings.json` (or run `/permissions` and add it):
+Each CLI step asks for permission by default. To allow the plugin's own CLI in a project,
+add the exact command the session hook prints ("CLI for this machine"), with the plugin's
+own path, to `.claude/settings.json` (or run `/permissions` and add it), for example:
 
 ```json
 {
   "permissions": {
-    "allow": ["Bash(uv run --project * --locked --no-dev python -P -m eu_compliance_guard *)"]
+    "allow": ["Bash(uv run --project <plugin path> --locked --no-dev python -P -m eu_compliance_guard *)"]
   }
 }
 ```
 
-`revalidate --fetch-official` still asks for your consent in the conversation before
-any network use.
+Never use a wildcard for `--project`: `--project *` would also let uv build and run any other
+project's code, including a hostile repository's own package. Update the path after a plugin
+update. The rule covers every CLI command, including the ones that write the project's
+`.eu-compliance-guard/` records and `revalidate --fetch-official`; once it is allowed, asking
+for your consent before network use is an instruction to the agent, not a prompt.

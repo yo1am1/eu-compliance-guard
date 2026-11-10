@@ -84,6 +84,30 @@ class SigningTests(Project):
         self.assertIn("No eu-law.lock was found", out)
         stored = json.loads((self.root / "signatures/decision-example.json").read_text())
         self.assertIsNone(stored["payload"]["law"][0]["digest"])
+        code, out = cli("verify", "--input", self.input, "--allowed-signers", self.allowed)
+        self.assertEqual(code, 0, out)
+        self.assertIn("decision and evidence unchanged, but the signature pins no article text", out)
+        self.assertNotIn("decision, law and evidence unchanged", out)
+
+    def test_a_change_in_the_law_or_evidence_or_a_removed_decision_is_reported(self):
+        self.assertEqual(self.sign()[0], 0)
+        lock = self.root / "eu-law.lock"
+        locked = json.loads(lock.read_text())
+        locked["entries"][0]["articles"][0]["digest"] = "sha256:" + "0" * 64
+        lock.write_text(json.dumps(locked))
+        code, out = cli("verify", "--input", self.input, "--allowed-signers", self.allowed, "--json")
+        self.assertEqual((code, json.loads(out)[0]["changed"]), (1, ["law"]))
+        self.assertEqual(cli("lock", "--input", self.input, "--run", self.run)[0], 0)
+        data = json.loads(self.raw)
+        data["evidence"][0]["evidence"]["digest"] = "sha256:" + "1" * 64
+        self.input.write_text(json.dumps(data))
+        code, out = cli("verify", "--input", self.input, "--allowed-signers", self.allowed, "--json")
+        self.assertEqual((code, json.loads(out)[0]["changed"]), (1, ["evidence"]))
+        data = json.loads(self.raw)
+        data["applicability_decisions"] = []
+        self.input.write_text(json.dumps(data))
+        code, out = cli("verify", "--input", self.input, "--allowed-signers", self.allowed, "--json")
+        self.assertEqual((code, json.loads(out)[0]["changed"]), (1, ["decision removed"]))
 
     def test_a_tampered_record_or_an_unknown_signer_is_invalid(self):
         self.assertEqual(self.sign()[0], 0)

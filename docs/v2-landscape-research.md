@@ -108,7 +108,7 @@ Where others are ahead today:
 **Why nobody has it.** Every tool either gives verdicts or uses self-attested logs (gap 3). trestle signs OSCAL files but has no link to the law or the code.
 
 **Why we are positioned for it.**
-- We already have tamper-evident reports, named reviewers and staleness rules.
+- We already have checksummed reports (integrity against accidental change, not tamper evidence), named reviewers and staleness rules.
 - The README admits that reviewer names are self-attested, so this closes a known gap.
 
 **Risk.**

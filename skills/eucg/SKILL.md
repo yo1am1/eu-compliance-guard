@@ -9,7 +9,7 @@ description: >
   .eu-compliance-guard/ directory, or when the user says "eucg", "compliance mode",
   "EU law check", "GDPR check". Levels: lite, full (default), strict, off.
 argument-hint: "[lite|full|strict|off]"
-license: MIT
+license: AGPL-3.0-only
 ---
 
 # EU Compliance Guard

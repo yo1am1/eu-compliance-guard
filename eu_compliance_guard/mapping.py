@@ -34,6 +34,33 @@ def _slug(text: str) -> str:
     return "".join(char if char.isascii() and char.isalnum() else "-" for char in text.lower()).strip("-")
 
 
+def known_articles(path: str | os.PathLike, declared: m.RevalidationInput, target_id: str) -> set[str] | None:
+    """The article keys of a target's text, from the law lock and the declared source copies.
+
+    None when there is no text to check against (no lock entry and no readable source)."""
+    from . import lawlock
+    path = Path(path)
+    keys, checked = set(), False
+    lock = path.parent / lawlock.LOCK_NAME
+    if lock.is_file():
+        for entry in lawlock.read(lock).entries:
+            if entry.target_id == target_id:
+                keys.update(article.key for article in entry.articles)
+                checked = True
+    selected = [item for item in declared.sources if item.target_id == target_id and item.file]
+    if selected:
+        with r._parent(path) as (parent_fd, _), r.files_root(declared, parent_fd) as root_fd:
+            for item in selected:
+                observation = r._read_file(root_fd, item.file.path, limit=r.MAX_FILE_BYTES, retain=True)
+                if observation.content is None or observation.digest != item.source.content_digest:
+                    continue
+                parsed = articles.parse(observation.content, item.media_type)
+                if parsed:
+                    keys.update(parsed)
+                    checked = True
+    return keys if checked else None
+
+
 def accept(path: str | os.PathLike, value: str, *, write: bool = True) -> dict:
     requirement_id, target_id, locator = parse(value)
     path = Path(path)
@@ -42,6 +69,9 @@ def accept(path: str | os.PathLike, value: str, *, write: bool = True) -> dict:
     target = next((item for item in declared.source_targets if item.id == target_id), None)
     if requirement is None or target is None:
         raise MappingError("unknown-id")
+    known = known_articles(path, declared, target_id)
+    if known is not None and locator not in known:
+        raise MappingError("unknown-article")
     data = json.loads(m.canonical_json(declared))
     existing = next((item for item in data["obligations"]
                      if any(pin["source_target_id"] == target_id and articles.article_key(pin["locator"]) == locator
@@ -72,12 +102,15 @@ def accept(path: str | os.PathLike, value: str, *, write: bool = True) -> dict:
         with r._parent(path) as (parent_fd, name):
             grounding._replace(parent_fd, name, content)
     return {"requirement": requirement_id, "obligation": existing["id"], "target": target_id, "locator": locator,
-            "created": created, "already_linked": linked}
+            "created": created, "already_linked": linked, "checked_against_text": known is not None}
 
 
 def format_result(result: dict) -> str:
     if result["already_linked"]:
         return f"{result['requirement']} already maps to {result['obligation']}; nothing changed."
     how = "new candidate obligation" if result["created"] else "existing candidate obligation"
+    unchecked = ("" if result.get("checked_against_text", True) else
+                 f"{result['locator']} was not checked against the act: {result['target']} has no retained text or lock entry yet.\n")
     return (f"{result['requirement']} now maps to {result['obligation']} ({how}, {result['target']} {result['locator']}).\n"
+            + unchecked +
             "Applicability stays unresolved until a named reviewer records a decision; add its review methods, then run check.")

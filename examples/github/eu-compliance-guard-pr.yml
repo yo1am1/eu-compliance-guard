@@ -25,7 +25,8 @@ jobs:
         run: |
           git -c core.quotePath=false diff --no-color "origin/$BASE_REF...HEAD" > "$RUNNER_TEMP/pr.diff"
           set +e
-          # 1.1.0, pinned to its commit so the install cannot change under you.
+          # A release commit (see the releases page), so the tool's own code cannot change under
+          # you. Its dependencies (Pydantic) resolve when uvx installs it; they are not locked here.
           uvx --from "git+https://github.com/yo1am1/eu-compliance-guard@787509f202f23c4dacc2d8c53ef57696581851a4" \
             eu-compliance-guard pr-check --diff "$RUNNER_TEMP/pr.diff" --markdown --strict > "$RUNNER_TEMP/eucg.md"
           code=$?

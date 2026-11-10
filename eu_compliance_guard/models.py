@@ -2109,6 +2109,9 @@ class ProjectGraph(Record):
     nodes: Annotated[list[GraphNode], Field(max_length=MAX_GRAPH_NODES)]
     edges: Annotated[list[GraphEdge], Field(max_length=MAX_GRAPH_EDGES)]
     notice: Literal[GRAPH_NOTICE]
+    # Left out to stay within the limits on a very large project: ambiguous calls go first.
+    omitted_nodes: Count = 0
+    omitted_edges: Count = 0
 
     @model_validator(mode="after")
     def consistent(self) -> ProjectGraph:

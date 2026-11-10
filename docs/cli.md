@@ -23,10 +23,10 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `sign --decision <id> --key <ssh key> --principal <name> [--lock <file>]` | Sign a reviewed applicability decision against the locked law and its evidence |
 | `verify --allowed-signers <file> [--json]` | Check each signed decision: valid and current, changed since signing, or invalid |
 | `cite-check <file\|-> [--run <run dir>] [--json]` | Check cited articles and verbatim quotations against the retained official text |
-| `pack build\|sign\|verify\|import …` | Draft, SSH-sign, verify and import reusable obligation packs (candidate obligations only) |
+| `pack build\|sign\|verify\|import\|starters …` | Draft, SSH-sign, verify and import reusable obligation packs (candidate obligations only); list the draft starter packs |
 | `import-evidence --kind wec\|sarif <file> [--json]` | Keep an EDPS Website Evidence Collector or SARIF result as untrusted evidence, summarised by concept |
 | `accept <requirement>=<target>:<article>` | Map a requirement to a candidate obligation citing an article; no decision |
-| `graph [--input <file>] [--json] [--view [--open]]` | Map the project's Python files, functions, imports, calls and data flows (static) |
+| `graph [--input <file>] [--json] [--view [--open]]` | Map the project's Python and Rust files, functions, imports, calls and data flows (static) |
 | `export ropa\|dpia [--input <file>] [--format md\|json\|csv] [--output <file>]` | Draft a record of processing activities (Art. 30(1)) or DPIA screening inputs (Art. 35, WP248 criteria) from the declarations |
 | `timeline [--input <file>] [--run <run dir>] [--json]` | List application, entry-into-force and transposition dates quoted from the retained text, reached or upcoming against the assessment date |
 | `mcp [--input <file>]` | Serve `cite_check`, `article_search`, `ground`, `pr_check`, `timeline` and `next_steps` as read-only MCP tools over stdio |
@@ -232,7 +232,10 @@ binding law and a recommendation otherwise, with no invented review methods. Rev
 rise and every pin follows. The file is validated and written atomically, never
 through a link, and running it again changes nothing. No applicability decision is
 recorded: the obligation stays unresolved until a named reviewer decides.
-`/eucg-next` offers this for mapping steps.
+The article must exist in the target's text, read from `eu-law.lock` and the declared source
+copies; otherwise `accept` fails with `unknown-article` and changes nothing. With no text to
+check against yet, it says the article was not checked. `pack build` likewise refuses a pin
+that the locked text does not have. `/eucg-next` offers this for mapping steps.
 
 ## Grounding assumptions in the code
 
@@ -365,8 +368,13 @@ article, the kind, and the clause word for word, and is marked reached or upcomi
 the declarations' assessment date (never today, so the output is deterministic). For example,
 the AI Act's Article 113 yields 2 February 2025, 2 August 2025, 2 August 2026 and 2 August
 2027; the Cyber Resilience Act's Article 71 yields 11 June 2026, 11 September 2026 and 11
-December 2027. A date that is only described ("the twentieth day following publication") is
-not computed. A directive's dates bind Member States; when national law applies is a
+December 2027 in the original text. Dates are only as current as the retained version:
+Regulation (EU) 2026/1744 later moved the AI Act's high-risk dates (Annex III to 2 December
+2027, Annex I to 2 August 2028), which a timeline of the original text cannot show; the
+output says so, and `revalidate --fetch-official` flags a newer consolidated version. A date
+that is only described ("the twentieth day following publication") is not computed, and the
+date of a cited act ("Directive 2002/21/EC … of 7 March 2002") is not an application date.
+A directive's dates bind Member States; when national law applies is a
 reviewer's question. The timeline shows what the text says, never whether it applies.
 
 ## Signed decisions
@@ -381,7 +389,8 @@ each signature, then compares the signed record with the current files. It repor
 signature as valid and current, valid but out of date (naming what changed since: the
 decision, the obligation, the law or the evidence), or invalid. A signature file must
 hold the decision it is named after, and a reviewed decision with no signature is listed
-as not signed (which does not fail the command). A signature shows who
+as not signed (which does not fail the command). A decision signed before `lock` pins no
+article text; `verify` says so instead of reporting the law unchanged. A signature shows who
 recorded a decision against which text. It does not make the decision right.
 
 ## Citation guard and MCP tools
@@ -392,15 +401,18 @@ retained act. Every quotation of three words or more must appear in the article 
 before it, word for word, ignoring case, whitespace and the style of quotation marks. A
 citation followed by an act's name or number ("Article 17 GDPR", "Article 5(3) of the
 ePrivacy Directive", "Article 99 of Regulation (EU) 2016/679") is checked in that act only;
-a well-known act the run did not retain, such as the DSA, is reported as not checked. UK
+a well-known act the run did not retain, such as the DSA, is reported as not checked, and
+so is a citation of an act the tool does not recognise ("Article 9 of the Product Liability
+Directive" when that directive is not declared). Only the article is checked: a paragraph
+or point ("Article 6(9)(z)"), a recital or an annex is not. UK
 citations work the same way: "section 170 of the Data Protection Act 2018", "s. 170 DPA
 2018", "regulation 6 of PECR", "Article 17 UK GDPR". A citation of "the GDPR" is never
 checked in the UK GDPR, or the other way round. It
 exits 1 when a citation or quotation does not match. It checks wording only, never legal
 meaning.
 
-`mcp` serves the same check, plus `article_search`, `ground`, `pr_check` (given a diff)
-and `next_steps`, as read-only tools over stdio for other agents. `ground` only proposes
+`mcp` serves the same check, plus `article_search`, `ground`, `pr_check` (given a diff),
+`timeline` and `next_steps`, as read-only tools over stdio for other agents. `ground` only proposes
 lines; pinning one stays a person's step with `ground --apply`. For example
 `claude mcp add eucg -- eu-compliance-guard mcp --input .eu-compliance-guard/declarations.json`.
 

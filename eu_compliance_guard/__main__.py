@@ -9,7 +9,7 @@ _ERROR_CODES = {
     "incomplete-run", "corrupt-run",
     "wrong-project", "invalid-revision", "not-observable", "bad-location", "unrelated-line", "no-run",
     "unknown-id", "unreviewed-decision", "bad-principal", "signing-failed", "pack-conflict", "unsigned-pack",
-    "bad-signature",
+    "bad-signature", "unknown-article",
 }
 _DEFAULT_INPUT = ".eu-compliance-guard/declarations.json"
 
@@ -165,7 +165,7 @@ def _command(argv: list[str] | None) -> int:
     cite.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
     cite.add_argument("--run", help="Completed run directory (default: the newest run in this project's state-dir)")
     cite.add_argument("--json", action="store_true", help="Print the result as JSON")
-    mcp = commands.add_parser("mcp", help="Serve cite_check, article_search and next_steps as MCP tools over stdio",
+    mcp = commands.add_parser("mcp", help="Serve cite_check, article_search, ground, pr_check, timeline and next_steps as MCP tools over stdio",
                               allow_abbrev=False)
     mcp.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
     pack = commands.add_parser("pack", help="Build, sign, verify or import a reusable obligation pack (never a decision)",
@@ -209,7 +209,7 @@ def _command(argv: list[str] | None) -> int:
     accept.add_argument("mapping", metavar="REQ=TARGET:ARTICLE", help="For example req-delete=target-gdpr:Article 17")
     accept.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
     accept.add_argument("--json", action="store_true", help="Print the result as JSON")
-    graph = commands.add_parser("graph", help="Map the project's Python files, functions, imports and calls (static, read-only)",
+    graph = commands.add_parser("graph", help="Map the project's Python and Rust files, functions, imports and calls (static, read-only)",
                                 allow_abbrev=False)
     graph.add_argument("--input", default=".eu-compliance-guard/declarations.json",
                        help="Declarations file; its files root is the project that is mapped")

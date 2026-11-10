@@ -68,6 +68,8 @@ def build(declarations: str | os.PathLike, pack_id: str, title: str, obligation_
     law = []
     if lock_file.exists():
         for entry in lawlock.read(lock_file).entries:
+            if articles.get(entry.target_id, set()) - {a.key for a in entry.articles}:
+                raise PackError("unknown-article")  # a pin names an article the locked text does not have
             if entry.target_id in cited:
                 law.append(m.LawLockEntry(target_id=entry.target_id, version=entry.version, source_digest=entry.source_digest,
                                           articles=[a for a in entry.articles if a.key in articles.get(entry.target_id, set())]))

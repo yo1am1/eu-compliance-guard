@@ -4,6 +4,8 @@ Standard library only. Silent unless the project has a .eu-compliance-guard/ dir
 Run data is summarized as counts and fixed-format fields only; gap text never enters
 the context. Any failure exits 0 without output so a session never breaks.
 """
+from __future__ import annotations
+
 import importlib.util
 import json
 import os

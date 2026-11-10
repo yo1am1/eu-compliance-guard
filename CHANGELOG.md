@@ -1,5 +1,80 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- `revalidate --fetch-official` could never confirm an EU act as current: the identity check
+  looked for the CELEX number, which Publications Office pages do not print. It now also
+  accepts the act's own "2016/679" form, and a fetch byte-identical to the declared source
+  needs no second identity signal. Checked against all six EU texts in `fixtures/official/`.
+- `timeline` took the date of a cited act for an application date (ePrivacy Article 2:
+  "Directive 2002/21/EC … of 7 March 2002 … shall apply") and missed transposition deadlines
+  worded "shall bring into force" (ePrivacy Article 17, 31 October 2003). A superscript digit
+  next to a month no longer crashes it, and a long clause with many dates is no longer quadratic.
+- `timeline` now says its dates come from the retained version of each act and that a later
+  amending act, such as Regulation (EU) 2026/1744 for the AI Act's high-risk dates, is not
+  reflected unless that version includes it.
+- `accept` mapped a requirement to an article the act does not have ("Article 999"), and
+  `pack build` packaged it, dropping it from the pack's law digests without a word. Both now
+  check the article against the locked and declared text and fail with `unknown-article`;
+  with no text to check against, `accept` says so.
+- The citation guard checked "Article 9 of the Product Liability Directive" against whatever
+  act was declared, and passed it when that act had an Article 9. A citation naming an act it
+  does not recognise (a Regulation, Directive, Act, ... that is neither declared nor known) is
+  now reported as not checked.
+- `verify` reported a decision signed without `eu-law.lock` as "decision, law and evidence
+  unchanged", although that signature pins no article text. It now says the law is not pinned
+  and to lock and sign again. Tests now cover a changed law digest, changed evidence and a
+  removed decision.
+- The project graph was still quadratic per file, so 2.5.0's "linear now" covered only part of
+  the problem: the Rust reader rescanned to the end of the file for every item (a 64 KB file
+  held `pr-check` for 71 s), and the Python reader re-split the file for every definition (a
+  340 KB file took 131 s). Both are linear now; 30,000 items read in under a second, with tests.
+- A project larger than the graph's limits (50,000 definitions, 200,000 links) made `graph`,
+  `ground` and `pr-check` fail with a bare exit 2. The graph now keeps every extracted link
+  first, leaves out ambiguous calls, and says how much was left out (`omitted_nodes`,
+  `omitted_edges`).
+- The plugin's session hook crashed at import on Python 3.9, the `python3` of stock macOS, so
+  the plugin's context never loaded there. It now runs on Python 3.8 and later.
+- `pr-check` let `--strict` pass a line posting a user's email and weight to a third-party URL:
+  "weight" needed a second health word, and a web address did not count as a third party.
+  Next to personal data, one special-category word or a web address is now enough. "weight",
+  "height" and "heart" no longer count without a person, so CSS such as `font-weight` and
+  `height` is no longer flagged as health data. `graph` uses the same rule.
+- `ground` offered lines of the declared law texts as code evidence, and `ground --apply`
+  pinned a fact as "observed source code" to a table-of-contents line of the ePrivacy
+  Directive on one shared word ("page"). Declared source copies are no longer indexed or
+  pinnable, and `--apply` needs a concept term or two shared words.
+- `import-evidence` summarised a SARIF log passed as `--kind wec` (and the reverse) as an empty
+  result. The wrong format is now refused. Imported copies and summaries are written readable
+  by their owner only (0600), since another tool's output can name a site's users or internals.
+- The Markdown report had the legal notice only near the top, although the README says every
+  output ends with it. It now ends with it too.
+
+### Changed (documentation)
+
+- Claims the code does not support are corrected: runs are checksummed, not tamper-evident
+  (anyone who can write the run folder can rewrite a report and its checksums); the dependency
+  notices and the `eucg` skill said MIT, but the project is AGPL-3.0-only from 1.2.0; licence
+  files of removed dependencies are gone and every runtime package is listed. The package no
+  longer claims "OS Independent": Linux and macOS are supported, Windows is not, and the
+  README and plugin guide say so. "Read-only" is defined: the tool writes only its own records.
+- The plugin guide recommended allowing `uv run --project * …`, which would let uv run any
+  other project's code. It now gives the plugin's own path, and says what allowing it means for
+  network consent. The guide's band paragraph, cut off in 2.x, is whole again.
+- Stale help: `mcp` lists all six tools, `graph` says Python and Rust, the command table lists
+  `pack starters`, the example PR workflow no longer calls its pin 1.1.0 and says its
+  dependencies are not locked, and CONTRIBUTING no longer says the band's types are generated.
+- The UK GDPR test text now also credits EUR-Lex, since it derives from Regulation (EU) 2016/679.
+
+### Tests
+
+- New tests pin behaviour that mutations of 2.5.0 showed nothing covered: `impact` on a removed
+  article and on a version-only change (now shown as "version not recorded → v2"), the DPIA
+  screening's count of guidance criteria with signals, signed-decision staleness, the timeline's
+  reached/upcoming boundary and its text output.
+
 ## 2.5.0 — 2026-11-07
 
 Stabilisation before 3.0: an audit of everything 2.2 to 2.4 added, and the open choices

@@ -505,12 +505,31 @@ def fetch_policy() -> dict:
             "official_hosts": sorted(OFFICIAL_HOSTS)}
 
 
+def identifier_forms(identifier: str) -> list[str]:
+    """The identifier as declared, plus the "year/number" form an EU act's own text uses.
+
+    EUR-Lex and Cellar pages of an act do not print its CELEX number: 32016R0679 is
+    written "2016/679" and the consolidated 02002L0058-20091219 "2002/58"."""
+    forms = [identifier]
+    celex = identifier.split("-", 1)[0]
+    if len(celex) >= 10 and celex[0] in "03" and celex[1:5].isdigit():
+        kind_end = 5
+        while kind_end < len(celex) and celex[kind_end].isalpha():
+            kind_end += 1
+        number = celex[kind_end:]
+        if kind_end > 5 and number.isdigit() and int(number):
+            forms.append(f"{celex[1:5]}/{int(number)}")
+    return forms
+
+
 def _retrieval_review(content: bytes, media_type: str, target: m.SourceTarget) -> list[str]:
     """Conservative identity/language signals; their absence never proves document identity."""
     if media_type == "application/pdf":
         return []
     reasons = []
-    if target.intended_identifier and target.intended_identifier.lower().encode("utf-8") not in content.lower():
+    lowered = content.lower()
+    if target.intended_identifier and not any(
+            form.lower().encode("utf-8") in lowered for form in identifier_forms(target.intended_identifier)):
         reasons.append("intended-identifier-not-found")
     declared = _html_lang(content[:CHUNK_BYTES]) if media_type != "text/plain" else None
     if declared and declared != target.language.split("-")[0].lower():
@@ -542,9 +561,10 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
             actions.append("Resolve recorded gap: " + message)
 
     attempts, candidates, outcomes = [], [], {}
-    prior_by_target = {}
+    prior_by_target, declared_digests = {}, {}
     for item in declared.sources:
         prior_by_target.setdefault(item.target_id, item.source)
+        declared_digests.setdefault(item.target_id, set()).add(item.source.content_digest)
     for result in retrievals or []:
         target = targets[result.target_id]
         if result.requested_url != target.intended_url:
@@ -555,6 +575,9 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
         if failure is None:
             admission = admit_source_content(result.content, result.media_type, result.charset)
             reasons = _retrieval_review(result.content, result.media_type, target)
+            if digest in declared_digests.get(target.id, ()):
+                # The same bytes as a declared source of this target: identity rests on that source's review.
+                reasons = [reason for reason in reasons if reason != "intended-identifier-not-found"]
             if admission.state == "rejected":
                 failure = "content-rejected"
         retained = failure is None

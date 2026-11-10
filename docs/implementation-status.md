@@ -33,7 +33,12 @@ library is imported into the standalone repository.
   containment/admission requirements remain unmet; fake tests are not that evidence.
 - A locked Python environment (uv.lock), package selection, and license notices.
 
-## Current state (v2.5.0, 2026-11-07) and what remains
+## Current state (2.5.1 in progress, 2026-11-10) and what remains
+
+2.5.1 fixes what a full audit of 2.5.0 found (see the changelog): official freshness for EU
+acts, timeline dates, unknown articles and acts, unpinned signatures, linear graph readers and
+graph limits, the macOS hook, pr-check and grounding precision, imports, and documentation that
+claimed more than the code does (tamper evidence, licence statements, platform support).
 
 Released: 1.0 to 2.5. 2.5 fixed what an audit of 2.2 to 2.4 found (three quadratic parsers,
 CSV cells, duplicate names in the graph) and removed the unused React page and `api` extra.
@@ -50,7 +55,7 @@ projects, and fixed what fell short (see the changelog). The 2.0 summary follows
 - `pr-check` (graph-aware, monorepo-aware), `score`, and `make eval`;
 - 2.0: `lock` and `impact` (law lockfile and change impact), `sign` and `verify` (SSH-
   signed decisions), `cite-check`, the `mcp` server (`cite_check`, `article_search`,
-  `ground`, `pr_check`, `next_steps`), the `pack` format, and `import-evidence` (EDPS
+  `ground`, `pr_check`, `next_steps`; `timeline` from 2.3), the `pack` format, and `import-evidence` (EDPS
   Website Evidence Collector and SARIF).
 
 CI runs `make check` on every pull request. Supply-chain, determinism, regex and

@@ -72,14 +72,16 @@ def _wec(data: dict) -> tuple[str, dict, list[str]]:
     for form in _list(data.get("unsafeForms")):
         form = _dict(form)
         _add(found, "security", f"form submitted without TLS: {form.get('action', form.get('id', '?'))}")
-    if not any(key in data for key in ("cookies", "beacons", "hosts", "localStorage")):
-        notes.append("No cookies, beacons, hosts or storage keys in this file: is it a WEC inspection.json?")
+    if not any(key in data for key in ("cookies", "beacons", "hosts", "localStorage", "targetUrl", "uri_ins")):
+        raise ImportFailure("invalid-input")  # not a WEC inspection.json (a SARIF log, say)
     # Current collector versions name the site `targetUrl`; versions before 2 used `uri_ins`.
     subject = _plain(data.get("targetUrl") or data.get("uri_ins") or data.get("uri_dest") or "unknown site")
     return f"EDPS Website Evidence Collector inspection of {subject}", found, notes
 
 
 def _sarif(data: dict) -> tuple[str, dict, list[str]]:
+    if not isinstance(data.get("runs"), list):
+        raise ImportFailure("invalid-input")  # not a SARIF log (a WEC inspection, say)
     found: dict = {}
     tools, notes = [], []
     for run in _list(data.get("runs")):
@@ -135,12 +137,14 @@ def import_file(declarations: str | os.PathLike, path: str | os.PathLike, kind: 
     folder = Path(declarations).parent / "imports"
     if folder.is_symlink():
         raise ImportFailure("unsafe-path")
-    folder.mkdir(mode=0o755, exist_ok=True)
+    folder.mkdir(mode=0o700, exist_ok=True)
     stem = f"{kind}-{summary['digest'].removeprefix('sha256:')[:16]}"
-    lawlock.write_bytes(folder / f"{stem}.json", raw.content)
+    # Another tool's output can name the site's users or internals: readable by the owner only.
+    lawlock.write_bytes(folder / f"{stem}.json", raw.content, mode=0o600)
     summary["copy"] = f"imports/{stem}.json"
     target = lawlock.write_bytes(folder / f"{stem}.summary.json",
-                                 (json.dumps(summary, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"))
+                                 (json.dumps(summary, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"),
+                                 mode=0o600)
     return target, summary
 
 

@@ -32,8 +32,9 @@ retrieval runs only with `make verify-hosts`, which asks for consent.
   outputs; `tests/test_determinism.py` runs commands twice to prove it.
 - **No new regular expressions.** Parse structure with the standard library;
   `tests/test_regex_policy.py` allows only a few anchored validators.
-- **One contract.** JSON Schema and TypeScript types are generated from
-  `eu_compliance_guard/models.py`: after changing it, run `make contracts`.
+- **One contract.** The JSON Schema is generated from `eu_compliance_guard/models.py`: after
+  changing it, run `make contracts`. `types/index.d.ts` holds the band's own view types and is
+  written by hand; `tests/test_plugin.py` checks its closed sets against the schema.
 - **Every human-readable output ends with the legal notice** (`notice.LEGAL_NOTICE`).
 - **Imported documents and tool output are untrusted data**, never instructions.
 - **Official hosts only** for law text, listed in [docs/official-hosts.md](docs/official-hosts.md).

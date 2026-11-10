@@ -58,6 +58,7 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(self.input.read_bytes(), before)
         files = sorted(path.name for path in (self.root / "imports").iterdir())
         self.assertEqual(len(files), 2)
+        self.assertEqual({(self.root / "imports" / name).stat().st_mode & 0o777 for name in files}, {0o600})
         summary = json.loads((self.root / "imports" / files[1]).read_text())
         self.assertEqual((self.root / summary["copy"]).read_bytes(), (FIXTURES / "imports/sarif-synthetic.json").read_bytes())
         # Importing the same file again is deterministic.
@@ -77,6 +78,11 @@ class ImportTests(unittest.TestCase):
         bad = self.root / "bad.json"
         bad.write_text("[1, 2]")
         self.assertEqual(cli("import-evidence", bad, "--kind", "wec", "--input", self.input)[0], 2)
+        # The wrong --kind is refused, not summarised as an empty result.
+        self.assertEqual(cli("import-evidence", FIXTURES / "imports/sarif-synthetic.json", "--kind", "wec",
+                             "--input", self.input)[0], 2)
+        self.assertEqual(cli("import-evidence", FIXTURES / "imports/wec-synthetic.json", "--kind", "sarif",
+                             "--input", self.input)[0], 2)
         link = self.root / "link.json"
         link.symlink_to(FIXTURES / "imports/wec-synthetic.json")
         self.assertEqual(cli("import-evidence", link, "--kind", "wec", "--input", self.input)[0], 2)

@@ -115,6 +115,34 @@ class RetrievalWorkflowTests(unittest.TestCase):
         self.assertEqual((declared.retrieved_at, declared.content_digest), (STAMP, m.content_digest(PAGE)))
         self.assertEqual({item.requirement.id: item.state for item in bundle.requirement_assessments}["requirement-example"], "supported")
 
+    def test_same_bytes_confirm_freshness_when_the_page_omits_the_identifier(self):
+        # Cellar pages never print their CELEX number; identical bytes rest on the declared source's review.
+        bare = PAGE.replace(b"FICTIONAL-REAL-1 ", b"")
+        (self.root / "revalidation-synthetic/real.html").write_bytes(bare)
+        payload = real_target_payload()
+        payload["sources"][-1]["file"]["digest"] = payload["sources"][-1]["source"]["content_digest"] = m.content_digest(bare)
+        self.input.write_text(json.dumps(payload))
+        bundle = self.assemble([result(content=bare)])
+        self.assertEqual(bundle.source_attempts[0].retrieval.comparison, "same_bytes")
+        self.assertNotIn("Source target target-real: retrieved content needs review (intended-identifier-not-found).", bundle.gaps)
+        self.assertNotIn("freshness", " ".join(self.source_gaps(bundle)))
+
+    def test_eu_act_pages_carry_the_year_number_form_of_their_celex(self):
+        import gzip
+        official = Path(__file__).resolve().parents[1] / "fixtures/official"
+        for name, celex in (("gdpr-32016R0679", "32016R0679"), ("ai-act-32024R1689", "32024R1689"),
+                            ("eprivacy-02002L0058-20091219", "02002L0058-20091219"), ("cra-32024R2847", "32024R2847"),
+                            ("eaa-32019L0882", "32019L0882"), ("nis2-32022L2555", "32022L2555")):
+            with self.subTest(celex=celex):
+                page = gzip.decompress((official / f"{name}.html.gz").read_bytes())
+                target = m.SourceTarget(id="target-x", revision=0, family="gdpr", intended_url=URL,
+                                        intended_identifier=celex, publisher="Publications Office",
+                                        intended_type="eu_act", language="en", jurisdiction="EU")
+                self.assertNotIn(celex.encode(), page)
+                self.assertEqual(r._retrieval_review(page, "text/html", target), [])
+        self.assertEqual(r.identifier_forms("FICTIONAL-REAL-1"), ["FICTIONAL-REAL-1"])
+        self.assertEqual(r.identifier_forms("02002L0058-20091219"), ["02002L0058-20091219", "2002/58"])
+
     def test_changed_bytes_withdraw_declared_source_and_create_candidate(self):
         bundle = self.assemble([result(content=CHANGED)])
         self.assertEqual(bundle.source_attempts[0].retrieval.comparison, "different_bytes")
