@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Changed (internal; no behaviour change)
+
+- The command line has one error path, one run lookup and a dispatch table instead of 21 copied
+  `try`/`except` blocks and a 22-branch `if` chain (94 lines shorter, same output).
+- Nine identical error classes share `errors.CodedError`; two near-identical atomic-write
+  functions share `files.py`; the evaluation scores every set with one function; dead code
+  (`articles._query`) is gone. `tests/test_hygiene.py` keeps these from coming back, and
+  CONTRIBUTING has a map of the modules.
+
 ### Added
 
 - Optional semantic ranking of article suggestions. Word search stays the default and the only
