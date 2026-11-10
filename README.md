@@ -1,86 +1,104 @@
+<div align="center">
+
 # EU Compliance Guard
 
-[![CI](https://github.com/yo1am1/eu-compliance-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/yo1am1/eu-compliance-guard/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/yo1am1/eu-compliance-guard)](https://github.com/yo1am1/eu-compliance-guard/releases)
-[![License: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue)](LICENSE)
+**Keep a project's EU and UK legal review traceable: every requirement tied to the law text,
+the code and a named reviewer's decision. Never a compliance verdict.**
 
-A Claude Code plugin and command-line tool that keeps a project's EU and UK legal review
-traceable. It maps declared project requirements to candidate obligations and
-official sources, then keeps every unanswered question visible as a review gap. It
-writes private, checksummed reports and revalidates them when the project or the law
-changes.
+[![CI](https://github.com/yo1am1/eu-compliance-guard/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yo1am1/eu-compliance-guard/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/yo1am1/eu-compliance-guard?color=3d5a80)](https://github.com/yo1am1/eu-compliance-guard/releases/latest)
+[![License: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue)](LICENSE)
+![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776ab)
+![Claude Code plugin · CLI · MCP](https://img.shields.io/badge/Claude%20Code%20plugin-CLI%20%C2%B7%20MCP-3d5a80)
+
+[What it does](#what-it-does) · [How it fits together](#how-it-fits-together) ·
+[A closer look](#a-closer-look) · [Quick start](#quick-start-claude-code) ·
+[Command line](#command-line-tool) · [Limits](#limits) · [Changelog](CHANGELOG.md)
+
+</div>
+
+EU Compliance Guard is a Claude Code plugin and command-line tool. It maps a project's declared
+requirements to candidate obligations and official law text, finds the code behind each
+fact, and keeps every unanswered question visible as a review gap. It writes private,
+checksummed reports and revalidates them when the project or the law changes.
 
 It is read-only towards the law and the project's code: it never changes code or decides
-anything legal. It writes only its own records (the declarations, the law lock, signatures and
-imports under `.eu-compliance-guard/`) and its private runs. It never gives a compliance verdict. A named human reviewer makes
-every legal decision, and the tool records who decided what, against which text and
-evidence. No output, test or example implies a real compliance audit.
+anything legal. It writes only its own records (the declarations, the law lock, signatures,
+the run log and imports under `.eu-compliance-guard/`) and its private runs. A named human
+reviewer makes every legal decision, and the tool records who decided what, against which
+text and evidence. No output, test or example implies a real compliance audit.
+
+![A tour: declarations and a first run, review progress, article text beside each requirement, code evidence for a fact, a pull request screened, the project graph, a citation check, a rewritten report detected, and the dashboard](docs/images/overview.webp)
 
 **Version 2.5.1.** See the [changelog](CHANGELOG.md) and the [roadmap](docs/roadmap.md).
+Every image here is real output for FitBox, a fictional project, built by
+`make readme-images`.
 
-![Walkthrough: the band and side panel in Claude Code, then article text and articles to read in the report](docs/images/walkthrough.gif)
+## What it does
 
-<details>
-<summary>Screenshots</summary>
+| | What you get | Commands |
+|---|---|---|
+| **Review workflow** | Declarations of requirements, facts, sources and obligations, validated with located diagnostics. Private runs that revalidate against their predecessor. The next best step, review-progress meters and article suggestions with their reasons | `init` `check` `revalidate` `next` `score` `accept` |
+| **The law text** | Official text from verified hosts, fetched only with consent: EUR-Lex and the Publications Office for the EU, legislation.gov.uk for the UK. A lockfile with per-article digests, the decisions a law change reopens, and the dates an act gives, quoted from its text | `revalidate --fetch-official` `lock` `impact` `timeline` |
+| **The project's code** | Facts grounded in code lines. A static graph of Python and Rust that follows personal data to network, storage and model calls. A pull-request screen, with a GitHub Action | `ground` `graph` `pr-check` |
+| **Accountability** | Decisions signed with the reviewer's SSH key, bound to the locked text and the evidence. Runs sealed in a hash-chained log, so a rewritten report is detected. A citation guard for agent-written text | `sign` `verify` `seal` `cite-check` |
+| **Records and reuse** | Drafts of a record of processing (Article 30) and DPIA screening inputs (Article 35), every gap listed. Signed obligation packs and four unreviewed starter packs. Imports of EDPS Website Evidence Collector and SARIF results as untrusted evidence | `export` `pack` `import-evidence` |
+| **For any agent** | An MCP server with six read-only tools: `cite_check`, `article_search`, `ground`, `pr_check`, `timeline`, `next_steps` | `mcp` |
 
-**In Claude Code:** the band above the prompt names the next step and shows progress;
-the side panel lists the top steps, the questions for the owner and open items by area.
+## How it fits together
 
-![The band and the side panel in Claude Code](docs/images/plugin-band-panel.png)
+![Architecture: four ways in (Claude Code plugin, command line, MCP server, GitHub Action) over the review loop of declare, run, see and a person decides, which reads the law text, the project's code and the trust records](docs/architecture.svg)
 
-**In the report:** each declared article opens to its text, retrieved from the
-Publications Office and labelled as an unreviewed candidate.
+## A closer look
 
-![Article text beside each declared legal reference](docs/images/report-article-text.png)
+**In Claude Code.** The band above the prompt names the next step and shows progress; the
+side panel lists the top steps, the questions for the owner and open items by area.
 
-**Articles to read:** each requirement lists the articles a local text search ranks
-highest. A suggestion, not a mapping.
+![The band and the side panel in Claude Code](docs/images/band-panel.webp)
 
-![Articles to read under each requirement](docs/images/report-articles-to-read.png)
+This one capture dates from version 1.1; the others are generated from the current version.
 
-All screenshots show the fictional FitBox example project.
+**Review progress, never a score.** Separate meters count recorded review steps, points out
+of 10, with no total and nothing coloured as a pass.
 
-</details>
+![The report's review progress for the fictional project: separate meters and the next step](docs/images/report.webp)
 
-## Features
+**The law beside each requirement.** Each requirement lists the articles a local search
+ranks highest, with the words that matched. A suggestion, not a mapping.
 
-**Review workflow**
+![Requirements with the articles to read under each one](docs/images/articles.webp)
 
-- Declarations of requirements, facts, sources and obligations, validated with located
-  diagnostics (`init`, `check`).
-- Official text from verified hosts, fetched only with consent: EU law from EUR-Lex and the
-  Publications Office, with a notice when a newer consolidation exists, and UK law from
-  legislation.gov.uk, by section, regulation or article (`revalidate --fetch-official`).
-- Private, digest-verified runs that revalidate against their predecessor, so stale
-  reviews never carry over silently.
-- The next best step, review-progress meters, article suggestions with their reasons,
-  and one-step mapping (`next`, `score`, `accept`).
+**The code behind a fact.** `ground` ranks the code lines that could back an assumed fact,
+and names touchpoints and data flows no fact covers.
 
-**Code awareness**
+![ground: candidate code lines for a fact, uncovered touchpoints and a data flow](docs/images/terminal-ground.webp)
 
-- Facts grounded in code lines, and a static project graph of Python and Rust code that
-  follows data from fields to network, storage and model calls (`ground`, `graph`).
-- A pull-request screen for legal touchpoints, with a GitHub Action (`pr-check`).
+**A pull request, screened.** A line that posts a user's email and weight to an outside
+address is flagged as personal data, special-category data and a third party.
 
-**Law that stays current, decisions that stay accountable**
+![pr-check --strict on a diff that sends an email address and body weight to an outside URL](docs/images/terminal-pr-check.webp)
 
-- A law lockfile with per-article digests, and the decisions a law change reopens
-  (`lock`, `impact`).
-- Decisions signed with the reviewer's SSH key, bound to the locked text and the
-  evidence (`sign`, `verify`).
-- A citation guard for agent-written text: cited articles must exist and quotations
-  must be verbatim (`cite-check`).
-- Drafts for record keeping: a record of processing activities (Article 30) and DPIA
-  screening inputs (Article 35), as Markdown, JSON or CSV, with every gap listed (`export`).
-- An application-date timeline: when each act, or each part of it, applies, quoted from the
-  text and marked reached or upcoming against the assessment date (`timeline`).
-- Signed, reusable obligation packs, and four draft starter packs (GDPR core, ePrivacy
-  cookies, Accessibility Act services, Cyber Resilience Act), unreviewed and without
-  guarantee (`pack`).
-- Imports of EDPS Website Evidence Collector and SARIF results as untrusted evidence
-  (`import-evidence`).
-- An MCP server for any agent, with read-only `cite_check`, `article_search`, `ground`,
-  `pr_check`, `timeline` and `next_steps` tools (`mcp`).
+**Where the data flows.** The project graph is parsed, never run.
+
+![The project graph of the fictional project, with one data flow from special-category data to a model call](docs/images/graph.webp)
+
+**An agent's citations, checked.** A cited article must exist in the retained text and a
+quotation must be verbatim; an act the tool does not know is "not checked", never "ok".
+
+![cite-check: a correct citation and quotation, an article that does not exist, and an unrecognised act](docs/images/terminal-cite-check.webp)
+
+**A rewritten report is detected.** A run's own checksums cannot catch a report that is
+rewritten together with them. The sealed log can.
+
+![seal, then a report edited to say COMPLIANT, then seal --check reporting the run changed](docs/images/terminal-seal.webp)
+
+**Dates, quoted from the text.**
+
+![timeline: application and transposition dates quoted from the GDPR and the ePrivacy Directive](docs/images/terminal-timeline.webp)
+
+**One page for where the review stands.**
+
+![The dashboard: meters, to-do and coverage for the fictional project](docs/images/dashboard.webp)
 
 ## Quick start (Claude Code)
 

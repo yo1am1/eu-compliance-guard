@@ -1,9 +1,11 @@
-.PHONY: check contracts plugin-check verify-hosts eval e2e semantic-check
+.PHONY: check contracts plugin-check verify-hosts eval e2e semantic-check readme-images
 check:
 	uv run --locked python -m unittest discover -s tests -v
 	uv run --locked python -m eu_compliance_guard.schema --check
 contracts:
 	uv run --locked python -m eu_compliance_guard.schema
+readme-images:
+	uv run --locked --with pillow --with playwright python scripts/readme_images.py
 e2e:
 	uv run --locked python scripts/e2e.py
 semantic-check:

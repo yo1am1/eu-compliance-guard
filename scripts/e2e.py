@@ -6,7 +6,6 @@ sources) and runs each command, checking exit codes, output, files and the legal
 Offline by default. `--live` also fetches both acts from the Publications Office and expects
 them confirmed as current. Needs git and ssh-keygen (for a real diff and real signatures).
 """
-import gzip
 import hashlib
 import json
 import os
@@ -15,6 +14,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
+import demo_project
 
 REPO = Path(__file__).resolve().parents[1]
 WORK = Path(tempfile.mkdtemp(prefix="eucg-e2e-"))
@@ -52,28 +53,10 @@ def expect(name, result, code=0, has=(), lacks=(), notice=None):
     return out
 
 
-def fact(identity, key, basis, value):
-    return {"id": identity, "revision": 0, "key": key, "value": value, "basis": basis, "evidence_ids": [],
-            "owner": "Fictional owner", "observed_at": "2026-11-01T10:00:00Z", "conflicts": []}
-
-
-def requirement(identity, statement, fact_id):
-    return {"id": identity, "revision": 0, "project_id": "fitbox", "synthetic": True, "statement": statement, "origin": None,
-            "locator": None, "activity_ids": [], "fact_refs": [{"id": fact_id, "revision": 0}], "obligation_refs": [],
-            "evidence_ids": []}
-
-
 PROJ = WORK / "proj"
 (WORK / "state").mkdir(mode=0o700)
 os.chmod(WORK, 0o700)
-shutil.copytree(REPO / "fixtures/eval/project", PROJ)
-(PROJ / "law").mkdir()
-ACTS = {}
-for name, stem, celex, family in (("gdpr", "gdpr-32016R0679", "32016R0679", "gdpr"),
-                                  ("eprivacy", "eprivacy-02002L0058-20091219", "02002L0058-20091219", "eprivacy")):
-    content = gzip.decompress((REPO / f"fixtures/official/{stem}.html.gz").read_bytes())
-    (PROJ / f"law/{name}.html").write_bytes(content)
-    ACTS[name] = (celex, family, "sha256:" + hashlib.sha256(content).hexdigest())
+demo_project.copy_project(PROJ)
 subprocess.run("git init -q && git add -A && git -c user.name=t -c user.email=t@example.invalid commit -q -m base", shell=True, cwd=PROJ, check=True)
 DECL = PROJ / ".eu-compliance-guard/declarations.json"
 
@@ -84,28 +67,7 @@ expect("bad arguments give a fixed code, no echo", run("nope", "--secret-value")
 expect("init", run("init", "--project-id", "fitbox", "--synthetic", "--assessment-date", "2026-11-07"), has=["declarations.json"], notice=True)
 expect("init never overwrites", run("init", "--project-id", "fitbox"), code=2)
 expect("check on the starter file", run("check"), has=["declarations: valid"], notice=True)
-seed = json.loads(DECL.read_text())
-seed["files_root"] = "project"
-# Technical facts go under roles: size_and_sector facts are organisational by design and never searched in code.
-seed["scope"]["roles"] = [fact("fact-controller", "Acts as controller for user accounts", "declared", "yes"),
-                          fact("fact-health", "Processes users' body weight (health data) for meal coaching", "assumed", "yes"),
-                          fact("fact-cookies", "Sets analytics cookies on the landing page", "unknown", None)]
-seed["requirements"] = [requirement("req-delete", "Users can delete their account and all their personal data.", "fact-controller"),
-                        requirement("req-cookies", "Ask for consent before storing analytics cookies.", "fact-cookies"),
-                        requirement("req-health", "Body weight is special category health data and needs explicit consent.", "fact-health")]
-PUBLISHER = "Publications Office of the European Union"
-for name, (celex, family, digest) in ACTS.items():
-    url = f"https://publications.europa.eu/resource/celex/{celex}"
-    seed["source_targets"].append({"id": f"target-eu-{name}", "revision": 0, "family": family, "intended_url": url,
-                                   "intended_identifier": celex, "publisher": PUBLISHER, "intended_type": "eu_act",
-                                   "language": "en", "jurisdiction": "EU", "redirect_hosts": []})
-    seed["sources"].append({"target_id": f"target-eu-{name}", "media_type": "text/html", "charset": "utf-8",
-                            "file": {"path": f"law/{name}.html", "digest": digest},
-                            "source": {"id": f"source-{name}", "revision": 0, "type": "eu_act", "publisher": PUBLISHER,
-                                       "identifier": celex, "url": url, "language": "en", "jurisdiction": "EU",
-                                       "document_date": None, "retrieved_at": "2026-11-06T10:00:00Z", "content_digest": digest,
-                                       "provisions": [], "related_source_ids": [], "synthetic": False}})
-DECL.write_text(json.dumps(seed, indent=2))
+demo_project.seed(DECL)
 expect("check with requirements, facts and two real acts", run("check"), has=["declarations: valid"])
 state = expect("state-dir", run("state-dir")).strip()
 check("state-dir is private", os.stat(state).st_mode & 0o777 == 0o700)
@@ -151,17 +113,7 @@ expect("accept is idempotent", run("accept", "req-delete=target-eu-gdpr:Article 
 expect("accept: cookies", run("accept", "req-cookies=target-eu-eprivacy:Article 5"))
 
 # --- a reviewed decision
-data = json.loads(DECL.read_text())
-obligation = next(o for o in data["obligations"] if o["id"] == "obligation-gdpr-erasure")
-data["applicability_decisions"] = [{
-    "applicability": "applicable", "assessment_date": data["scope"]["assessment_date"],
-    "condition_answers": ["Fictional: users have accounts with personal data."], "evidence_ids": [],
-    "exception_answers": ["None asserted (fictional)."], "fact_refs": [{"id": "fact-controller", "revision": 0}], "gaps": [],
-    "id": "decision-erasure", "jurisdictions": ["EU"], "obligation": {"id": obligation["id"], "revision": obligation["revision"]},
-    "project_id": "fitbox", "provisions": [{"locator": "Article 17", "revision": 0, "source_id": "source-gdpr", "source_target_id": "target-eu-gdpr"}],
-    "rationale": "Fictional reviewer decision.", "reviewed_at": "2026-11-07T12:00:00Z", "reviewer": "Fictional reviewer",
-    "revision": 0, "scope": {"id": data["scope"]["id"], "revision": data["scope"]["revision"]}, "synthetic": True}]
-DECL.write_text(json.dumps(data, indent=2))
+demo_project.reviewed_decision(DECL)
 expect("check with a reviewed decision", run("check"), has=["declarations: valid"])
 R2 = f"{state}/run-002"
 expect("revalidate with a predecessor", run("revalidate", "--input", DECL, "--output", R2, "--previous", R1))

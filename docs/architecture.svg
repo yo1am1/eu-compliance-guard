@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="880" viewBox="0 0 1200 880" font-family="-apple-system, 'Segoe UI', Inter, Helvetica, Arial, sans-serif">
+  <title>EU Compliance Guard architecture</title>
+  <desc>Three layers. On top, four ways in: the Claude Code plugin (band, side panel, skills, session hook), the command line, an MCP server with six read-only tools, and a GitHub Action that screens pull requests. In the middle, the review loop: declarations (requirements, facts, sources, obligations, decisions) are assembled into a private run, shown as a report, dashboard, review progress and next steps, and a named reviewer decides. Below, what the loop reads: the law text from official hosts (articles, timeline, law lock and impact, citation guard, optional semantic search), the project's code (grounding, a Python and Rust graph, pull-request screening), and trust (SSH-signed decisions, a hash-chained run log, signed obligation packs). The tool never gives a compliance verdict.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8b8a84"/>
+    </marker>
+    <style>
+      .card { fill: #ffffff; stroke: #e4e1d8; stroke-width: 1.2; }
+      .accent { fill: #eef2f7; stroke: #3d5a80; stroke-width: 1.4; }
+      .muted { fill: #f4f2ec; stroke: #e4e1d8; stroke-width: 1; }
+      .h2 { font-size: 14.5px; font-weight: 700; fill: #1d1d1b; }
+      .t { font-size: 12.5px; fill: #45443f; }
+      .s { font-size: 11.5px; fill: #6b6a65; }
+      .code { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'DejaVu Sans Mono', monospace; font-size: 11.5px; fill: #3d5a80; }
+      .tag { font-size: 11px; font-weight: 600; fill: #3d5a80; letter-spacing: .08em; }
+      .pill { fill: #3d5a80; }
+      .pilltext { font-size: 11.5px; font-weight: 600; fill: #ffffff; }
+      .line { stroke: #8b8a84; stroke-width: 1.6; fill: none; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="880" rx="18" fill="#fbfaf7"/>
+  <text x="40" y="48" font-family="Georgia, serif" font-size="30" fill="#1d1d1b">EU Compliance Guard</text>
+  <text x="352" y="47" class="tag">ARCHITECTURE</text>
+  <text x="40" y="74" class="s">A read-only review loop: what the project declares, the law text it relies on, and the code that backs it. A named reviewer decides; the tool records who decided what, against which text.</text>
+
+  <!-- Layer 1: ways in -->
+  <rect x="40" y="100" width="1120" height="150" rx="12" class="card"/>
+  <text x="58" y="128" class="tag">WAYS IN</text>
+  <text x="58" y="158" class="h2">Claude Code plugin</text>
+  <text x="58" y="180" class="t">Band and side panel: the next step</text>
+  <text x="58" y="199" class="t">Skills: audit, review a diff, gaps</text>
+  <text x="58" y="218" class="t">Session hook: mode and latest run</text>
+  <text x="58" y="237" class="code">/eucg-audit  /eucg-next  /eucg-pr</text>
+
+  <text x="350" y="158" class="h2">Command line</text>
+  <text x="350" y="180" class="t">23 commands, fixed error codes</text>
+  <text x="350" y="199" class="t">Same input, same output</text>
+  <text x="350" y="218" class="t">Offline unless you ask</text>
+  <text x="350" y="237" class="code">eu-compliance-guard …</text>
+
+  <text x="620" y="158" class="h2">MCP server</text>
+  <text x="620" y="180" class="t">Six read-only tools for any agent</text>
+  <text x="620" y="199" class="t">Citation guard, article search,</text>
+  <text x="620" y="218" class="t">grounding, PR check, timeline</text>
+  <text x="620" y="237" class="code">eu-compliance-guard mcp</text>
+
+  <text x="900" y="158" class="h2">GitHub Action</text>
+  <text x="900" y="180" class="t">Screens every pull request</text>
+  <text x="900" y="199" class="t">for legal touchpoints</text>
+  <text x="900" y="218" class="t">One comment, kept up to date</text>
+  <text x="900" y="237" class="code">pr-check --markdown</text>
+
+  <path d="M600,250 L600,286" class="line" marker-end="url(#arrow)"/>
+
+  <!-- Layer 2: the review loop -->
+  <rect x="40" y="290" width="1120" height="200" rx="12" class="accent"/>
+  <text x="58" y="318" class="tag">THE REVIEW LOOP</text>
+  <text x="182" y="318" class="code">eu_compliance_guard</text>
+
+  <rect x="58" y="336" width="240" height="134" rx="10" class="card"/>
+  <text x="74" y="362" class="h2">1 · Declare</text>
+  <text x="74" y="384" class="t">Requirements, facts, sources,</text>
+  <text x="74" y="403" class="t">obligations, decisions</text>
+  <text x="74" y="422" class="s">Validated; every gap is named</text>
+  <text x="74" y="452" class="code">init  check  accept  pack</text>
+
+  <rect x="334" y="336" width="240" height="134" rx="10" class="card"/>
+  <text x="350" y="362" class="h2">2 · Run</text>
+  <text x="350" y="384" class="t">A private run of selected files</text>
+  <text x="350" y="403" class="t">and declared official sources</text>
+  <text x="350" y="422" class="s">Compared with its predecessor</text>
+  <text x="350" y="452" class="code">revalidate  [--fetch-official]</text>
+
+  <rect x="610" y="336" width="240" height="134" rx="10" class="card"/>
+  <text x="626" y="362" class="h2">3 · See</text>
+  <text x="626" y="384" class="t">Report, dashboard, review</text>
+  <text x="626" y="403" class="t">progress and the next best step</text>
+  <text x="626" y="422" class="s">Static pages, no scripts</text>
+  <text x="626" y="452" class="code">view  score  next  export</text>
+
+  <rect x="886" y="336" width="256" height="134" rx="10" class="card"/>
+  <text x="902" y="362" class="h2">4 · A person decides</text>
+  <text x="902" y="384" class="t">A named reviewer records each</text>
+  <text x="902" y="403" class="t">decision, and can sign it</text>
+  <text x="902" y="422" class="s">The tool never fills this in</text>
+  <rect x="902" y="436" width="186" height="22" rx="11" class="pill"/>
+  <text x="914" y="451" class="pilltext">never a compliance verdict</text>
+
+  <path d="M298,403 L330,403" class="line" marker-end="url(#arrow)"/>
+  <path d="M574,403 L606,403" class="line" marker-end="url(#arrow)"/>
+  <path d="M850,403 L882,403" class="line" marker-end="url(#arrow)"/>
+  <path d="M1014,470 C1014,486 1014,486 990,486 L190,486 C178,486 178,486 178,474" class="line" marker-end="url(#arrow)"/>
+
+  <path d="M220,490 L220,526" class="line" marker-start="url(#arrow)"/>
+  <path d="M600,490 L600,526" class="line" marker-start="url(#arrow)"/>
+  <path d="M980,490 L980,526" class="line" marker-start="url(#arrow)"/>
+
+  <!-- Layer 3: what the loop reads -->
+  <rect x="40" y="530" width="360" height="270" rx="12" class="card"/>
+  <text x="58" y="558" class="tag">THE LAW TEXT</text>
+  <text x="58" y="586" class="h2">Official hosts only</text>
+  <text x="58" y="608" class="t">EUR-Lex and the Publications Office,</text>
+  <text x="58" y="627" class="t">legislation.gov.uk for the UK</text>
+  <text x="58" y="655" class="t">Split into articles; dates quoted</text>
+  <text x="58" y="674" class="t">Pinned per article; a change reopens</text>
+  <text x="58" y="693" class="t">exactly the decisions that cite it</text>
+  <text x="58" y="712" class="t">Citations and quotations are checked</text>
+  <text x="58" y="740" class="code">lock  impact  timeline  cite-check</text>
+  <text x="58" y="762" class="s">Optional: a local model improves article</text>
+  <text x="58" y="778" class="s">suggestions (off by default)</text>
+
+  <rect x="420" y="530" width="360" height="270" rx="12" class="card"/>
+  <text x="438" y="558" class="tag">THE PROJECT'S CODE</text>
+  <text x="438" y="586" class="h2">Parsed, never run</text>
+  <text x="438" y="608" class="t">Finds the code line behind a fact</text>
+  <text x="438" y="627" class="t">A graph of Python and Rust: where</text>
+  <text x="438" y="646" class="t">personal data flows to a model,</text>
+  <text x="438" y="665" class="t">a third party or tracking</text>
+  <text x="438" y="693" class="t">A diff is screened for touchpoints</text>
+  <text x="438" y="712" class="t">Other scanners' results are imported</text>
+  <text x="438" y="740" class="code">ground  graph  pr-check</text>
+  <text x="438" y="762" class="s">Everything read is untrusted data,</text>
+  <text x="438" y="778" class="s">never instructions</text>
+
+  <rect x="800" y="530" width="360" height="270" rx="12" class="card"/>
+  <text x="818" y="558" class="tag">TRUST</text>
+  <text x="818" y="586" class="h2">Who decided what, on which text</text>
+  <text x="818" y="608" class="t">Decisions signed with the reviewer's</text>
+  <text x="818" y="627" class="t">SSH key, bound to the locked law</text>
+  <text x="818" y="655" class="t">Runs sealed in a hash-chained log:</text>
+  <text x="818" y="674" class="t">a rewritten report is detected</text>
+  <text x="818" y="702" class="t">Obligation packs signed and verified</text>
+  <text x="818" y="740" class="code">sign  verify  seal  pack sign</text>
+  <text x="818" y="762" class="s">Evidence, not proof: the docs say</text>
+  <text x="818" y="778" class="s">what each one does not show</text>
+
+  <text x="40" y="840" class="s">One runtime dependency (Pydantic). Runs are private files outside the repository. Tests enforce determinism, the legal notice on every output and the supply-chain rules.</text>
+</svg>
