@@ -33,17 +33,18 @@ library is imported into the standalone repository.
   commands, conversations and patches. No command used them; Git history keeps them.)
 - A locked Python environment (uv.lock), package selection, and license notices.
 
-## Current state (v2.5.1, 2026-11-10) and what remains
+## Current state (v2.6.0, 2026-11-10) and what remains
 
 2.5.1 fixes what a full audit of 2.5.0 found (see the changelog): official freshness for EU
 acts, timeline dates, unknown articles and acts, unpinned signatures, linear graph readers and
 graph limits, the macOS hook, pr-check and grounding precision, imports, and documentation that
 claimed more than the code does (tamper evidence, licence statements, platform support).
 
-In progress for 2.6: optional semantic ranking of article suggestions (a pinned local model
-merged with word search; off by default; see `docs/cli.md`).
+2.6 added optional semantic ranking of article suggestions (a pinned local model merged with
+word search; off by default), sealed runs (`seal`, a hash-chained log), `make e2e`, and removed
+the unused scanner foundation and records.
 
-Released: 1.0 to 2.5.1. 2.5 fixed what an audit of 2.2 to 2.4 found (three quadratic parsers,
+Released: 1.0 to 2.6. 2.5 fixed what an audit of 2.2 to 2.4 found (three quadratic parsers,
 CSV cells, duplicate names in the graph) and removed the unused React page and `api` extra.
 2.4 taught the project graph Rust (`docs/decisions/rust-graph.md`). 2.3 added the application-date timeline, draft starter packs and the
 Article 30 and DPIA exports. 2.2 added jurisdictions as modules and the UK (legislation.gov.uk); see

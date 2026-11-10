@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 2.6.0 — 2026-11-10
+
+Better suggestions, tamper evidence, and a smaller code base. Article suggestions can use an
+optional local embedding model (off by default); runs can be sealed in a hash-chained log so a
+rewritten report is detected; code no command used is removed and duplication cut. A new
+end-to-end test (`make e2e`, 109 checks) runs every command as a user would, and the README
+is rebuilt from real output.
 
 ### Changed (presentation)
 

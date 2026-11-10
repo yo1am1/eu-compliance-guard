@@ -30,7 +30,7 @@ text and evidence. No output, test or example implies a real compliance audit.
 
 ![A tour: declarations and a first run, review progress, article text beside each requirement, code evidence for a fact, a pull request screened, the project graph, a citation check, a rewritten report detected, and the dashboard](docs/images/overview.webp)
 
-**Version 2.5.1.** See the [changelog](CHANGELOG.md) and the [roadmap](docs/roadmap.md).
+**Version 2.6.0.** See the [changelog](CHANGELOG.md) and the [roadmap](docs/roadmap.md).
 Every image here is real output for FitBox, a fictional project, built by
 `make readme-images`.
 
