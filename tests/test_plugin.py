@@ -158,6 +158,21 @@ class SessionHookTests(unittest.TestCase):
     def enable(self):
         (self.project / ".eu-compliance-guard").mkdir()
 
+    def test_hook_runs_on_the_python3_of_stock_macos(self):
+        # macOS ships Python 3.9 as python3; `str | None` annotations crashed the hook there at import.
+        import ast
+        source = HOOK.read_text(encoding="utf-8")
+        self.assertIn("from __future__ import annotations", source)
+        ast.parse(source, feature_version=(3, 8))
+        older = next((found for name in ("python3.9", "python3.8") if (found := shutil.which(name))), None)
+        if older:
+            self.enable()
+            result = subprocess.run([older, "-I", str(HOOK)], input="{}", capture_output=True, text=True, timeout=30,
+                                    env={"PATH": os.environ.get("PATH", ""), "HOME": str(self.home),
+                                         "CLAUDE_PROJECT_DIR": str(self.project)})
+            self.assertEqual((result.returncode, result.stderr), (0, ""))
+            self.assertIn("EU COMPLIANCE GUARD MODE ACTIVE", result.stdout)
+
     def test_silent_without_project_directory_or_when_off(self):
         self.assertIsNone(self.hook())
         self.enable()

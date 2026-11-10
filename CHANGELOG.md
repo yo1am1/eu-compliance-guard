@@ -35,6 +35,8 @@
   `ground` and `pr-check` fail with a bare exit 2. The graph now keeps every extracted link
   first, leaves out ambiguous calls, and says how much was left out (`omitted_nodes`,
   `omitted_edges`).
+- The plugin's session hook crashed at import on Python 3.9, the `python3` of stock macOS, so
+  the plugin's context never loaded there. It now runs on Python 3.8 and later.
 
 ## 2.5.0 — 2026-11-07
 
