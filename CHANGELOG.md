@@ -27,6 +27,14 @@
   unchanged", although that signature pins no article text. It now says the law is not pinned
   and to lock and sign again. Tests now cover a changed law digest, changed evidence and a
   removed decision.
+- The project graph was still quadratic per file, so 2.5.0's "linear now" covered only part of
+  the problem: the Rust reader rescanned to the end of the file for every item (a 64 KB file
+  held `pr-check` for 71 s), and the Python reader re-split the file for every definition (a
+  340 KB file took 131 s). Both are linear now; 30,000 items read in under a second, with tests.
+- A project larger than the graph's limits (50,000 definitions, 200,000 links) made `graph`,
+  `ground` and `pr-check` fail with a bare exit 2. The graph now keeps every extracted link
+  first, leaves out ambiguous calls, and says how much was left out (`omitted_nodes`,
+  `omitted_edges`).
 
 ## 2.5.0 — 2026-11-07
 

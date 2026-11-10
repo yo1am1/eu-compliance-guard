@@ -4954,6 +4954,20 @@
           "title": "Notice",
           "type": "string"
         },
+        "omitted_edges": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Omitted Edges",
+          "type": "integer"
+        },
+        "omitted_nodes": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Omitted Nodes",
+          "type": "integer"
+        },
         "parsed": {
           "maximum": 9007199254740991,
           "minimum": 0,

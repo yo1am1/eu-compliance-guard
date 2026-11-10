@@ -157,18 +157,32 @@ def _raw_string(text: str, index: int) -> tuple[str, int]:
     return text[index:end], end + len(closing)
 
 
-def _matching(tokens, start: int, opening: str, closing: str) -> int:
-    """Index of the token closing the bracket opened at `start` (or the last token)."""
-    depth = 0
-    for index in range(start, len(tokens)):
-        kind, value, _ = tokens[index]
-        if kind == "punct" and value == opening:
-            depth += 1
-        elif kind == "punct" and value == closing:
-            depth -= 1
-            if depth == 0:
-                return index
-    return len(tokens) - 1
+PAIRS = {"(": ")", "[": "]", "{": "}"}
+MAX_HEADER = 4096  # tokens searched for an item's `{` or `;`; real headers are far shorter
+MAX_NESTING = 64  # mod/impl/trait scopes; deeper ones keep the enclosing name, so names stay short
+
+
+def _pairs(tokens) -> list[int]:
+    """For each opening bracket, the index of the token that closes it (each kind nests on its own;
+    an unclosed bracket closes at the last token). One pass, so reading stays linear."""
+    last = len(tokens) - 1
+    closing = [last] * len(tokens)
+    stacks: dict[str, list[int]] = {opening: [] for opening in PAIRS}
+    closers = {value: opening for opening, value in PAIRS.items()}
+    for index, (kind, value, _) in enumerate(tokens):
+        if kind != "punct":
+            continue
+        if value in stacks:
+            stacks[value].append(index)
+        elif value in closers and stacks[closers[value]]:
+            closing[stacks[closers[value]].pop()] = index
+    return closing
+
+
+def _ahead(tokens, index: int, values: tuple[str, ...]) -> int:
+    """The next token at or after index whose value is one of `values`, within MAX_HEADER tokens."""
+    stop = min(len(tokens), index + MAX_HEADER)
+    return next((at for at in range(index, stop) if tokens[at][1] in values), stop - 1 if stop else 0)
 
 
 MAX_GENERICS = 256  # tokens; real generic arguments are far shorter, and a cap keeps reading linear
@@ -236,11 +250,16 @@ def _use_tree(tokens, index: int, prefix: list[str], found: list[tuple[str, list
 def read_file(path: str, text: str) -> dict:
     """Items, calls, uses and module declarations of one Rust file."""
     tokens = tokenize(text)
+    pairs = _pairs(tokens)
+
+    def _matching(start: int) -> int:
+        return pairs[start] if 0 <= start < len(tokens) and tokens[start][1] in PAIRS else len(tokens) - 1
+
     items: list[dict] = []  # qualname, kind, line, end_line, start, stop (token range)
     calls: list[tuple[str, str | None, str, int]] = []  # caller qualname ("" for the file), qualifier, name, line
     uses: list[tuple[str, list[str], str]] = []
     modules: list[str] = []  # `mod name;` declarations
-    scopes: list[tuple[str, int, str | None]] = []  # (qualname prefix, closing token index, impl type)
+    scopes: list[tuple[str, int, str | None]] = []  # (qualname prefix, closing token index, nearest impl type)
     functions: list[tuple[str, int]] = []  # enclosing functions: (qualname, closing token index)
     test_next = False
     index = 0
@@ -251,10 +270,10 @@ def read_file(path: str, text: str) -> dict:
             functions.pop()
         kind, value, line = tokens[index]
         prefix = scopes[-1][0] if scopes else ""
-        impl_type = next((scope[2] for scope in reversed(scopes) if scope[2]), None)
+        impl_type = scopes[-1][2] if scopes else None
         if kind == "punct" and value == "#" and index + 1 < len(tokens) and tokens[index + 1][1] in ("[", "!"):
             opening = index + 1 if tokens[index + 1][1] == "[" else index + 2
-            close = _matching(tokens, opening, "[", "]")
+            close = _matching(opening)
             words = {token[1] for token in tokens[opening:close]}
             if "test" in words and ("cfg" in words or close - opening <= 2):
                 test_next = True
@@ -265,9 +284,7 @@ def read_file(path: str, text: str) -> dict:
             continue
         following = tokens[index + 1] if index + 1 < len(tokens) else ("", "", line)
         if value == "macro_rules" and following[1] == "!":
-            body = next((at for at in range(index, len(tokens)) if tokens[at][1] in ("{", "(", "[")), len(tokens) - 1)
-            pair = {"{": "}", "(": ")", "[": "]"}.get(tokens[body][1], "}")
-            index = _matching(tokens, body, tokens[body][1], pair) + 1
+            index = _matching(_ahead(tokens, index, ("{", "(", "["))) + 1
             continue
         if value == "use" and not functions:
             index = _use_tree(tokens, index + 1, [], uses)
@@ -277,15 +294,15 @@ def read_file(path: str, text: str) -> dict:
             if test_next:
                 # Skip the whole test item.
                 test_next = False
-                end = next((at for at in range(index, len(tokens)) if tokens[at][1] in ("{", ";")), len(tokens) - 1)
-                index = (_matching(tokens, end, "{", "}") if tokens[end][1] == "{" else end) + 1
+                end = _ahead(tokens, index, ("{", ";"))
+                index = (_matching(end) if tokens[end][1] == "{" else end) + 1
                 continue
             if value == "impl":
                 end = index + 1
                 if end < len(tokens) and tokens[end][1] == "<":
                     end = _skip_generics(tokens, end)
                 header = []
-                while end < len(tokens) and tokens[end][1] not in ("{", ";"):
+                while end < len(tokens) and tokens[end][1] not in ("{", ";") and end - index < MAX_HEADER:
                     header.append(tokens[end])
                     end += 1
                 words = [token[1] for token in header]
@@ -303,17 +320,17 @@ def read_file(path: str, text: str) -> dict:
                         depth -= 1
                     elif depth == 0 and token[0] == "ident" and token[1] not in KEYWORDS:
                         type_name = token[1]
-                if end < len(tokens) and tokens[end][1] == "{":
-                    close = _matching(tokens, end, "{", "}")
+                if end < len(tokens) and tokens[end][1] == "{" and len(scopes) < MAX_NESTING:
+                    close = _matching(end)
                     scopes.append((f"{prefix}.{type_name}" if prefix and type_name else type_name or prefix, close,
-                                   type_name))
+                                   type_name or impl_type))
                 index = end + 1
                 continue
             name = following[1]
             qualname = f"{prefix}.{name}" if prefix else name
             end = index + 2
             depth = 0
-            while end < len(tokens):
+            while end < len(tokens) and end - index < MAX_HEADER:
                 token = tokens[end][1]
                 if token in ("(", "[", "<"):
                     depth += 1
@@ -324,20 +341,21 @@ def read_file(path: str, text: str) -> dict:
                 end += 1
             if value == "mod":
                 if end < len(tokens) and tokens[end][1] == "{":
-                    scopes.append((qualname, _matching(tokens, end, "{", "}"), None))
+                    if len(scopes) < MAX_NESTING:
+                        scopes.append((qualname, _matching(end), impl_type))
                 else:
                     modules.append(name)
                 index = end + 1
                 continue
-            close = _matching(tokens, end, "{", "}") if end < len(tokens) and tokens[end][1] == "{" else end
+            close = _matching(end) if end < len(tokens) and tokens[end][1] == "{" else min(end, len(tokens) - 1)
             items.append({"qualname": qualname, "kind": "function" if value == "fn" else "class", "line": line,
                           "end_line": tokens[min(close, len(tokens) - 1)][2], "start": index, "stop": close})
             if value == "fn" and tokens[min(end, len(tokens) - 1)][1] == "{":
                 functions.append((qualname, close))
                 index = end + 1
                 continue
-            if value == "trait" and tokens[min(end, len(tokens) - 1)][1] == "{":
-                scopes.append((qualname, close, name))
+            if value == "trait" and tokens[min(end, len(tokens) - 1)][1] == "{" and len(scopes) < MAX_NESTING:
+                scopes.append((qualname, close, name))  # a trait's methods take the trait as their type
                 index = end + 1
                 continue
             index = close + 1

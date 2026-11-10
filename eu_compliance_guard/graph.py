@@ -142,6 +142,7 @@ class _FileVisitor(ast.NodeVisitor):
 
     def __init__(self, path: str, text: str):
         self.path, self.text = path, text
+        self.lines = text.splitlines(keepends=True)  # split once: per-definition splitting was quadratic
         self.scope = [(node_id(path), "")]
         self.definitions: list[tuple] = []  # id, kind, qualname, line, end line, concepts, data, parent
         self.calls: list[tuple[str, str | None, str, int]] = []  # caller id, qualifier, called name, line
@@ -153,7 +154,7 @@ class _FileVisitor(ast.NodeVisitor):
         parent, prefix = self.scope[-1]
         qualname = f"{prefix}.{node.name}" if prefix else node.name
         identity = node_id(self.path, qualname)
-        segment = ast.get_source_segment(self.text, node) or node.name
+        segment = "".join(self.lines[node.lineno - 1:node.end_lineno or node.lineno]) or node.name
         self.definitions.append((identity, kind, qualname, node.lineno, node.end_lineno or node.lineno,
                                  _concepts(segment), _data(node), parent))
         self.scope.append((identity, qualname))
@@ -429,11 +430,18 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
     for edge in ordered:
         # One edge per (source, kind, target, line): an extracted reading wins over an ambiguous one.
         unique.setdefault((edge[0], edge[1], edge[2], edge[4]), edge)
+    kept_nodes = sorted(nodes)[:m.MAX_GRAPH_NODES]
+    known = set(kept_nodes)
+    kept = [edge for edge in unique.values() if edge[0] in known and edge[2] in known]
+    if len(kept) > m.MAX_GRAPH_EDGES:
+        # Over the limit: keep every extracted edge first, then as many ambiguous ones as fit, in order.
+        chosen = set(sorted(range(len(kept)), key=lambda at: (kept[at][3] != "extracted", at))[:m.MAX_GRAPH_EDGES])
+        kept = [edge for at, edge in enumerate(kept) if at in chosen]
     return m.ProjectGraph(
         schema_version=1, graph_version=1, files=len(python) + len(rust), parsed=parsed, skipped=skipped, digest=digest,
-        nodes=[nodes[key] for key in sorted(nodes)],
-        edges=[m.GraphEdge(source=s, kind=k, target=t, provenance=p, line=n) for s, k, t, p, n in unique.values()],
-        notice=m.GRAPH_NOTICE)
+        nodes=[nodes[key] for key in kept_nodes],
+        edges=[m.GraphEdge(source=s, kind=k, target=t, provenance=p, line=n) for s, k, t, p, n in kept],
+        notice=m.GRAPH_NOTICE, omitted_nodes=len(nodes) - len(kept_nodes), omitted_edges=len(unique) - len(kept))
 
 
 def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
@@ -509,7 +517,9 @@ def format_graph(graph: m.ProjectGraph, top: int = 10) -> str:
     kinds = Counter(node.kind for node in graph.nodes)
     calls = [edge for edge in graph.edges if edge.kind == "calls"]
     ambiguous = sum(edge.provenance == "ambiguous" for edge in calls)
-    lines = [f"{graph.parsed} of {graph.files} Python files parsed ({graph.skipped} skipped) · digest {graph.digest[:19]}…",
+    omitted = (f" · the project is larger than the graph's limits: {graph.omitted_nodes} definitions and "
+               f"{graph.omitted_edges} links left out, ambiguous calls first" if graph.omitted_nodes or graph.omitted_edges else "")
+    lines = [f"{graph.parsed} of {graph.files} Python and Rust files parsed ({graph.skipped} skipped) · digest {graph.digest[:19]}…" + omitted,
              f"{kinds['class']} classes · {kinds['function']} functions · {len(calls)} calls ({ambiguous} ambiguous) · "
              f"{sum(edge.kind == 'imports' for edge in graph.edges)} imports"]
     tagged = Counter(concept for node in graph.nodes if node.kind != "file" for concept in node.concepts)
