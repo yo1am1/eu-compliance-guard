@@ -15,6 +15,7 @@
 | 2.4 | The project graph reads Rust (a hand-written reader, no new dependency) | Released |
 | 2.5 | Stabilisation for 3.0: full audit, open choices (the live session check is the Owner's) | Released |
 | 2.5.1 | Fixes from a full audit of 2.5.0; documentation that claims only what the code does | Released |
+| 2.6 | Optional semantic search for article suggestions; sealed runs (tamper evidence); unused code removed; an end-to-end test of every command; a README built from real output | Released |
 | 3.0 | A breakthrough once 2.5 is stable; candidates in the intent | Not approved |
 
 The tool covers the EU and the UK; the US is not planned (Owner decision, 2026-11-06).
