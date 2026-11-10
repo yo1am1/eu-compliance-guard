@@ -179,8 +179,9 @@ class _FileVisitor(ast.NodeVisitor):
     def visit_Import(self, node):
         for alias in node.names:
             self.imports.append((alias.name, 0, node.lineno))
-            if alias.asname:
-                self.aliases.append((alias.asname, alias.name, 0))
+            # `import a.b as c` binds the module a.b; `import a.b` binds only its top package a.
+            module = alias.name if alias.asname else alias.name.split(".")[0]
+            self.aliases.append((alias.asname or module, module, 0))
 
     def visit_ImportFrom(self, node):
         base = node.module or ""
@@ -351,6 +352,11 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
     files, skipped = grounding.read_project(Path(root), exclude)
     python = [(path, raw, text) for path, raw, text in files if path.endswith(".py")]
     modules = {_module(path): path for path, _, _ in python}
+    # shortcut: only a top-level src/ folder is a source root (src/app/x.py is also `app.x`); a project
+    # with other roots keeps name guesses, until a root can be declared.
+    for name, path in list(modules.items()):
+        if name.startswith("src."):
+            modules.setdefault(name[4:], path)
     nodes: dict[str, m.GraphNode] = {}
     edges: set[tuple[str, str, str, str, int]] = set()  # source, kind, target, provenance, line
     by_name: dict[str, list[str]] = {}

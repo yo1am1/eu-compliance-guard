@@ -59,6 +59,31 @@ class GraphTests(unittest.TestCase):
         self.assertEqual(concepts["app/llm.py::ask_model"], ["ai"])
         self.assertIn("tracking", concepts["app/analytics.py::track"])
 
+    def test_a_plain_import_resolves_its_module_exactly(self):
+        (self.root / "app/reports.py").write_text(
+            "import app.storage\nimport app\nfrom app import billing\nimport json\n\n\n"
+            "def export(rows):\n    billing.save(rows)\n    json.dumps(rows)\n\n\n"
+            "def missing(rows):\n    billing.no_such_function(rows)\n")
+        (self.root / "helpers.py").write_text("def save(rows):\n    return rows\n")
+        (self.root / "cli.py").write_text("import helpers\n\n\ndef run(rows):\n    helpers.save(rows)\n")
+        found = calls(g.build_graph(self.root))
+        # Three files define save(): the module named in the call decides, without a guess.
+        self.assertEqual({(provenance, target) for provenance, source, target in found if source == "cli.py::run"},
+                         {("extracted", "helpers.py::save")})
+        self.assertEqual({(provenance, target) for provenance, source, target in found if source == "app/reports.py::export"},
+                         {("extracted", "app/billing.py::save")})
+
+    def test_imports_resolve_in_a_src_layout(self):
+        root = Path(self.temporary.name) / "packaged"
+        shutil.copytree(FIXTURE / "app", root / "src/app")
+        graph = g.build_graph(root)
+        names = named(graph)
+        self.assertIn(("src/app/coach.py::src/app/coach.py", "src/app/models.py::src/app/models.py"),  # from app.models
+                      {(names[edge.source], names[edge.target]) for edge in graph.edges if edge.kind == "imports"})
+        (root / "src/app/reports.py").write_text("from app.storage import save\n\n\ndef export(rows):\n    save(rows)\n")
+        self.assertEqual({(provenance, target) for provenance, source, target in calls(g.build_graph(root))
+                          if source == "src/app/reports.py::export"}, {("extracted", "src/app/storage.py::save")})
+
     def test_graph_is_byte_identical_wherever_the_project_lives(self):
         first = g.to_json(g.build_graph(self.root))
         self.assertEqual(g.to_json(g.build_graph(self.root)), first)
