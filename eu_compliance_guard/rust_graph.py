@@ -256,7 +256,8 @@ def read_file(path: str, text: str) -> dict:
         return pairs[start] if 0 <= start < len(tokens) and tokens[start][1] in PAIRS else len(tokens) - 1
 
     items: list[dict] = []  # qualname, kind, line, end_line, start, stop (token range)
-    calls: list[tuple[str, str | None, str, int]] = []  # caller qualname ("" for the file), qualifier, name, line
+    # caller qualname, qualifier (None, "." for a method, a name, or a whole `crate::a::b` path), name, line
+    calls: list[tuple[str, str | None, str, int]] = []
     uses: list[tuple[str, list[str], str]] = []
     modules: list[str] = []  # `mod name;` declarations
     scopes: list[tuple[str, int, str | None]] = []  # (qualname prefix, closing token index, nearest impl type)
@@ -376,13 +377,21 @@ def read_file(path: str, text: str) -> dict:
             if after < len(tokens) and tokens[after][1] == "(":
                 previous = tokens[index - 1][1] if index else ""
                 qualifier = None
-                if previous == "::" and index >= 2 and tokens[index - 2][0] == "ident":
+                # `Vec::<u8>::new()`, `<T as Trait>::f()`: the owner is behind generics, so no name to look up.
+                known = previous != "::" or (index >= 2 and tokens[index - 2][0] == "ident")
+                if previous == "::" and known:
+                    start = index - 2
+                    while start >= 2 and tokens[start - 1][1] == "::" and tokens[start - 2][0] == "ident":
+                        start -= 2
                     qualifier = tokens[index - 2][1]
-                    if qualifier == "Self":
+                    if tokens[start][1] in ("crate", "self", "super"):
+                        # A path from the crate root or this module names its target exactly: keep all of it.
+                        qualifier = "::".join(token[1] for token in tokens[start:index - 1:2])
+                    elif qualifier == "Self":
                         qualifier = impl_type
                 elif previous == ".":
                     qualifier = "."
-                if not (qualifier == "." and value in STD_METHODS):
+                if known and not (qualifier == "." and value in STD_METHODS):
                     calls.append((functions[-1][0], qualifier, value, line))
         index += 1
     return {"items": items, "calls": calls, "uses": uses, "modules": modules, "tokens": tokens}

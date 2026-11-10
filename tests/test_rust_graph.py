@@ -106,6 +106,19 @@ class RustGraphTests(unittest.TestCase):
                  if source == "src/platform.rs::start"}
         self.assertEqual(calls, {("extracted", "src/platform.rs::open_db"), ("extracted", "src/helpers.rs::unique_helper")})
 
+    def test_a_full_path_call_resolves_without_a_use(self):
+        (self.root / "src/net.rs").write_text("pub fn send() {}\npub struct Mailer;\nimpl Mailer { pub fn new() {} }\n")
+        (self.root / "src/other.rs").write_text("pub fn send() {}\n")
+        (self.root / "src/billing/signup.rs").write_text(
+            "pub fn signup() { crate::net::send(); crate::net::Mailer::new(); super::super::net::send(); }\n"
+            "pub fn typed() { Vec::<u8>::new(); <u8 as Default>::default(); }\n")
+        found = self.calls(g.build_graph(self.root))
+        self.assertEqual({(provenance, target) for provenance, source, target in found
+                          if source == "src/billing/signup.rs::signup"},
+                         {("extracted", "src/net.rs::send"), ("extracted", "src/net.rs::Mailer.new")})
+        # A type behind generics names no project code, even when one `new` exists in the project.
+        self.assertFalse([target for _, source, target in found if source == "src/billing/signup.rs::typed"])
+
     def test_deterministic_and_separate_from_python(self):
         (self.root / "helper.py").write_text("def ask_model(prompt):\n    return prompt\n\n\ndef caller():\n    ask_model('x')\n")
         first = g.build_graph(self.root)

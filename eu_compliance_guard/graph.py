@@ -309,8 +309,8 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
                 return ([found], False) if found else ([], False)
             if name in external.get(path, {}):
                 return [], False
-        elif qualifier in ("crate", "self", "super"):
-            target, rest = module_file(path, [qualifier, name])
+        elif qualifier.split("::")[0] in ("crate", "self", "super"):
+            target, rest = module_file(path, [*qualifier.split("::"), name])
             found = items_of.get(target, {}).get(".".join(rest)) if target else None
             return ([found], False) if found else ([], False)
         elif qualifier == ".":
