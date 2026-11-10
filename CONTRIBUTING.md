@@ -19,6 +19,7 @@ Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/) and make.
 ```sh
 uv sync --locked
 make check           # unit tests, JSON Schema drift and compile
+make e2e             # every command on a fresh fictional project, as a user would run it (offline)
 make plugin-check    # claude plugin validate . and the band tests (needs Claude Code)
 ```
 
