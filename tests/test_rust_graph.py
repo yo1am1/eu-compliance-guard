@@ -53,6 +53,11 @@ class TokenizerTests(unittest.TestCase):
         self.assertEqual(items("#[tokio::test]\nasync fn it_sends() {}\n#[tokio::test(flavor = \"multi_thread\")]\n"
                                "async fn it_waits() {}\n#[test]\n#[ignore]\nfn slow() {}\nfn real() {}\n"), ["real"])
 
+    def test_an_escaped_quote_char_does_not_swallow_the_code_after_it(self):
+        source = "fn quote(c: char) -> bool { ['\\'','\"'].contains(&c) }\nfn send_email() {}\nfn label() -> &'static str { \"x\" }\n"
+        self.assertEqual([item["qualname"] for item in r.read_file("src/lib.rs", source)["items"]],
+                         ["quote", "send_email", "label"])
+
     def test_module_paths(self):
         self.assertEqual(r.module_path("app/src/lib.rs"), ("app", ()))
         self.assertEqual(r.module_path("app/src/main.rs"), ("app", ()))

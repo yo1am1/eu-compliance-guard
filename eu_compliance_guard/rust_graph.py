@@ -85,7 +85,7 @@ def tokenize(text: str) -> list[tuple[str, str, int]]:
         elif char == "'":
             # A char literal ('a', '\n', '\u{1F600}') or a lifetime ('a, 'static).
             if text[index + 1:index + 2] == "\\":
-                end = text.find("'", index + 2)
+                end = text.find("'", index + 3)  # past the escaped character, which may itself be a quote
                 index = size if end == -1 else end + 1
                 push("char", "", line)
             elif text[index + 2:index + 3] == "'":
