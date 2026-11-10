@@ -38,6 +38,21 @@ class TokenizerTests(unittest.TestCase):
             ("Account.register", "Client", "new", 4), ("Account.register", ".", "post", 4),
             ("Account.register", ".", "send", 4), ("Account.register", None, "helper", 4), ("T.b", ".", "a", 8)])
 
+    def test_only_test_code_is_left_out(self):
+        def items(source):
+            return [item["qualname"] for item in r.read_file("src/lib.rs", source)["items"]]
+
+        # A test-only import or a `not(test)` gate never hides the production item beside it.
+        self.assertEqual(items("#[cfg(test)]\nuse mockall::automock;\n\npub fn send_email() {}\n"), ["send_email"])
+        self.assertEqual(r.read_file("src/lib.rs", "#[cfg(test)]\nuse mockall::automock;\n")["uses"], [])
+        self.assertEqual(items("#[cfg(not(test))]\nfn send_email() {}\n"), ["send_email"])
+        self.assertEqual(items('#[cfg(feature = "test")]\nfn send_email() {}\n'), ["send_email"])
+        # Test code stays out behind a visibility, a runtime's test attribute or its arguments.
+        self.assertEqual(items("#[cfg(test)]\npub(crate) fn fake_user() {}\nfn real() {}\n"), ["real"])
+        self.assertEqual(items("#[cfg(all(test, not(feature = \"slow\")))]\npub(in crate::a) mod helpers { fn f() {} }\n"), [])
+        self.assertEqual(items("#[tokio::test]\nasync fn it_sends() {}\n#[tokio::test(flavor = \"multi_thread\")]\n"
+                               "async fn it_waits() {}\n#[test]\n#[ignore]\nfn slow() {}\nfn real() {}\n"), ["real"])
+
     def test_module_paths(self):
         self.assertEqual(r.module_path("app/src/lib.rs"), ("app", ()))
         self.assertEqual(r.module_path("app/src/main.rs"), ("app", ()))
