@@ -176,6 +176,8 @@ def _segment(paragraphs) -> dict[str, dict]:
     current = previous = repeat = None  # repeat: the key a later occurrence of a number may take over
     expect_title = wrote = ended = final = False
     for classes, text in paragraphs:
+        if "footnote" in classes:
+            continue  # a consolidated page lists its footnotes right after the last article
         if _is_end(classes, text):
             current, expect_title, ended = None, False, ended or wrote  # annexes belong to no article
             continue
@@ -213,9 +215,11 @@ def _segment(paragraphs) -> dict[str, dict]:
 # legislation.gov.uk XHTML (2.2): a provision starts at an element whose id names it
 # ("section-170", "regulation-6", "section-Article-17" or "article-17"); its title is in a
 # `LegP1GroupTitle` element just before or after. Amendment notes, extent labels and footnote
-# markers are not the provision's text.
+# markers are not the provision's text, nor are the signatures and the "SCHEDULES" heading that
+# follow the last provision.
 UK_SKIPPED_CLASSES = frozenset({"LegAnnotations", "LegCommentaryItem", "LegExtentRestriction", "LegCommentaryLink",
-                                "LegChangeDelimiter", "LegP1No", "LegFootnoteRef", "LegAnchorID", "LegClearPblock"})
+                                "LegChangeDelimiter", "LegP1No", "LegFootnoteRef", "LegAnchorID", "LegClearPblock",
+                                "LegSignedSection", "LegSchedulesTitle"})
 UK_TITLE_CLASSES = frozenset({"LegP1GroupTitle", "LegP1GroupTitleFirst"})
 UK_ENDS = ("schedule-", "part-", "chapter-", "crossheading-", "signature", "annex-")
 VOID = frozenset({"br", "img", "hr", "meta", "link", "input", "col", "area", "base", "wbr", "source"})

@@ -52,6 +52,8 @@ class OfficialTextTests(unittest.TestCase):
         self.assertEqual(self.acts["ai-act"]["Article 50"]["title"],
                          "Transparency obligations for providers and deployers of certain AI systems")
         self.assertEqual(self.acts["eprivacy"]["Article 5"]["title"], "Confidentiality of the communications")
+        # The footnotes of a consolidated page are not text of its last article.
+        self.assertEqual(self.acts["eprivacy"]["Article 21"]["text"], "This Directive is addressed to the Member States.")
 
     def test_real_quotations_and_citations(self):
         text = ('Article 17 gives "the right to obtain from the controller the erasure of personal data concerning him or her '
@@ -195,6 +197,10 @@ class UkOfficialTextTests(unittest.TestCase):
                 if not item["title"].strip():
                     untitled.append((act, key))
         self.assertEqual(untitled, [("pecr", "Regulation 29A")])  # its title element is empty in the source
+        # Signatures and the "SCHEDULES" heading follow the last provision; they are not its text.
+        self.assertTrue(pecr["Regulation 37"]["text"].endswith("the day on which that report is published."))
+        self.assertEqual(dpa["Section 215"]["text"], "This Act may be cited as the Data Protection Act 2018.")
+        self.assertNotIn("Done at Brussels", gdpr["Article 99"]["text"])
 
     def test_uk_citations_are_checked_in_the_act_they_name(self):
         from types import SimpleNamespace as Target
