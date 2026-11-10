@@ -56,6 +56,7 @@ CONCEPTS = {
                  "secret", "tls", "auth", "session", "mfa"}),
     "accessibility": ("Accessibility", {"aria", "alt", "tabindex", "role", "label", "contrast", "a11y"}),
 }
+CONCEPT_TERMS = frozenset(term for _, terms in CONCEPTS.values() for term in terms)
 # Organisational facts are owner decisions or legal positions; code can never show them.
 # Words naming organisational or legal judgements that code cannot show (whole words, any case).
 NOT_OBSERVABLE_WORDS = frozenset({
@@ -314,11 +315,12 @@ def _declarations(path: Path) -> tuple[m.RevalidationInput, Path]:
 TOOL_OUTPUTS = ("eu-law.lock", "imports", "signatures")
 
 
-def _own_files(path, root: Path) -> frozenset[str]:
+def _own_files(path, root: Path, declared: m.RevalidationInput | None = None) -> frozenset[str]:
     """The declarations file and the tool's own outputs beside it, relative to the files root, when
-    they lie inside it (when the files root is the declarations folder)."""
+    they lie inside it (when the files root is the declarations folder), and the declared copies of
+    the law: an article's text is never evidence of what the code does."""
     declarations = Path(os.path.realpath(path))
-    own = set()
+    own = {item.file.path for item in declared.sources if item.file} if declared else set()
     for item in (declarations, *(declarations.parent / name for name in TOOL_OUTPUTS)):
         try:
             own.add(item.relative_to(root).as_posix())
@@ -364,7 +366,7 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
     changed or is missing (stale), and touchpoints no fact covers."""
     path = Path(path)
     declared, root = _declarations(path)
-    index = build_index(root, _own_files(path, root))
+    index = build_index(root, _own_files(path, root, declared))
     facts = {fact.id: fact for fact in m.scope_facts(declared.scope)}
     current = _current_evidence(path, declared)
     # Only the cited lines of unchanged files are accounted for: the rest of a cited file, and the
@@ -519,8 +521,8 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
         m.SourceFile(path=relative, digest="sha256:" + "0" * 64)
     except ValueError:
         raise GroundingError("bad-location") from None
-    if relative in _own_files(path, root):
-        raise GroundingError("bad-location")  # the declarations can never be evidence for themselves
+    if relative in _own_files(path, root, declared):
+        raise GroundingError("bad-location")  # neither the declarations nor the law text is code evidence
     target = root / relative
     if target.is_symlink() or not target.is_file() or os.path.realpath(target) != str(target):
         raise GroundingError("bad-location")
@@ -530,8 +532,9 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
     text_lines = _lines(raw.decode("utf-8", errors="replace"))
     if not 1 <= int(number) <= len(text_lines):
         raise GroundingError("bad-location")
-    line_terms = set(tokens(text_lines[int(number) - 1]))
-    if not line_terms & set(expand(_fact_query(fact))):
+    shared = set(tokens(text_lines[int(number) - 1])) & set(expand(_fact_query(fact)))
+    # One shared ordinary word ("page") is a coincidence; a concept term or two shared words is a match.
+    if len(shared) < 2 and not shared & CONCEPT_TERMS:
         raise GroundingError("unrelated-line")
     now = now or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     digest = m.content_digest(raw)

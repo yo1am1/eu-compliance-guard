@@ -42,6 +42,10 @@
   Next to personal data, one special-category word or a web address is now enough. "weight",
   "height" and "heart" no longer count without a person, so CSS such as `font-weight` and
   `height` is no longer flagged as health data. `graph` uses the same rule.
+- `ground` offered lines of the declared law texts as code evidence, and `ground --apply`
+  pinned a fact as "observed source code" to a table-of-contents line of the ePrivacy
+  Directive on one shared word ("page"). Declared source copies are no longer indexed or
+  pinnable, and `--apply` needs a concept term or two shared words.
 
 ## 2.5.0 — 2026-11-07
 

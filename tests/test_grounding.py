@@ -326,6 +326,34 @@ class GroundingTests(unittest.TestCase):
             g.apply(self.declarations, "fact-cookie-lifetime", "declarations.json:2")
         self.assertEqual(raised.exception.code, "bad-location")
 
+    def test_declared_law_text_is_never_indexed_or_pinned(self):
+        fixture = json.loads((Path(__file__).resolve().parents[1] / "fixtures/revalidation-synthetic.json").read_text())
+        law = b"Article 5: storing cookies on the landing page needs consent; analytics cookie lifetime.\n"
+        (self.project / "law").mkdir()
+        (self.project / "law/eprivacy.txt").write_bytes(law)
+        data = json.loads(self.declarations.read_text())
+        target = fixture["source_targets"][0]
+        selected = json.loads(json.dumps(fixture["sources"][0]))
+        selected["file"] = {"path": "law/eprivacy.txt", "digest": m.content_digest(law)}
+        selected["source"]["content_digest"] = m.content_digest(law)
+        data["source_targets"], data["sources"] = [target], [selected]
+        self.declarations.write_text(json.dumps(data, indent=2))
+        report = g.ground(self.declarations)
+        locations = [item["location"] for fact in report["facts"] for item in fact["candidates"]]
+        self.assertFalse([location for location in locations if location.startswith("law/")])
+        with self.assertRaises(g.GroundingError) as raised:
+            g.apply(self.declarations, "fact-cookie-lifetime", "law/eprivacy.txt:1")
+        self.assertEqual(raised.exception.code, "bad-location")
+
+    def test_one_shared_ordinary_word_does_not_pin_a_fact(self):
+        (self.project / "app/page.py").write_text("def render(page):\n    return page\n")
+        data = json.loads(self.declarations.read_text())
+        data["scope"]["roles"].append(fact("fact-page", "The landing page shows a banner"))
+        self.declarations.write_text(json.dumps(data, indent=2))
+        with self.assertRaises(g.GroundingError) as raised:
+            g.apply(self.declarations, "fact-page", "app/page.py:1")
+        self.assertEqual(raised.exception.code, "unrelated-line")
+
     def test_line_numbers_match_editors_despite_form_feeds_and_no_null_term(self):
         (self.project / "app/web.py").write_text("import os\n\x0c\n# section\nx = 1\n" + CODE["app/web.py"])
         index = g.build_index(self.project)
