@@ -15,23 +15,34 @@ from . import articles, graph, grounding, models as m
 EVAL_DIR = Path(__file__).resolve().parents[1] / "fixtures/eval"
 
 
-def _hits(found: list[str], expected: list[str]) -> tuple[int, int]:
-    return int(bool(found[:1]) and found[0] in expected), int(any(item in expected for item in found[:3]))
-
-
-def _ground_cases(project: Path, facts: list[dict]) -> dict:
-    code = grounding.build_index(project)
+def _score(cases: list[tuple[str, list[str]]], search) -> dict:
+    """Top-1 and top-3 hits of `search(label)` (a ranked list) against each case's expected answers."""
     top1 = top3 = 0
     misses = []
-    for case in facts:
-        fact = m.Fact(id="fact-eval", revision=0, key=case["key"], value=case["value"], basis="assumed",
-                      evidence_ids=[], owner="Fictional owner", observed_at="2026-11-05T00:00:00Z", conflicts=[])
-        found = [item["location"] for item in grounding.search(code, grounding._fact_query(fact), 3)]
-        one, three = _hits(found, case["expected"])
-        top1, top3 = top1 + one, top3 + three
-        if not three:
-            misses.append(case["key"])
-    return {"cases": len(facts), "top1": top1, "top3": top3, "misses": misses}
+    for label, expected in cases:
+        found = search(label)
+        top1 += bool(found[:1]) and found[0] in expected
+        hit = any(item in expected for item in found[:3])
+        top3 += hit
+        if not hit:
+            misses.append(label)
+    return {"cases": len(cases), "top1": top1, "top3": top3, "misses": misses}
+
+
+def _articles(index: articles.ArticleIndex, cases: list[dict]) -> dict:
+    return _score([(case["statement"], case["expected"]) for case in cases],
+                  lambda statement: [item["article"] for item in index.suggest(statement, top=3)])
+
+
+def _grounding(project: Path, facts: list[dict]) -> dict:
+    code = grounding.build_index(project)
+    values = {case["key"]: case["value"] for case in facts}
+
+    def search(key: str) -> list[str]:
+        fact = m.Fact(id="fact-eval", revision=0, key=key, value=values[key], basis="assumed", evidence_ids=[],
+                      owner="Fictional owner", observed_at="2026-11-05T00:00:00Z", conflicts=[])
+        return [item["location"] for item in grounding.search(code, grounding._fact_query(fact), 3)]
+    return _score([(case["key"], case["expected"]) for case in facts], search)
 
 
 def gdpr(directory: Path = EVAL_DIR, semantic=False) -> dict:
@@ -41,15 +52,7 @@ def gdpr(directory: Path = EVAL_DIR, semantic=False) -> dict:
     spec = json.loads((directory / "gdpr-v1.json").read_text(encoding="utf-8"))
     act = articles.parse(gzip.decompress((directory / spec["act"]["path"]).read_bytes()), "text/html")
     index = articles.ArticleIndex({spec["act"]["target"]: act}, semantic=semantic)
-    top1 = top3 = 0
-    misses = []
-    for case in spec["cases"]:
-        found = [item["article"] for item in index.suggest(case["statement"], top=3)]
-        one, three = _hits(found, case["expected"])
-        top1, top3 = top1 + one, top3 + three
-        if not three:
-            misses.append(case["statement"])
-    return {"method": index.method, "cases": len(spec["cases"]), "top1": top1, "top3": top3, "misses": misses}
+    return {"method": index.method, **_articles(index, spec["cases"])}
 
 
 def evaluate(directory: Path = EVAL_DIR) -> dict:
@@ -58,28 +61,9 @@ def evaluate(directory: Path = EVAL_DIR) -> dict:
     index = articles.ArticleIndex({spec["act"]["target"]: act}, semantic=False)  # the floor is word search
     result = {"version": spec["version"], "articles": len(act)}
     for split, cases in spec["articles"].items():
-        top1 = top3 = 0
-        misses = []
-        for case in cases:
-            found = [item["article"] for item in index.suggest(case["statement"], top=3)]
-            one, three = _hits(found, case["expected"])
-            top1, top3 = top1 + one, top3 + three
-            if not three:
-                misses.append(case["statement"])
-        result[f"articles_{split}"] = {"cases": len(cases), "top1": top1, "top3": top3, "misses": misses}
-    code = grounding.build_index(directory / spec["grounding"]["project"])
-    top1 = top3 = 0
-    misses = []
-    for case in spec["grounding"]["facts"]:
-        fact = m.Fact(id="fact-eval", revision=0, key=case["key"], value=case["value"], basis="assumed",
-                      evidence_ids=[], owner="Fictional owner", observed_at="2026-11-05T00:00:00Z", conflicts=[])
-        found = [item["location"] for item in grounding.search(code, grounding._fact_query(fact), 3)]
-        one, three = _hits(found, case["expected"])
-        top1, top3 = top1 + one, top3 + three
-        if not three:
-            misses.append(case["key"])
-    result["grounding"] = {"cases": len(spec["grounding"]["facts"]), "top1": top1, "top3": top3, "misses": misses}
-    result["graph_grounding"] = _ground_cases(directory / spec["graph_grounding"]["project"], spec["graph_grounding"]["facts"])
+        result[f"articles_{split}"] = _articles(index, cases)
+    result["grounding"] = _grounding(directory / spec["grounding"]["project"], spec["grounding"]["facts"])
+    result["graph_grounding"] = _grounding(directory / spec["graph_grounding"]["project"], spec["graph_grounding"]["facts"])
     found = {(flow["hops"][0]["location"], flow["hops"][-1]["location"])
              for flow in graph.flows(graph.build_graph(directory / spec["flows"]["project"]))}
     expected = {tuple(item) for item in spec["flows"]["expected"]}
