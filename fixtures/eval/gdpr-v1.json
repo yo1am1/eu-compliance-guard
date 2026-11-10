@@ -1,0 +1,264 @@
+{
+ "version": 1,
+ "note": "Plain-language requirements a software team writes, and the GDPR articles a reviewer would open for each. Written by the project (AI-assisted) before any search was run on them; several articles can be right. It measures ranking on the real text, not legal correctness.",
+ "act": {
+  "path": "../official/gdpr-32016R0679.html.gz",
+  "target": "gdpr"
+ },
+ "cases": [
+  {
+   "statement": "Users can delete their account and all their data",
+   "expected": [
+    "Article 17"
+   ]
+  },
+  {
+   "statement": "Users can download a copy of everything we store about them",
+   "expected": [
+    "Article 15",
+    "Article 20"
+   ]
+  },
+  {
+   "statement": "Users can export their data as JSON to move to another service",
+   "expected": [
+    "Article 20"
+   ]
+  },
+  {
+   "statement": "Users can correct a wrong date of birth in their profile",
+   "expected": [
+    "Article 16"
+   ]
+  },
+  {
+   "statement": "We ask permission before sending marketing emails and users can take it back any time",
+   "expected": [
+    "Article 7",
+    "Article 6",
+    "Article 21"
+   ]
+  },
+  {
+   "statement": "Children under 16 need a parent's approval to sign up",
+   "expected": [
+    "Article 8"
+   ]
+  },
+  {
+   "statement": "We tell the authority within three days when customer records leak",
+   "expected": [
+    "Article 33"
+   ]
+  },
+  {
+   "statement": "We email affected customers when their passwords are stolen",
+   "expected": [
+    "Article 34"
+   ]
+  },
+  {
+   "statement": "Passwords are hashed and the database is encrypted at rest",
+   "expected": [
+    "Article 32"
+   ]
+  },
+  {
+   "statement": "We only collect the fields we actually need for signup",
+   "expected": [
+    "Article 5",
+    "Article 25"
+   ]
+  },
+  {
+   "statement": "Old inactive accounts are purged after two years",
+   "expected": [
+    "Article 5",
+    "Article 17"
+   ]
+  },
+  {
+   "statement": "The privacy page explains what we collect and why when users register",
+   "expected": [
+    "Article 13",
+    "Article 12"
+   ]
+  },
+  {
+   "statement": "Our hosting provider signs an agreement to handle data only on our instructions",
+   "expected": [
+    "Article 28"
+   ]
+  },
+  {
+   "statement": "We keep a register of all our data handling with purposes and recipients",
+   "expected": [
+    "Article 30"
+   ]
+  },
+  {
+   "statement": "Before launching face recognition login we assess the risks to users",
+   "expected": [
+    "Article 35"
+   ]
+  },
+  {
+   "statement": "Loan applications are never rejected purely by an algorithm without a human looking",
+   "expected": [
+    "Article 22"
+   ]
+  },
+  {
+   "statement": "Users can opt out of profiling for personalised ads",
+   "expected": [
+    "Article 21"
+   ]
+  },
+  {
+   "statement": "We store health information only with the user's explicit agreement",
+   "expected": [
+    "Article 9"
+   ]
+  },
+  {
+   "statement": "Customer data sent to our US analytics vendor is covered by standard contract clauses",
+   "expected": [
+    "Article 46",
+    "Article 44"
+   ]
+  },
+  {
+   "statement": "We appoint a privacy officer because we monitor users at large scale",
+   "expected": [
+    "Article 37"
+   ]
+  },
+  {
+   "statement": "New features default to the most private settings",
+   "expected": [
+    "Article 25"
+   ]
+  },
+  {
+   "statement": "Users can pause use of their data while a complaint about its accuracy is checked",
+   "expected": [
+    "Article 18"
+   ]
+  },
+  {
+   "statement": "When a user corrects or deletes data we pass that on to partners who received it",
+   "expected": [
+    "Article 19"
+   ]
+  },
+  {
+   "statement": "We have a representative in the EU since our company is based outside it",
+   "expected": [
+    "Article 27"
+   ]
+  },
+  {
+   "statement": "Staff with database access act only on our instructions",
+   "expected": [
+    "Article 29",
+    "Article 28",
+    "Article 32"
+   ]
+  },
+  {
+   "statement": "We answer data requests within one month and free of charge",
+   "expected": [
+    "Article 12"
+   ]
+  },
+  {
+   "statement": "We can show records proving that we follow the rules",
+   "expected": [
+    "Article 5",
+    "Article 24"
+   ]
+  },
+  {
+   "statement": "We bought an email list and must tell those people where we got their details",
+   "expected": [
+    "Article 14"
+   ]
+  },
+  {
+   "statement": "Handling the order is necessary to deliver what the customer bought",
+   "expected": [
+    "Article 6"
+   ]
+  },
+  {
+   "statement": "Users can complain to the regulator",
+   "expected": [
+    "Article 77"
+   ]
+  },
+  {
+   "statement": "Two companies together decide how the shared customer database is used and agree who does what",
+   "expected": [
+    "Article 26"
+   ]
+  },
+  {
+   "statement": "We consult the regulator when an assessment shows a high risk we cannot reduce",
+   "expected": [
+    "Article 36"
+   ]
+  },
+  {
+   "statement": "Criminal record checks on drivers happen only where the law allows",
+   "expected": [
+    "Article 10"
+   ]
+  },
+  {
+   "statement": "The rules cover our Berlin office even though the servers are in Singapore",
+   "expected": [
+    "Article 3"
+   ]
+  },
+  {
+   "statement": "Fines can reach four percent of worldwide turnover",
+   "expected": [
+    "Article 83"
+   ]
+  },
+  {
+   "statement": "Our subcontractor tells us without delay when it discovers a leak",
+   "expected": [
+    "Article 33"
+   ]
+  },
+  {
+   "statement": "Users are told the logic behind automated credit scoring",
+   "expected": [
+    "Article 13",
+    "Article 14",
+    "Article 15",
+    "Article 22"
+   ]
+  },
+  {
+   "statement": "Data collected for billing is not reused for advertising",
+   "expected": [
+    "Article 5",
+    "Article 6"
+   ]
+  },
+  {
+   "statement": "A user who objects to direct marketing stops receiving it",
+   "expected": [
+    "Article 21"
+   ]
+  },
+  {
+   "statement": "People harmed by misuse of their data can claim compensation",
+   "expected": [
+    "Article 82"
+   ]
+  }
+ ]
+}

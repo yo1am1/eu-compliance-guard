@@ -24,6 +24,10 @@ dependencies = [
     "pydantic==2.14.1",
 ]
 
+[project.optional-dependencies]
+# Optional semantic ranking of article suggestions (a local ONNX model); the core needs only Pydantic.
+semantic = ["fastembed==0.9.1"]
+
 [project.urls]
 Homepage = "https://github.com/yo1am1/eu-compliance-guard"
 Documentation = "https://github.com/yo1am1/eu-compliance-guard/blob/main/docs/cli.md"

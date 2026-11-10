@@ -67,6 +67,27 @@
           6
         ]
       }
+    },
+    {
+      "change": "2.6: optional semantic ranking (bge-small-en-v1.5) fused with word search, measured on 40 real-GDPR cases",
+      "gdpr": {
+        "words": [
+          23,
+          28
+        ],
+        "bge-small alone": [
+          24,
+          30
+        ],
+        "hybrid": [
+          26,
+          34
+        ],
+        "bge-base hybrid (not adopted: twice the size)": [
+          29,
+          35
+        ]
+      }
     }
   ],
   "flows": {
@@ -76,5 +97,15 @@
   "graph_grounding": {
     "top1": 5,
     "top3": 6
+  },
+  "gdpr_words": {
+    "top1": 23,
+    "top3": 28
+  },
+  "gdpr_hybrid": {
+    "top1": 26,
+    "top3": 34,
+    "model": "BAAI/bge-small-en-v1.5",
+    "note": "Measured only with the optional semantic extra; 40 cases on the real GDPR text."
   }
 }

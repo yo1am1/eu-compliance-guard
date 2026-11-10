@@ -87,7 +87,8 @@ def call(declarations: str, name: str, arguments: dict) -> tuple[str, dict | Non
     if name == "article_search":
         query, top = _text(arguments, "query"), _top(arguments, 5)
         found = articles.suggest(query, _latest(declarations)[1], top)
-        lines = [f"- {item['source']} {item['article']} ({item['title']}), score {item['score']}" for item in found]
+        lines = [f"- {item['source']} {item['article']} ({item['title']}), score {item['score']}, {articles.via_text(item)}"
+                 for item in found]
         return "\n".join(lines or ["No retained article matches."]) + "\nCandidates to read, not a mapping decision.", \
             {"results": found}
     if name == "ground":

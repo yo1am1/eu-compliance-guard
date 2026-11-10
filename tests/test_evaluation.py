@@ -12,7 +12,7 @@ class EvaluationTests(unittest.TestCase):
     def test_scores_never_fall_below_the_recorded_baseline(self):
         result = e.evaluate()
         floor = json.loads((e.EVAL_DIR / "baseline.json").read_text())
-        for name in ("articles_tune", "articles_held_out", "grounding", "graph_grounding"):
+        for name in ("articles_tune", "articles_held_out", "grounding", "graph_grounding", "gdpr_words"):
             for metric in ("top1", "top3"):
                 self.assertGreaterEqual(result[name][metric], floor[name][metric], f"{name} {metric}")
         self.assertGreaterEqual(result["flows"]["found"], floor["flows"]["found"])
