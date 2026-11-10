@@ -1,4 +1,4 @@
-"""Read-only requirements-to-law revalidation; offline unless --fetch-official is given."""
+"""Read-only requirements-to-law revalidation; offline unless --fetch-official or `semantic setup` is given."""
 
 import argparse
 import sys
@@ -159,6 +159,11 @@ def _command(argv: list[str] | None) -> int:
     when.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
     when.add_argument("--run", help="Completed run directory (default: the newest run in this project's state-dir)")
     when.add_argument("--json", action="store_true", help="Print the result as JSON")
+    semantic = commands.add_parser("semantic", help="Optional semantic search for article suggestions: show its status or set it up",
+                                   allow_abbrev=False)
+    semantic.add_argument("action", choices=["status", "setup"],
+                          help="status: what is on and ready; setup: download the pinned model once (network: huggingface.co)")
+    semantic.add_argument("--json", action="store_true", help="Print the status as JSON")
     cite = commands.add_parser("cite-check", help="Check article citations and quotations against the retained official text",
                                allow_abbrev=False)
     cite.add_argument("file", help="Text file to check, or - for standard input")
@@ -277,6 +282,8 @@ def _command(argv: list[str] | None) -> int:
         return _signing(args)
     if args.command == "cite-check":
         return _cite_check(args)
+    if args.command == "semantic":
+        return _semantic(args)
     if args.command == "timeline":
         return _timeline(args)
     if args.command == "export":
@@ -439,6 +446,22 @@ def _export(args) -> int:
         _emit_text(f"{args.output}: draft {args.kind} export written ({args.format}). Review it before relying on it.")
     else:
         _emit(text, end="")
+    return 0
+
+
+def _semantic(args) -> int:
+    import json
+    from . import semantic
+    try:
+        report = semantic.setup() if args.action == "setup" else semantic.status()
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        known = {"semantic-not-installed", "model-download-failed", "model-digest-mismatch"}
+        print(f"eu-compliance-guard: {code if code in known else 'semantic-failed'}: semantic {args.action} failed", file=sys.stderr)
+        return 2
+    (_emit(json.dumps(report, indent=2)) if args.json else _emit_text(semantic.format_status(report)))
     return 0
 
 

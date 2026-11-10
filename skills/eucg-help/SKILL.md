@@ -68,6 +68,7 @@ writes a static HTML view of the verified run and opens it in your browser.
 - `graph [--input <file>] [--json] [--view [--open]]` maps the project's Python and Rust files, functions, imports and calls by parsing only (nothing is run); paths are possible paths, never proof.
 - `pr-check [--diff <file>|-] [--input <file>] [--markdown|--json] [--strict]` screens a unified diff's added lines for legal touchpoints and compares them with the declarations.
 - `state-dir` prints (and creates, 0700) the private run storage for this project's `project_id`.
+- `semantic status|setup` shows or sets up the optional local model that improves article suggestions (off by default; `setup` downloads about 67 MB from huggingface.co, so ask the user first). It only orders articles to read.
 - `view --run <run dir> [--dashboard] [--open]` writes
   `<parent>/views/<run>.html`, `<run>.dashboard.html` and `<run>.scorecard.json` from a verified run (the run itself is unchanged).
 

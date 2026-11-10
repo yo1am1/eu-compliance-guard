@@ -296,10 +296,20 @@ def _suggestions(statement: str, index: articles.ArticleIndex) -> str:
     found = index.suggest(statement, top=3)
     if not found:
         return ""
+    hybrid = index.method != "words"
+
+    def why(item) -> str:
+        words = f'matched {grounding.explain(item["matched"])}'
+        if not hybrid:
+            return words
+        return articles.via_text(item) + (f"; {words}" if item["matched"] else "")
+
     names = " · ".join(f'{escape(item["article"])} <span class="muted">{escape(item["title"][:60])} ({escape(item["source"])}); '
-                       f'matched {escape(grounding.explain(item["matched"]))}</span>'
+                       f'{escape(why(item))}</span>'
                        for item in found)
-    return f'<div class="suggest">Articles to read: {names}<br><span class="muted">Text search suggestion, not a mapping.</span></div>'
+    note = ("Word and semantic search suggestion (local model bge-small-en-v1.5), not a mapping." if hybrid
+            else "Text search suggestion, not a mapping.")
+    return f'<div class="suggest">Articles to read: {names}<br><span class="muted">{note}</span></div>'
 
 
 def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None = None,

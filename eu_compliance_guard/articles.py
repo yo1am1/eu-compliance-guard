@@ -472,14 +472,31 @@ class _Field:
 class ArticleIndex:
     """Every article of every retained act, indexed once and searched per statement."""
 
-    def __init__(self, catalogue: dict[str, dict[str, dict]]):
+    def __init__(self, catalogue: dict[str, dict[str, dict]], semantic=None):
+        """`semantic`: None uses the optional model when the user turned it on and it is ready;
+        False is word search only; a SemanticIndex-like object (with `scores`) is used as given."""
         self.catalogue = catalogue
         self.keys = [(source, key) for source, articles in catalogue.items() for key in articles]
         self.text = _Field([catalogue[s][k]["text"] for s, k in self.keys], b=0.75)
         self.title = _Field([catalogue[s][k]["title"] for s, k in self.keys], b=0.3)
+        self.semantic = None
+        if semantic is None and self.keys:
+            from . import semantic as model
+            if model.status()["active"]:
+                try:
+                    self.semantic = model.SemanticIndex(catalogue, self.keys)
+                except Exception:  # an optional ranking never breaks a report: word search still answers
+                    self.semantic = None
+        elif semantic:
+            self.semantic = semantic
+
+    @property
+    def method(self) -> str:
+        return "words+semantic" if self.semantic is not None else "words"
 
     def suggest(self, statement: str, top: int = 3) -> list[dict]:
-        """BM25 over the text plus a boosted BM25 over the title."""
+        """BM25 over the text plus a boosted BM25 over the title; with the optional model, that
+        ranking merged with the model's (reciprocal rank fusion). Each hit says which found it."""
         if not self.keys:
             return []
         explained = _explained_query(statement)
@@ -487,9 +504,23 @@ class ArticleIndex:
         scored = sorted(((t + TITLE_WEIGHT * h, s, k, i) for i, (t, h, (s, k))
                          in enumerate(zip(self.text.scores(weights), self.title.scores(weights), self.keys)) if t + h > 0),
                         key=lambda item: (-item[0], item[1], item[2]))
-        return [{"source": source, "article": key, "title": self.catalogue[source][key]["title"], "score": round(score, 2),
-                 "matched": self._matched(explained, index)}
-                for score, source, key, index in scored[:top]]
+        if self.semantic is None:
+            return [{"source": source, "article": key, "title": self.catalogue[source][key]["title"], "score": round(score, 2),
+                     "matched": self._matched(explained, index), "via": ["words"]}
+                    for score, source, key, index in scored[:top]]
+        from .semantic import NEAR, fuse
+        similarity = self.semantic.scores(statement)
+        word_rank = [index for _, _, _, index in scored]
+        semantic_rank = sorted(range(len(self.keys)), key=lambda index: (-similarity[index], self.keys[index]))
+        near_words, near_semantic = set(word_rank[:NEAR]), set(semantic_rank[:NEAR])
+        fused = sorted(fuse(word_rank, semantic_rank), key=lambda item: (-item[0], self.keys[item[1]]))
+        results = []
+        for score, index in fused[:top]:
+            source, key = self.keys[index]
+            via = [name for name, near in (("words", near_words), ("semantic", near_semantic)) if index in near]
+            results.append({"source": source, "article": key, "title": self.catalogue[source][key]["title"], "score": score,
+                            "matched": self._matched(explained, index), "via": via or ["words"]})
+        return results
 
     def _matched(self, explained: dict[str, tuple[float, str]], index: int) -> list[dict]:
         """Why an article was suggested: each query term it contains, and where that term came from."""
@@ -502,3 +533,10 @@ class ArticleIndex:
 def suggest(statement: str, catalogue: dict[str, dict[str, dict]], top: int = 3) -> list[dict]:
     """One-off search; build an ArticleIndex to search many statements."""
     return ArticleIndex(catalogue).suggest(statement, top)
+
+
+VIA = {"words": "word match", "semantic": "semantic match"}
+
+
+def via_text(item: dict) -> str:
+    return " + ".join(VIA[name] for name in item.get("via", ["words"]))

@@ -29,6 +29,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `graph [--input <file>] [--json] [--view [--open]]` | Map the project's Python and Rust files, functions, imports, calls and data flows (static) |
 | `export ropa\|dpia [--input <file>] [--format md\|json\|csv] [--output <file>]` | Draft a record of processing activities (Art. 30(1)) or DPIA screening inputs (Art. 35, WP248 criteria) from the declarations |
 | `timeline [--input <file>] [--run <run dir>] [--json]` | List application, entry-into-force and transposition dates quoted from the retained text, reached or upcoming against the assessment date |
+| `semantic status\|setup [--json]` | Optional semantic ranking of article suggestions: show whether it is on and ready, or download the pinned model once |
 | `mcp [--input <file>]` | Serve `cite_check`, `article_search`, `ground`, `pr_check`, `timeline` and `next_steps` as read-only MCP tools over stdio |
 
 ```sh
@@ -415,6 +416,31 @@ meaning.
 `timeline` and `next_steps`, as read-only tools over stdio for other agents. `ground` only proposes
 lines; pinning one stays a person's step with `ground --apply`. For example
 `claude mcp add eucg -- eu-compliance-guard mcp --input .eu-compliance-guard/declarations.json`.
+
+## Optional semantic search
+
+Article suggestions (in the report and the `article_search` tool) use word search: the words of
+a requirement, plus a fixed legal vocabulary, against each article. That misses requirements
+written in everyday words. An optional local embedding model can be merged in:
+
+1. Install the extra: `pip install 'eu-compliance-guard[semantic]'`, or run the CLI once with
+   `uv run --extra semantic …` (for the plugin: the hook's CLI command with `--extra semantic`
+   added; repeat after a plugin update).
+2. Turn it on: `EUCG_SEMANTIC=on`, or `"semantic": true` in
+   `~/.config/eu-compliance-guard/config.json`.
+3. `semantic setup` downloads BAAI/bge-small-en-v1.5 (MIT, about 67 MB) from huggingface.co into
+   `~/.cache/eu-compliance-guard/` and checks every file against a pinned SHA-256. A model with
+   other bytes is never loaded. `semantic status` shows what is missing.
+
+After that the model runs locally and offline. Suggestions merge the two rankings (reciprocal
+rank fusion) and label each hit "word match", "semantic match" or both; the report says which
+method ranked it. On 40 plain-language requirements against the real GDPR text, a right article
+was in the top 3 for 28 with word search and for 34 with the hybrid (`make eval`). The model
+only orders articles to read. It never maps a requirement, decides applicability or changes a
+score, and if it fails, word search answers alone. Similarities are rounded before ranking so
+small floating-point differences do not reorder results, but identical ranking on every CPU
+and operating system is not proven; a default install without the extra stays byte-for-byte
+deterministic. An act is embedded once and cached beside the model (about 12 s for the GDPR).
 
 ## Obligation packs
 

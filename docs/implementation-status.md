@@ -40,6 +40,9 @@ acts, timeline dates, unknown articles and acts, unpinned signatures, linear gra
 graph limits, the macOS hook, pr-check and grounding precision, imports, and documentation that
 claimed more than the code does (tamper evidence, licence statements, platform support).
 
+In progress for 2.6: optional semantic ranking of article suggestions (a pinned local model
+merged with word search; off by default; see `docs/cli.md`).
+
 Released: 1.0 to 2.5.1. 2.5 fixed what an audit of 2.2 to 2.4 found (three quadratic parsers,
 CSV cells, duplicate names in the graph) and removed the unused React page and `api` extra.
 2.4 taught the project graph Rust (`docs/decisions/rust-graph.md`). 2.3 added the application-date timeline, draft starter packs and the
