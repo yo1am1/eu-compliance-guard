@@ -16,10 +16,9 @@ permissions:
 
 env:
   BRANCHES: >-
-    claude/publish-2.4.0
-    claude/audit-2.5
-    claude/remove-frontend
-    claude/release-2.5.0
+    claude/publish-2.5.0
+    claude/fix-freshness
+    claude/release-2.5.1
 
 jobs:
   prune:
