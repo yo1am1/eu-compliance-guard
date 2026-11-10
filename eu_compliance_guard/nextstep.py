@@ -102,7 +102,7 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         # `ground --apply` refuses organisational facts, so only technical ones are sent there.
         observable = fact.id not in unobservable
         ask = f"ask {fact.owner or 'the project owner'}."
-        if fact.basis in ("assumed", "unknown") or fact.conflicts:
+        if m.open_fact(fact):
             steps.append(_step("fact", fact.id, relied.get(fact.id, set()),
                                f"Confirm '{fact.key}' (now {fact.basis}{', with conflicting declarations' if fact.conflicts else ''})"
                                + (": look for code evidence." if observable else ": " + ask),

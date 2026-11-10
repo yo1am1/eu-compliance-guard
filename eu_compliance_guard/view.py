@@ -17,7 +17,7 @@ from urllib.parse import quote
 
 from .notice import LEGAL_NOTICE
 from .errors import CodedError
-from . import articles, grounding, models as m, nextstep, revalidation as r, scorecard
+from . import articles, grounding, jurisdictions, models as m, nextstep, revalidation as r, scorecard
 
 CSS = """
 :root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--line:#e4e1d8;--card:#fff;--warn:#9a5b00;--warnbg:#fff4df;--bad:#a1271b;--badbg:#fde9e6;--ok:#2d6a3e;--okbg:#e6f3e9}
@@ -120,7 +120,7 @@ def _value(value) -> str:
 def _open_facts(bundle: m.RevalidationBundle) -> list[m.Fact]:
     """Assumed, unknown or conflicting facts, each once: the questions for the owner."""
     return list({item.id: item for item in m.scope_facts(bundle.declarations.scope)
-                 if item.basis in ("assumed", "unknown") or item.conflicts}.values())
+                 if m.open_fact(item)}.values())
 
 
 def _owner_questions(bundle: m.RevalidationBundle) -> str:
@@ -274,11 +274,6 @@ def source_catalogue(bundle: m.RevalidationBundle, contents: dict[str, bytes]) -
     return found
 
 
-def _version_note(version: dict | None) -> str:
-    from .jurisdictions import version_note
-    return version_note(version)
-
-
 def _article(pin: m.ProvisionRef, acts: dict[str, dict[str, dict]], by_source: dict[str, dict[str, dict]],
              versions: dict[str, dict | None] | None = None) -> str:
     """A pin naming a source shows that source's text; only an unpinned target falls back to the target's."""
@@ -291,7 +286,7 @@ def _article(pin: m.ProvisionRef, acts: dict[str, dict[str, dict]], by_source: d
     text = item["text"] if len(item["text"]) <= EXCERPT_CHARS else item["text"][:EXCERPT_CHARS].rsplit(" ", 1)[0] + " …"
     return (f'<details class="law"><summary>{escape(key)} — {escape(item["title"] or "untitled")}</summary>'
             f'<p>{escape(text)}</p><p>Unreviewed candidate text from the retained <code>{escape(target)}</code> bytes; '
-            f"{escape(_version_note((versions or {}).get(pin.source_target_id)))}</p></details>")
+            f"{escape(jurisdictions.version_note((versions or {}).get(pin.source_target_id)))}</p></details>")
 
 
 def _suggestions(statement: str, index: articles.ArticleIndex) -> str:
@@ -327,8 +322,7 @@ def render_html(bundle: m.RevalidationBundle, contents: dict[str, bytes] | None 
     # reference shows its source's declared type, an unpinned one its target's intended type.
     source_types = {item.source.id: item.source.type for item in declared.sources}
     target_types = {item.id: item.intended_type for item in declared.source_targets}
-    from .jurisdictions import version
-    versions = {item.id: version(item.intended_identifier, item.intended_url) for item in declared.source_targets}
+    versions = {item.id: jurisdictions.version(item.intended_identifier, item.intended_url) for item in declared.source_targets}
     decisions = {item.obligation.id: item for item in bundle.effective_applicability_decisions}
     requirement_states = Counter(item.state for item in bundle.requirement_assessments)
     applicability = Counter(item.applicability for item in bundle.obligation_dispositions)
