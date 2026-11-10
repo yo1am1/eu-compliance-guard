@@ -117,19 +117,23 @@ def _value(value) -> str:
     return "not known" if value in (None, "", [], {}) else value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
 
 
+def _open_facts(bundle: m.RevalidationBundle) -> list[m.Fact]:
+    """Assumed, unknown or conflicting facts, each once: the questions for the owner."""
+    return list({item.id: item for item in m.scope_facts(bundle.declarations.scope)
+                 if item.basis in ("assumed", "unknown") or item.conflicts}.values())
+
+
 def _owner_questions(bundle: m.RevalidationBundle) -> str:
-    """Assumed, unknown or conflicting facts as questions, with the requirements that rely on them."""
-    declared = bundle.declarations
+    """The open facts as questions, with the requirements that rely on them."""
     relied: dict[str, list[str]] = {}
-    for requirement in declared.requirements:
+    for requirement in bundle.declarations.requirements:
         for pin in requirement.fact_refs:
             relied.setdefault(pin.id, []).append(requirement.id)
-    facts = {item.id: item for item in m.scope_facts(declared.scope)
-             if item.basis in ("assumed", "unknown") or item.conflicts}
+    facts = _open_facts(bundle)
     if not facts:
         return '<p class="muted">Every declared fact is marked declared or observed.</p>'
     rows = [[escape(fact.key), escape(_value(fact.value)), _tag(fact.basis), escape(fact.owner or "—"),
-             _list(relied.get(fact.id, []))] for fact in facts.values()]
+             _list(relied.get(fact.id, []))] for fact in facts]
     return _table(["Question", "Current answer", "Basis", "Owner", "Requirements relying on it"], rows, "")
 
 
@@ -279,10 +283,9 @@ def _article(pin: m.ProvisionRef, acts: dict[str, dict[str, dict]], by_source: d
              versions: dict[str, dict | None] | None = None) -> str:
     """A pin naming a source shows that source's text; only an unpinned target falls back to the target's."""
     key = articles.article_key(pin.locator)
-    origin = pin.source_id if pin.source_id else pin.source_target_id
+    target = pin.source_id or pin.source_target_id
     pool = by_source.get(pin.source_id, {}) if pin.source_id else acts.get(pin.source_target_id, {})
     item = pool.get(key) if key else None
-    target = origin
     if item is None:
         return ""
     text = item["text"] if len(item["text"]) <= EXCERPT_CHARS else item["text"][:EXCERPT_CHARS].rsplit(" ", 1)[0] + " …"
@@ -469,8 +472,8 @@ def render_dashboard(bundle: m.RevalidationBundle, card: m.Scorecard | None = No
     link = f' · <a href="{escape(quote(report))}">full report</a>' if report else ""
     fiction = '<span class="pill warn">Fictional sample data</span> ' if bundle.synthetic else ""
     step = card.next_step
-    step_html = (f'<div class="step"><span class="label">Next step</span><b>{escape(scorecard.STEP_TEXT[step.kind].replace("{subject}", step.subject or ""))}</b>'
-                 f'<span class="label num">unblocks {step.unblocks} open requirement{"" if step.unblocks == 1 else "s"}</span></div>'
+    step_html = (f'<div class="step"><span class="label">Next step</span><b>{escape(scorecard.step_title(step))}</b>'
+                 f'<span class="label num">{scorecard.step_unblocks(step)}</span></div>'
                  if step else '<div class="step"><span class="label">Next step</span><b>No recorded step is open</b>'
                  '<span class="label">That is not a compliance conclusion.</span></div>')
     kpis = "".join(
@@ -486,8 +489,7 @@ def render_dashboard(bundle: m.RevalidationBundle, card: m.Scorecard | None = No
                  for item in card.hygiene if item.total]
     coverage_hint = ('<p class="hint">Next: screen the eleven legal families with /eucg-audit.</p>'
                      if screening.screened < screening.total else "")
-    questions = [fact for fact in {item.id: item for item in m.scope_facts(bundle.declarations.scope)}.values()
-                 if fact.basis in ("assumed", "unknown") or fact.conflicts]
+    questions = _open_facts(bundle)
     questions_html = ("" if not questions else
         '<section class="card"><h2>Questions for the owner</h2><ul>'
         + "".join(f'<li><span>{escape(fact.key)}</span><span class="n">{escape(fact.basis)} · ask {escape(fact.owner or "the project owner")}</span></li>'

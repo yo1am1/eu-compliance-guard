@@ -64,6 +64,13 @@ class NextStepTests(unittest.TestCase):
         steps = n.next_steps(v.verify_run(self.run_bundle()), top=10)
         self.assertEqual(sum(step["subject"] == fact["id"] for step in steps), 1)
 
+    def test_a_declared_fact_with_conflicting_declarations_says_why_it_is_open(self):
+        fact = next(item for item in self.payload["scope"]["roles"] if item["basis"] == "declared")
+        fact["conflicts"] = ["fact-unknown"]
+        steps = {step["subject"]: step for step in n.next_steps(v.verify_run(self.run_bundle()), top=100)}
+        self.assertIn("(now declared, with conflicting declarations)", steps[fact["id"]]["action"])
+        self.assertIn("(now unknown)", steps["fact-unknown"]["action"])
+
     def test_every_open_requirement_has_a_step_and_changed_evidence_asks_to_ground_again(self):
         fact = next(item for item in self.payload["scope"]["roles"] if item["basis"] == "declared")
         fact["evidence_ids"] = ["evidence-example"]
@@ -116,6 +123,17 @@ class NextStepTests(unittest.TestCase):
         steps = n.next_steps(v.verify_run(self.run_bundle("run-undecided")), top=100)
         decision = next(step for step in steps if step["subject"] == "obligation-example")
         self.assertTrue(decision["action"].startswith("Record whether obligation-example applies"))
+
+    def test_a_duty_reviewed_as_not_applicable_asks_to_remap_never_to_review_its_evidence(self):
+        self.payload["applicability_decisions"][0]["applicability"] = "not_applicable"
+        bundle = v.verify_run(self.run_bundle())
+        self.assertEqual({item.obligation_id: item.applicability for item in bundle.obligation_dispositions}["obligation-example"],
+                         "not_applicable")
+        steps = n.next_steps(bundle, top=100)
+        self.assertFalse([step for step in steps if step["kind"] == "review" and step["subject"] == "obligation-example"])
+        remap = next(step for step in steps if step["subject"] == "requirement-example")
+        self.assertEqual((remap["kind"], remap["requirements"]), ("mapping", ["requirement-example"]))
+        self.assertIn("obligation-example was reviewed as not applicable", remap["action"])
 
     def test_targets_the_fetch_refuses_are_never_offered_for_retrieval(self):
         target = dict(self.payload["source_targets"][0], id="target-national", intended_type="national_act",
