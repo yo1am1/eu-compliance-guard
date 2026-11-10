@@ -111,7 +111,7 @@ def call(declarations: str, name: str, arguments: dict) -> tuple[str, dict | Non
     if name == "next_steps":
         steps = nextstep.next_steps(_latest(declarations)[0], _top(arguments, 3))
         return nextstep.format_steps(steps), {"steps": steps}
-    raise ToolError(f"Unknown tool '{name}'.")
+    raise ToolError("Unknown tool.")
 
 
 def _result(identity, result) -> dict:
