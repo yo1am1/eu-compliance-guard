@@ -8,7 +8,8 @@ changed file. It never decides what the law requires; "no touchpoints" is not a 
 from __future__ import annotations
 
 
-from . import models as m
+from . import files, models as m
+from .errors import CodedError
 from .grounding import CONCEPTS, SKIP_DIRS, TEXT_NAMES, TEXT_SUFFIXES, tokens
 
 # Lets a workflow find and update its own comment, never another bot's.
@@ -34,10 +35,8 @@ NEEDS_PERSON = {"weight", "height", "heart"}
 GIT_PREFIXES = ("a/", "b/", "c/", "i/", "w/", "o/", "1/", "2/")  # git's default, mnemonic and --no-index prefixes
 
 
-class PRCheckError(ValueError):
-    def __init__(self, code: str):
-        self.code = code
-        super().__init__(code)
+class PRCheckError(CodedError):
+    pass
 
 
 def _unquote(value: str) -> str:

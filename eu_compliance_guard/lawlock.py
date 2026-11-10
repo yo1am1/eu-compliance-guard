@@ -12,7 +12,7 @@ import json
 import os
 from pathlib import Path
 
-from . import articles, jurisdictions, models as m, revalidation as r
+from . import articles, files, jurisdictions, models as m, revalidation as r
 
 LOCK_NAME = "eu-law.lock"
 
@@ -47,33 +47,7 @@ def to_bytes(lock: m.LawLock) -> bytes:
 
 def write(lock: m.LawLock, path: str | os.PathLike) -> Path:
     """Atomically create or replace the lockfile, never through a link."""
-    return write_bytes(path, to_bytes(lock))
-
-
-def write_bytes(path: str | os.PathLike, content: bytes, mode: int = 0o644) -> Path:
-    """Atomically create or replace a project file, never through a link or over a folder."""
-    path = Path(path)
-    with r._parent(path) as (parent_fd, name):
-        temporary = "." + name + ".tmp"
-        try:
-            os.unlink(temporary, dir_fd=parent_fd)
-        except FileNotFoundError:
-            pass
-        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, mode, dir_fd=parent_fd)
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(content)
-            handle.flush()
-            os.fsync(fd)
-        try:
-            info = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
-            if not (info.st_mode & 0o170000 == 0o100000):  # an existing link or folder is never replaced
-                os.unlink(temporary, dir_fd=parent_fd)
-                raise r.RevalidationError("unsafe-path")
-        except FileNotFoundError:
-            pass
-        os.replace(temporary, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
-        os.fsync(parent_fd)
-    return path
+    return files.write_bytes(path, to_bytes(lock))
 
 
 def read(path: str | os.PathLike) -> m.LawLock:

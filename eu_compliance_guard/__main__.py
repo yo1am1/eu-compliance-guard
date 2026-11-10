@@ -423,7 +423,7 @@ def _verify(args) -> int:
 def _export(args) -> int:
     def work():
         import json
-        from . import exports, lawlock
+        from . import exports, files
         from .revalidation import RevalidationError, load_input
         if args.format == "csv" and args.kind != "ropa":
             raise RevalidationError("invalid-input")
@@ -432,7 +432,7 @@ def _export(args) -> int:
         text = (json.dumps(result, indent=2, ensure_ascii=False) + "\n" if args.format == "json"
                 else exports.to_csv(result) if args.format == "csv" else exports.to_markdown(result))
         if args.output:
-            lawlock.write_bytes(args.output, text.encode("utf-8"))
+            files.write_bytes(args.output, text.encode("utf-8"))
         return text
     text = _try(work, "export-failed", "export failed")
     if args.output:

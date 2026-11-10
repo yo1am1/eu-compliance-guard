@@ -12,13 +12,12 @@ import json
 import os
 from pathlib import Path
 
-from . import articles, grounding, models as m, revalidation as r
+from . import articles, files, grounding, models as m, revalidation as r
+from .errors import CodedError
 
 
-class MappingError(ValueError):
-    def __init__(self, code: str):
-        self.code = code
-        super().__init__(code)
+class MappingError(CodedError):
+    pass
 
 
 def parse(value: str) -> tuple[str, str, str]:
@@ -100,7 +99,7 @@ def accept(path: str | os.PathLike, value: str, *, write: bool = True) -> dict:
     m.parse_record(m.RevalidationInput, content)  # never write what does not validate
     if write and not linked:
         with r._parent(path) as (parent_fd, name):
-            grounding._replace(parent_fd, name, content)
+            files.replace_existing(parent_fd, name, content)
     return {"requirement": requirement_id, "obligation": existing["id"], "target": target_id, "locator": locator,
             "created": created, "already_linked": linked, "checked_against_text": known is not None}
 

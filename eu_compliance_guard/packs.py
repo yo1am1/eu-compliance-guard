@@ -16,7 +16,8 @@ import json
 import os
 from pathlib import Path
 
-from . import grounding, lawlock, models as m, revalidation as r, signing
+from . import files, lawlock, models as m, revalidation as r, signing
+from .errors import CodedError
 from .notice import LEGAL_NOTICE
 
 NAMESPACE = "eucg-pack"
@@ -24,10 +25,8 @@ STARTERS = Path(__file__).resolve().parent / "starter_packs"
 SIG_FORMAT = "eucg-pack-signature-v1"
 
 
-class PackError(ValueError):
-    def __init__(self, code: str):
-        self.code = code
-        super().__init__(code)
+class PackError(CodedError):
+    pass
 
 
 def to_bytes(pack: m.ObligationPack) -> bytes:
@@ -91,7 +90,7 @@ def _portable(item: m.Obligation) -> m.Obligation:
 
 
 def write(pack: m.ObligationPack, path: str | os.PathLike) -> Path:
-    return lawlock.write_bytes(path, to_bytes(pack))
+    return files.write_bytes(path, to_bytes(pack))
 
 
 def _sig_path(path: str | os.PathLike) -> Path:
@@ -103,7 +102,7 @@ def sign(path: str | os.PathLike, key: str, principal: str) -> Path:
     pack, content = load(path)
     stored = {"format": SIG_FORMAT, "pack": pack.id, "revision": pack.revision, "principal": principal,
               "digest": m.content_digest(content), "signature": signing.ssh_sign(content, key, NAMESPACE)}
-    return lawlock.write_bytes(_sig_path(path), (json.dumps(stored, indent=2, sort_keys=True) + "\n").encode("utf-8"))
+    return files.write_bytes(_sig_path(path), (json.dumps(stored, indent=2, sort_keys=True) + "\n").encode("utf-8"))
 
 
 def verify(path: str | os.PathLike, allowed_signers: str, loaded: tuple[m.ObligationPack, bytes] | None = None) -> dict:
@@ -163,7 +162,7 @@ def import_pack(declarations: str | os.PathLike, path: str | os.PathLike, allowe
     m.parse_record(m.RevalidationInput, content)  # never write what does not validate
     if write and (added["source_targets"] or added["obligations"]):
         with r._parent(target) as (parent_fd, name):
-            grounding._replace(parent_fd, name, content)
+            files.replace_existing(parent_fd, name, content)
     return {"pack": pack.id, "revision": pack.revision, "status": pack.status,
             "signed_by": checked["principal"] if checked else None, "added": added, "law_mismatches": mismatches}
 

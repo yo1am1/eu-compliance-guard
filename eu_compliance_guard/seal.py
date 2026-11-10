@@ -15,7 +15,8 @@ import json
 import os
 from pathlib import Path
 
-from . import lawlock, models as m, revalidation as r, signing
+from . import files, models as m, revalidation as r, signing
+from .errors import CodedError
 
 LOG_NAME = "runs.log"
 NAMESPACE = "eucg-run"
@@ -23,10 +24,8 @@ MAX_LOG_BYTES = 4 * 1024 * 1024
 MARKER_BYTES = 64 * 1024
 
 
-class SealError(ValueError):
-    def __init__(self, code: str):
-        self.code = code
-        super().__init__(code)
+class SealError(CodedError):
+    pass
 
 
 def _marker(run_dir: Path) -> tuple[str, str] | None:
@@ -94,7 +93,7 @@ def seal(declarations: str | os.PathLike, run_dir: str | os.PathLike, key: str |
         record["signature"] = signing.ssh_sign(_signed_part(record), key, NAMESPACE)
     line = json.dumps(m.SealEntry.model_validate(record).model_dump(mode="json"), sort_keys=True, ensure_ascii=False)
     content = "".join(text + "\n" for _, text in entries) + line + "\n"
-    lawlock.write_bytes(path, content.encode("utf-8"))
+    files.write_bytes(path, content.encode("utf-8"))
     return {"path": str(path), "run_id": run_id, "seq": record["seq"], "already": False, "signed": key is not None}
 
 
