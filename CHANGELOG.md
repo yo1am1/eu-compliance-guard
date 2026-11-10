@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Changed (presentation)
+
+- A new README in one deliberate look: a centred header with badges and section links, a
+  table of what the tool does, an architecture diagram, and an animated tour with nine
+  stills. Every image is real output for the fictional FitBox project, rebuilt by
+  `make readme-images` in the report's own palette, as WebP with rounded corners baked in.
+  `tests/test_docs_style.py` keeps it that way (one image format, alt text, no dead links).
+  `CITATION.cff` added.
+
 ### Added (tests)
 
 - `make e2e` (`scripts/e2e.py`, also in CI): every command driven from outside on a fresh

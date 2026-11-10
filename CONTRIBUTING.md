@@ -20,6 +20,7 @@ Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/) and make.
 uv sync --locked
 make check           # unit tests, JSON Schema drift and compile
 make e2e             # every command on a fresh fictional project, as a user would run it (offline)
+make readme-images   # rebuild every README image from real output (needs Chromium; see below)
 make plugin-check    # claude plugin validate . and the band tests (needs Claude Code)
 ```
 
@@ -51,6 +52,18 @@ Conventions that keep it small:
 - Project files are written with `files.write_bytes` or `files.replace_existing`, nothing else.
 - `tests/test_hygiene.py` fails on unused imports, a repeated error class, or a second broad
   `except` in the CLI.
+
+## README images
+
+Every image is real output for the fictional FitBox project, in one look: the report's own
+palette, rounded corners (1.5 % of the width, as in `docs/architecture.svg`) baked in as
+transparent WebP, and one animated tour. `make readme-images` rebuilds them all with
+`scripts/readme_images.py`; it needs Pillow and Playwright, which `uv run --with` fetches
+without adding them to the project, and a Chromium (`CHROMIUM=/path/to/chrome` if Playwright's
+own is not installed). Do not add a PNG, JPEG or GIF: `tests/test_docs_style.py` fails on any
+image that is not a rounded WebP or the SVG, on an image nothing shows, and on a dead link.
+The band and side panel inside Claude Code cannot be photographed by the script; convert a
+manual capture with `scripts/readme_images.py --round FILE`.
 
 ## Rules the checks enforce
 

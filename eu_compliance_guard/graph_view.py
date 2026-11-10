@@ -139,7 +139,7 @@ def render(project: m.ProjectGraph, declared: m.RevalidationInput | None = None,
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
         "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">",
         f"<title>EU Compliance Guard graph</title><style>{DASH_CSS}{GRAPH_CSS}</style></head><body><main>",
-        f'<div class="top"><div><h1>Project graph</h1><p class="sub">{title} · {project.parsed} of {project.files} Python files · '
+        f'<div class="top"><div><h1>Project graph</h1><p class="sub">{title} · {project.parsed} of {project.files} Python and Rust files · '
         f'{functions} functions · {len(flows)} data flow{"s" if len(flows) != 1 else ""}</p></div>'
         f'<div><span class="pill">digest {escape(project.digest[7:19])}</span></div></div>',
         f'<p class="legend">Showing {len(shown)} functions on data flows or touching a concept, and their neighbours'

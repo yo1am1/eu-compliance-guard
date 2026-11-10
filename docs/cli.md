@@ -218,7 +218,7 @@ evidence or a requirement origin changed), `in review` or `recorded steps closed
 none of them is a verdict. `--against` adds point changes only when that run is the
 recorded parent and used the same tool version; the trend never changes the status.
 
-![Review progress at the top of the HTML view of the synthetic fixture run](images/review-progress-view.png)
+![Review progress at the top of the report of the fictional FitBox project](images/report.webp)
 
 `view` also writes `<parent>/views/<run>.scorecard.json` (0600) as data for other
 tools. The plugin never needs it: its **Dashboard** button opens the static page above.
@@ -296,7 +296,7 @@ ambiguous calls are dashed, and each box links to its details. Tables list each 
 with the facts pinned on it, and each fact with the requirements and obligations
 (and their articles) that rely on it. How many functions were left out is always stated.
 
-![Graph view of a fictional project](images/graph-view.png)
+![Graph view of the fictional FitBox project](images/graph.webp)
 
 ## Pull-request check
 
