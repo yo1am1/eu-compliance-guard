@@ -158,9 +158,7 @@ Every command, its options and exit codes are in the
 - Article suggestions use word search. An optional local model (the `semantic` extra, off by
   default) improves them for requirements in everyday words; see the
   [command-line reference](docs/cli.md#optional-semantic-search). It only orders what to read.
-- Processing budgets are cooperative, not a hard CPU or filesystem deadline. The
-  bounded Linux execution helper is not an enabled scanner, and its real
-  containment is unverified.
+- Processing budgets are cooperative, not a hard CPU or filesystem deadline.
 - Scanners of our own, a Graphify import, an API and remediation
   automation are later work. The starter packs are AI-assisted drafts: no lawyer reviews packs or outputs, and nothing is guaranteed. The dashboard shows one run's review progress from a local file; it
   manages nothing.

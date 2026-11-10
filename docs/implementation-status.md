@@ -21,16 +21,16 @@ library is imported into the standalone repository.
 
 ## What exists
 
-- Shared validated records and closed commands for scope, sources, evidence,
-  findings, assessments, conversations, proposals, capabilities, and progress.
+- Shared validated records for scope, sources, evidence, obligations, decisions,
+  assessments and progress.
 - Generated JSON Schema with a drift check.
 - An offline requirement/report CLI, synthetic first-run fixture, bounded selected
   file reads, accountable mapping/evidence gaps and private immutable run artifacts.
 - Synthetic foundation, contract, offline workflow, CLI and escaped-report tests,
   with a generated schema drift check.
-- Static native-protocol inspection and bounded reply validation.
-- An offline Linux executor helper that rejects unverified cleanup. Its live
-  containment/admission requirements remain unmet; fake tests are not that evidence.
+- (Removed in 2.6, Owner decision: the unused foundation for scanners of our own, namely the
+  offline Linux executor helper, the agent-protocol inspection and about 60 record types for
+  commands, conversations and patches. No command used them; Git history keeps them.)
 - A locked Python environment (uv.lock), package selection, and license notices.
 
 ## Current state (v2.5.1, 2026-11-10) and what remains

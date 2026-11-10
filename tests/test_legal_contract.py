@@ -29,38 +29,6 @@ REVIEW = {
 }
 
 
-def shared_control_snapshot():
-    payload = deepcopy(FIXTURE["snapshot"])
-    attempt = payload["attempts"][0]
-    attempt.update(state="completed", outcome="passed", expected=False, actual=False)
-    applicable = deepcopy(FIXTURE["disposition"])
-    applicable.update(
-        id="disposition-applicable", obligation_id="fictional-obligation-applicable",
-        applicability_decision_id="fictional-decision-applicable",
-        applicability="applicable", rationale="Fictional fixture condition established",
-        manual_review="supported",
-        required_method_dispositions=[{
-            "method": "technical", "outcome": "passed",
-            "attempt_ids": [attempt["id"]], "review_ids": [], "missing_evidence": [],
-        }],
-    )
-    payload["obligation_dispositions"].append(applicable)
-    payload["findings"] = [{
-        "id": "finding-shared", "project_id": payload["project_id"],
-        "control_id": "fictional-shared-control", "subject_id": "synthetic-subject",
-    }]
-    payload["finding_assessments"] = [{
-        "id": "assessment-shared", "project_id": payload["project_id"],
-        "run_id": payload["run"]["id"], "finding_id": "finding-shared", "revision": 0,
-        "manifest_id": payload["run"]["manifest_id"], "control_revision": 0,
-        "obligation_disposition_ids": [item["id"] for item in payload["obligation_dispositions"]],
-        "attempt_ids": [attempt["id"]], "evidence_ids": [], "validation_ids": [],
-        "technical_outcome": "passed", "impact": "Fictional assertion only",
-        "affected_parties": [], "owner": "Synthetic owner", "action_ids": [],
-    }]
-    return payload
-
-
 class LegalContractTests(unittest.TestCase):
     def test_refresh_failure_keeps_previous_source_and_exposes_review_gap(self):
         source = m.LegalSource.model_validate(FIXTURE["source"])
@@ -144,47 +112,3 @@ class LegalContractTests(unittest.TestCase):
         })
         with self.assertRaises(ValidationError):
             m.ObligationDisposition.model_validate(payload)
-
-    def test_shared_technical_pass_preserves_distinct_legal_manual_dispositions(self):
-        snapshot = m.Snapshot.model_validate(shared_control_snapshot())
-        dispositions = {item.applicability: item for item in snapshot.obligation_dispositions}
-        self.assertEqual(snapshot.finding_assessments[0].technical_outcome, "passed")
-        self.assertEqual(dispositions["applicable"].manual_review, "supported")
-        self.assertEqual(dispositions["unresolved"].manual_review, "pending")
-        pending_method = dispositions["unresolved"].required_method_dispositions[0]
-        self.assertEqual(pending_method.outcome, "unresolved_review")
-        self.assertEqual(pending_method.missing_evidence, ["Owner evidence"])
-        self.assertEqual(set(snapshot.finding_assessments[0].obligation_disposition_ids),
-                         {item.id for item in snapshot.obligation_dispositions})
-
-    def test_obligation_without_technical_finding_keeps_its_disposition(self):
-        snapshot = m.Snapshot.model_validate(FIXTURE["snapshot"])
-        self.assertEqual(snapshot.findings, [])
-        self.assertEqual(snapshot.finding_assessments, [])
-        self.assertEqual(len(snapshot.obligation_dispositions), 1)
-        self.assertEqual(snapshot.obligation_dispositions[0].applicability, "unresolved")
-
-    def test_snapshot_rejects_duplicate_disposition_and_assessment_identities(self):
-        for collection in ("obligation_dispositions", "finding_assessments", "findings"):
-            payload = shared_control_snapshot()
-            payload[collection].append(deepcopy(payload[collection][0]))
-            with self.subTest(collection=collection), self.assertRaises(ValidationError):
-                m.Snapshot.model_validate(payload)
-
-    def test_snapshot_rejects_dangling_legal_assessment_joins(self):
-        for field, value in (
-            ("finding_id", "missing-finding"),
-            ("obligation_disposition_ids", ["missing-disposition"]),
-            ("attempt_ids", ["missing-attempt"]),
-        ):
-            payload = shared_control_snapshot()
-            payload["finding_assessments"][0][field] = value
-            with self.subTest(field=field), self.assertRaises(ValidationError):
-                m.Snapshot.model_validate(payload)
-        for target in ("obligation_disposition_id", "finding_assessment_id"):
-            payload = shared_control_snapshot()
-            overlay = payload["current_assessments"][0]
-            overlay.pop("obligation_disposition_id")
-            overlay[target] = "missing-assessment"
-            with self.subTest(target=target), self.assertRaises(ValidationError):
-                m.Snapshot.model_validate(payload)

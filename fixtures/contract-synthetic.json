@@ -39,23 +39,6 @@
       "check_seconds": 60
     }
   },
-  "attempt": {
-    "id": "attempt-fixture",
-    "project_id": "project-fixture",
-    "run_id": "run-fixture",
-    "check_id": "check-fixture",
-    "check_version": "1",
-    "manifest_id": "manifest-fixture",
-    "state": "pending",
-    "outcome": null,
-    "expected": null,
-    "actual": null,
-    "evidence_ids": [],
-    "tool_and_rule_versions": [],
-    "errors": [],
-    "exclusions": [],
-    "inconsistent_with": []
-  },
   "source": {
     "id": "source-fixture",
     "revision": 0,
@@ -121,103 +104,5 @@
       "No input observation"
     ],
     "changed_dependencies": []
-  },
-  "command": {
-    "schema_version": 1,
-    "request_id": "request-fixture",
-    "project_id": "project-fixture",
-    "run_id": "run-fixture",
-    "expected_revision": 0,
-    "operation": "audit.cancel",
-    "arguments": {
-      "reason": "Synthetic cancellation"
-    }
-  },
-  "snapshot": {
-    "schema_version": 1,
-    "project_id": "project-fixture",
-    "run": {
-      "id": "run-fixture",
-      "project_id": "project-fixture",
-      "revision": 0,
-      "state": "planned",
-      "manifest_id": "manifest-fixture",
-      "permission_id": "permission-fixture",
-      "coverage_plan": [
-        "schema-contract"
-      ],
-      "gaps": [
-        "Synthetic contract only"
-      ],
-      "budgets": {
-        "run_seconds": 600,
-        "check_seconds": 60
-      }
-    },
-    "findings": [],
-    "finding_assessments": [],
-    "obligation_dispositions": [
-      {
-        "id": "disposition-fixture",
-        "project_id": "project-fixture",
-        "run_id": "run-fixture",
-        "obligation_id": "obligation-fixture",
-        "obligation_revision": 0,
-        "applicability": "unresolved",
-        "applicability_decision_id": "decision-fixture",
-        "rationale": "Fictional authority; no applicability established",
-        "required_method_dispositions": [
-          {
-            "method": "organizational",
-            "outcome": "unresolved_review",
-            "attempt_ids": [],
-            "review_ids": [],
-            "missing_evidence": [
-              "Owner evidence"
-            ]
-          }
-        ],
-        "manual_review": "pending"
-      }
-    ],
-    "attempts": [
-      {
-        "id": "attempt-fixture",
-        "project_id": "project-fixture",
-        "run_id": "run-fixture",
-        "check_id": "check-fixture",
-        "check_version": "1",
-        "manifest_id": "manifest-fixture",
-        "state": "pending",
-        "outcome": null,
-        "expected": null,
-        "actual": null,
-        "evidence_ids": [],
-        "tool_and_rule_versions": [],
-        "errors": [],
-        "exclusions": [],
-        "inconsistent_with": []
-      }
-    ],
-    "actions": [],
-    "cursor": "run-fixture:0",
-    "terminal": false,
-    "current_assessments": [
-      {
-        "id": "current-fixture",
-        "revision": 0,
-        "project_id": "project-fixture",
-        "historical_run_id": "run-fixture",
-        "obligation_disposition_id": "disposition-fixture",
-        "expected_manifest_id": "manifest-fixture",
-        "checked_at": "2026-10-15T07:00:00Z",
-        "freshness": "unknown",
-        "reasons": [
-          "No input observation"
-        ],
-        "changed_dependencies": []
-      }
-    ],
-    "relations_revision": 0
   }
 }
