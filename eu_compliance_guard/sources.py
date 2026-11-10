@@ -242,7 +242,7 @@ def _media_type(headers: list[tuple[str, str]], allowed: frozenset[str] = MEDIA_
         name, _, value = parameter.partition("=")
         if name.strip().lower() == "charset":
             charset = value.strip().strip('"').lower()
-    if not _MEDIA.match(essence) or essence not in allowed or (charset is not None and not _CHARSET.match(charset)):
+    if not _MEDIA.fullmatch(essence) or essence not in allowed or (charset is not None and not _CHARSET.fullmatch(charset)):
         raise RetrievalFailure("unsupported-media-type")
     return essence, charset
 
@@ -471,10 +471,11 @@ def retrieve(requests: list[TargetRequest], *, transport_factory=SystemTransport
                 if receiver.poll(seconds):
                     message = receiver.recv()
             except (EOFError, OSError):
-                message = None
+                message = None if process.pid else {"failure": "worker-failed"}  # the helper never started
             finally:
                 receiver.close()
-                _stop(process)
+                if process.pid:
+                    _stop(process)
             if message is None:
                 outcome = FetchResult(target_id=request.target_id, requested_url=request.url, started_at=started,
                                       ended_at=utc_now(), failure="timeout")
