@@ -27,7 +27,7 @@ jobs:
           set +e
           # A release commit (see the releases page), so the tool's own code cannot change under
           # you. Its dependencies (Pydantic) resolve when uvx installs it; they are not locked here.
-          uvx --from "git+https://github.com/yo1am1/eu-compliance-guard@858699ba6d48c9ed5d07bd5a3dfb03361805bba5" \
+          uvx --from "git+https://github.com/yo1am1/eu-compliance-guard@f7aba9aedb125c6813ae5d97da92b9b5431fc1d0" \
             eu-compliance-guard pr-check --diff "$RUNNER_TEMP/pr.diff" --markdown --strict > "$RUNNER_TEMP/eucg.md"
           code=$?
           set -e
