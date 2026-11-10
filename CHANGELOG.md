@@ -10,7 +10,64 @@
   `roles`. `ground` now says so when a fact under `size_and_sector` cannot be searched. Existing
   declarations stay valid (the list defaults to empty); a file that uses it needs 2.6.1 or later.
 
+### Fixed
+
+Found by a seven-agent audit of the whole code base (six owners, one reviewer).
+
+- Runs: a run compared with its predecessor now sees a change to the source review for the
+  assessment date even when a review for another date is listed after it; before, the change
+  was missed and support was not withdrawn. With `--fetch-official`, the consolidation queries
+  share the run's single 300-second network budget instead of getting a second one. A retrieval
+  helper that cannot start is recorded as `worker-failed` instead of crashing the run.
+- Citation guard: citations in brackets or Markdown ("(Article 5 GDPR)", "**Article 5**"),
+  without a space ("Art.5") and both ends of a range ("Articles 5–7") are checked; before, such
+  a citation of a missing article passed.
+- Law text: inserted UK provisions keep their full number (Data Protection Act 2018 sections
+  74AA and 74AB are parsed; UK GDPR Article 8ZA is no longer shown as 8Z). Footnotes of a
+  consolidated EUR-Lex page, UK signature blocks and the "SCHEDULES" heading are no longer text
+  of the last provision. **A law lock made earlier over these texts shows these provisions as
+  changed once.** The timeline reads UK dates with an ordinal day ("11th December 2003").
+- Rust graph: an item after a test-only `use` or under `#[cfg(not(test))]` is no longer left
+  out; test code behind `pub(crate)` or `#[tokio::test]` is. Calls by full path
+  (`crate::net::send()`) resolve without a `use`; `Vec::<u8>::new()` no longer links to project
+  code; a char literal `'\''` no longer hides the code after it.
+- Python graph: `import module` then `module.f()`, dotted `pkg.module.f()` and a `src/` layout
+  resolve to the right file; `self.store.save()` is no longer linked to a same-named function
+  of the calling file; a form feed no longer shifts the lines concepts are read from; a data
+  flow is no longer dropped when a guessed call reaches one of its functions first.
+- Next step: `next`, the report and the dashboard no longer ask to review evidence for a duty
+  reviewed as not applicable; they ask to remap the requirement. A step for a fact with
+  conflicting declarations says so.
+- Exports: `export ropa` lists a missing establishment and assumed or unknown controller roles
+  as gaps; Markdown exports render declared links and images as plain text.
+- `seal --check` reported a changed run as intact when an untouched copy of it lay in another
+  run folder. `accept` never returned when a long source-target id filled the obligation id.
+  `verify` failed whole on one malformed signature file; it is now listed as invalid.
+  `import-evidence --kind sarif` failed on a rule id that is not a string.
+- A project id, media type or hook value ending in a newline is no longer accepted.
+- Plugin: the side panel lists open `scope.technical` facts; the session hook summarizes the
+  run completed last (as `next` and the band do) and keeps its context on a wrong-shaped
+  bundle; `/eucg-audit` names the admitted legislation.gov.uk URL form (`/data.htm`);
+  `/eucg-next` handles `review` and remap steps.
+
+### Changed
+
+- `seal --check --allowed-signers` marks entries without a signature as `NOT signed` (JSON:
+  `signatures_checked`), and a signer's name is printed only once verified.
+- A project file the tool rewrites (exports, `eu-law.lock`, `runs.log`, packs, signatures) never
+  gains permission bits: a file made private stays private.
+- `verify` says `file holds another decision`, and the MCP server says `Unknown tool.`, instead
+  of echoing text they were given.
+- Faster: `graph`, `ground` and `pr-check` build the project graph in about half the time. The
+  optional semantic search keeps its newest 32 cache files, and with the extra installed but
+  turned off the 67 MB model file is no longer hashed on every run.
+- Docs: the command reference lists every option; the help card names all six MCP tools;
+  contributor docs say what `make check` and CI run.
+
 ### Changed (internal; no behaviour change)
+
+- Review rules shared by assembling a run and validating a bundle (accountable review, open
+  fact, admitted evidence, binding source types) are defined once.
 
 - The three longest functions are split into named steps: assembling a run (379 lines), the
   bundle validator (318) and the report renderer (285). No function they contained is longer
