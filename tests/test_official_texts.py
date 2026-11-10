@@ -110,10 +110,12 @@ class OfficialTextTests(unittest.TestCase):
         self.assertEqual(citations._citations("Article 5-compliant; Regulation (EU) 2016/679; Art. 6(1)(f)"),
                          [(0, "Article 5"), (47, "Article 6")])
 
-    def test_the_same_act_is_not_an_unrecognised_one(self):
-        report = citations.check("Article 17 and Article 6 of the same Regulation apply.", self.acts, {"gdpr": [["gdpr"]]})
+    def test_the_same_act_is_not_checked_because_it_may_be_an_unknown_one(self):
+        report = citations.check("The Product Liability Directive covers defects. Article 6 of the same Directive defines them.",
+                                 self.acts, {"gdpr": [["gdpr"]]})
         self.assertEqual([(item["article"], item["act"], item["ok"]) for item in report["citations"]],
-                         [("Article 17", None, True), ("Article 6", None, True)])
+                         [("Article 6", citations.UNRECOGNISED, False)])
+        self.assertFalse(report["ok"])
 
     def test_search_finds_the_erasure_article(self):
         found = articles.suggest("users can delete their account and all personal data", self.acts, top=3)
