@@ -15,13 +15,8 @@ def contract_schema() -> dict:
                if isinstance(value, type) and issubclass(value, models.Record)
                and value is not models.Record]
     _, definitions = models_json_schema([(record, "validation") for record in records])
-    command = models.COMMAND_ADAPTER.json_schema()
-    for name, definition in command.pop("$defs", {}).items():
-        if name in definitions["$defs"] and definitions["$defs"][name] != definition:
-            raise ValueError("inconsistent generated contract definition")
-        definitions["$defs"][name] = definition
     return {"$schema": "https://json-schema.org/draft/2020-12/schema",
-            "title": "Command", **command, **definitions}
+            "title": "EU Compliance Guard records", **definitions}
 
 
 def schema_bytes() -> bytes:

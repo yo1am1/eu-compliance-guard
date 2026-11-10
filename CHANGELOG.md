@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Removed
+
+- Code no command used (Owner decision, YAGNI): the offline Linux executor helper
+  (`execution.py`), the agent-protocol inspection (`agent.py`) and about 60 record types for
+  commands, conversations, patches and snapshots from the original design. `models.py` is 530
+  lines shorter and the generated JSON Schema 4,500 lines shorter; it now holds records only,
+  with no command union at its root. Git history keeps the removed code for when scanners of
+  our own are built.
+
 ### Changed (internal; no behaviour change)
 
 - The command line has one error path, one run lookup and a dispatch table instead of 21 copied

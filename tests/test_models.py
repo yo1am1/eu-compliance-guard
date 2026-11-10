@@ -1,4 +1,4 @@
-"""Synthetic trust-boundary cases for the shared engine and host contracts."""
+"""Synthetic trust-boundary cases for the shared records."""
 
 from copy import deepcopy
 import json
@@ -14,40 +14,23 @@ FIXTURE = json.loads((Path(__file__).resolve().parents[1] / "fixtures/contract-s
 
 class ContractTests(unittest.TestCase):
     def test_synthetic_records_roundtrip_without_losing_unknowns(self):
-        records = {"scope": m.Scope, "run": m.AuditRun, "attempt": m.CheckAttempt,
-                   "source": m.LegalSource, "source_attempt": m.SourceAttempt,
-                   "disposition": m.ObligationDisposition, "current": m.CurrentAssessment,
-                   "snapshot": m.Snapshot}
+        records = {"scope": m.Scope, "run": m.AuditRun, "source": m.LegalSource, "source_attempt": m.SourceAttempt,
+                   "disposition": m.ObligationDisposition, "current": m.CurrentAssessment}
         for key, model in records.items():
             with self.subTest(record=key):
                 record = m.parse_record(model, json.dumps(FIXTURE[key]))
                 self.assertEqual(m.parse_record(model, m.canonical_json(record)), record)
-        self.assertEqual(m.parse_command(json.dumps(FIXTURE["command"])).operation, "audit.cancel")
         self.assertEqual(FIXTURE["disposition"]["manual_review"], "pending")
 
-    def test_commands_reject_forged_identity_unknown_operations_and_extra_arguments(self):
-        for changes in ({"caller": "owner"}, {"operation": "shell.exec"},
-                        {"arguments": {"reason": "test", "owner": True}},
-                        {"arguments": {"reason": "test", "command": "anything"}}):
-            payload = {**FIXTURE["command"], **changes}
-            with self.subTest(changes=changes), self.assertRaises(ValidationError):
-                m.parse_command(json.dumps(payload))
-
     def test_schema_version_and_revisions_are_not_coerced(self):
-        for field, bad in (("schema_version", True), ("schema_version", 1.0),
-                           ("schema_version", "1"), ("schema_version", 2),
-                           ("expected_revision", True), ("expected_revision", -1),
-                           ("expected_revision", "0"), ("expected_revision", 2**53)):
-            with self.subTest(field=field, value=bad), self.assertRaises(ValidationError):
-                m.parse_command(json.dumps({**FIXTURE["command"], field: bad}))
-
-    def test_unfinished_cancelled_and_interrupted_checks_cannot_pass(self):
-        for state in ("pending", "running", "cancelled", "interrupted"):
-            with self.subTest(state=state), self.assertRaises(ValidationError):
-                m.CheckAttempt.model_validate({**FIXTURE["attempt"], "state": state, "outcome": "passed"})
-        with self.assertRaises(ValidationError):
-            m.CheckAttempt.model_validate({**FIXTURE["attempt"], "state": "completed"})
-        m.CheckAttempt.model_validate({**FIXTURE["attempt"], "state": "interrupted", "outcome": "blocked"})
+        lock = dict(schema_version=1, lock_version=1, project_id="project-fixture", run_id="run-fixture", entries=[])
+        m.LawLock.model_validate(lock)
+        for bad in (True, 1.0, "1", 2):
+            with self.subTest(field="schema_version", value=bad), self.assertRaises(ValidationError):
+                m.LawLock.model_validate({**lock, "schema_version": bad})
+        for bad in (True, -1, "0", 2**53):
+            with self.subTest(field="revision", value=bad), self.assertRaises(ValidationError):
+                m.SourceRef.model_validate({"id": "source", "revision": bad})
 
     def test_source_failures_do_not_require_or_invent_legal_source_bytes(self):
         attempt = m.SourceAttempt.model_validate(FIXTURE["source_attempt"])
@@ -71,18 +54,6 @@ class ContractTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             m.SourceFile(path="safe/file.py", digest="unversioned")
 
-    def test_snapshot_rejects_wrong_projects_runs_manifests_and_cursors(self):
-        for field, value in (("project_id", "other"), ("run_id", "other"), ("manifest_id", "other")):
-            payload = deepcopy(FIXTURE["snapshot"])
-            payload["attempts"][0][field] = value
-            with self.subTest(field=field), self.assertRaises(ValidationError):
-                m.Snapshot.model_validate(payload)
-        for cursor in ("other:0", "run-fixture:01", "run-fixture:-1", "run-fixture:9007199254740992"):
-            with self.subTest(cursor=cursor), self.assertRaises(ValidationError):
-                m.Snapshot.model_validate({**FIXTURE["snapshot"], "cursor": cursor})
-        with self.assertRaises(ValidationError):
-            m.Snapshot.model_validate({**FIXTURE["snapshot"], "terminal": True})
-
     def test_current_overlay_requires_one_target_and_observed_matching_inputs(self):
         original = m.CurrentAssessment.model_validate(FIXTURE["current"])
         with self.assertRaises(ValidationError):
@@ -101,7 +72,7 @@ class ContractTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             m.LegalSource.model_validate({**FIXTURE["source"], "retrieved_at": "2026-10-15T07:00:00"})
         with self.assertRaises(ValueError):
-            m.parse_command(b" " * (m.MAX_REQUEST_BYTES + 1))
+            m.parse_record(m.Scope, b" " * (m.MAX_REQUEST_BYTES + 1))
         nested = None
         for _ in range(14): nested = [nested]
         payload = dict(id="fact", revision=0, key="unknown", value=nested, basis="unknown", evidence_ids=[], owner="synthetic", observed_at="2026-10-15T07:00:00Z", conflicts=[])
@@ -109,29 +80,20 @@ class ContractTests(unittest.TestCase):
             m.Fact.model_validate(payload)
 
     def test_bundle_bounds_hold_every_gap_a_run_record_declares(self):
-        snapshot = m.Snapshot.model_validate(FIXTURE["snapshot"])
-        run = snapshot.run.model_copy(update={"gaps": [f"Synthetic gap {index}" for index in range(5000)]})
-        holder = snapshot.model_copy(update={"run": run})
+        class Holder(m.Record):
+            run: m.AuditRun
+
+        run = m.AuditRun.model_validate(FIXTURE["run"]).model_copy(update={"gaps": [f"Synthetic gap {index}" for index in range(5000)]})
+        holder = Holder(run=run)
         # Declarations keep the per-record limit; a bundle's records are bounded per list and in total.
         with self.assertRaisesRegex(ValueError, "nested collection limit"):
             m._collection_bounds(holder)
         m._collection_bounds(holder, list_limit=5000, aggregate=50000, record_limit=None)
-        oversized = snapshot.model_copy(update={"run": run.model_copy(update={"gaps": [*run.gaps, "One more"]})})
+        oversized = holder.model_copy(update={"run": run.model_copy(update={"gaps": [*run.gaps, "One more"]})})
         with self.assertRaisesRegex(ValueError, "aggregate collection limit"):
             m._collection_bounds(oversized, list_limit=5000, aggregate=50000, record_limit=None)
         with self.assertRaisesRegex(ValueError, "aggregate collection limit"):
             m._collection_bounds(holder, list_limit=5000, aggregate=5000, record_limit=None)
-
-    def test_proposals_need_contained_paths_retests_and_verification_references(self):
-        envelope = dict(schema_version=1, conversation_id="conversation", context_manifest_id="context", finding_assessment_id="assessment", message="Synthetic proposal", proposal=dict(kind="one_file_text_patch", relative_path="safe.py", preimage_digest=m.content_digest(b"before"), proposed_postimage="after", retest_ids=["check"]))
-        m.AgentReplyEnvelope.model_validate(envelope)
-        for changes in ({"relative_path": "../other"}, {"retest_ids": []}, {"proposed_postimage": "x" * 524289}):
-            payload = {**envelope, "proposal": {**envelope["proposal"], **changes}}
-            with self.assertRaises(ValidationError):
-                m.AgentReplyEnvelope.model_validate(payload)
-        patch = dict(id="patch", project_id="project-fixture", run_id="run-fixture", finding_ids=["finding"], revision=0, diff_digest=m.content_digest(b"diff"), relative_paths=["safe.py"], preimages=[m.content_digest(b"before")], expected_postimages=[m.content_digest(b"after")], permission_id="permission", retest_ids=["check"], state="verified", before_attempt_ids=[], after_attempt_ids=[])
-        with self.assertRaises(ValidationError):
-            m.PatchProposal.model_validate(patch)
 
     def test_missing_review_evidence_and_duplicate_methods_cannot_pass(self):
         disposition = deepcopy(FIXTURE["disposition"])
@@ -144,16 +106,6 @@ class ContractTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             m.ObligationDisposition.model_validate(disposition)
 
-    def test_snapshot_rejects_duplicate_and_dangling_references(self):
-        payload = deepcopy(FIXTURE["snapshot"])
-        payload["attempts"] *= 2
-        with self.assertRaises(ValidationError):
-            m.Snapshot.model_validate(payload)
-        payload = deepcopy(FIXTURE["snapshot"])
-        payload["current_assessments"][0]["obligation_disposition_id"] = "missing"
-        with self.assertRaises(ValidationError):
-            m.Snapshot.model_validate(payload)
-
     def test_unrelated_input_change_needs_retained_dependency_comparison(self):
         payload = {**FIXTURE["current"], "freshness": "current_for_recorded_inputs",
                    "observed_manifest_id": "new-graph-only-manifest", "reasons": ["Independent browser inputs unchanged"]}
@@ -163,25 +115,6 @@ class ContractTests(unittest.TestCase):
         m.CurrentAssessment.model_validate(payload)
         with self.assertRaises(ValidationError):
             m.CurrentAssessment.model_validate({**payload, "changed_dependencies": ["browser-fixture"]})
-
-    def test_safe_previews_reject_unknown_redaction_wrong_digests_and_sections(self):
-        digest = m.content_digest(b"safe synthetic text")
-        evidence = dict(id="evidence", project_id="project-fixture", run_id="run-fixture", kind="text", provenance="observed", digest=digest, captured_at="2026-10-15T07:00:00Z", manifest_id="manifest-fixture", media_type="text/plain", redaction="unknown", availability="available", source_refs=[])
-        with self.assertRaises(ValidationError):
-            m.SafeEvidence(evidence=evidence, content_text="safe synthetic text")
-        m.SafeEvidence(evidence=evidence, blocked_reason="Redaction unverified")
-        evidence["redaction"] = "safe"
-        m.SafeEvidence(evidence=evidence, content_text="safe synthetic text")
-        with self.assertRaises(ValidationError):
-            m.SafeEvidence(evidence=evidence, content_text="different bytes")
-        page = dict(schema_version=1, project_id="project-fixture", origin_run_id="run-fixture", section="sources", projection_revision=0, records=[FIXTURE["source"]])
-        m.DetailPage.model_validate(page)
-        with self.assertRaises(ValidationError):
-            m.DetailPage.model_validate({**page, "section": "patches"})
-        preview = dict(project_id="project-fixture", run_id="run-fixture", proposal_id="patch", revision=0, diff_digest=digest, preview_digest=digest, redaction="unknown", diff="safe synthetic text")
-        with self.assertRaises(ValidationError):
-            m.PatchPreview.model_validate(preview)
-        m.PatchPreview.model_validate({**preview, "redaction": "safe"})
 
     def test_review_claims_require_accountability_and_pinned_source_references(self):
         with self.assertRaises(ValidationError):
@@ -195,7 +128,7 @@ class ContractTests(unittest.TestCase):
         schema = contract_schema()
         self.assertIn("SourceAttempt", schema["$defs"])
         self.assertIn("CurrentAssessment", schema["$defs"])
-        self.assertEqual(len(schema["oneOf"]), 16)
+        self.assertNotIn("oneOf", schema)  # records only: the unused command union was removed in 2.6
         self.assertEqual(SCHEMA_PATH.read_bytes(), schema_bytes())
 
 
