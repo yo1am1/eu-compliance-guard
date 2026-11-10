@@ -19,6 +19,10 @@
   `pack build` packaged it, dropping it from the pack's law digests without a word. Both now
   check the article against the locked and declared text and fail with `unknown-article`;
   with no text to check against, `accept` says so.
+- The citation guard checked "Article 9 of the Product Liability Directive" against whatever
+  act was declared, and passed it when that act had an Article 9. A citation naming an act it
+  does not recognise (a Regulation, Directive, Act, ... that is neither declared nor known) is
+  now reported as not checked.
 
 ## 2.5.0 — 2026-11-07
 

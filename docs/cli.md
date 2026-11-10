@@ -400,15 +400,18 @@ retained act. Every quotation of three words or more must appear in the article 
 before it, word for word, ignoring case, whitespace and the style of quotation marks. A
 citation followed by an act's name or number ("Article 17 GDPR", "Article 5(3) of the
 ePrivacy Directive", "Article 99 of Regulation (EU) 2016/679") is checked in that act only;
-a well-known act the run did not retain, such as the DSA, is reported as not checked. UK
+a well-known act the run did not retain, such as the DSA, is reported as not checked, and
+so is a citation of an act the tool does not recognise ("Article 9 of the Product Liability
+Directive" when that directive is not declared). Only the article is checked: a paragraph
+or point ("Article 6(9)(z)"), a recital or an annex is not. UK
 citations work the same way: "section 170 of the Data Protection Act 2018", "s. 170 DPA
 2018", "regulation 6 of PECR", "Article 17 UK GDPR". A citation of "the GDPR" is never
 checked in the UK GDPR, or the other way round. It
 exits 1 when a citation or quotation does not match. It checks wording only, never legal
 meaning.
 
-`mcp` serves the same check, plus `article_search`, `ground`, `pr_check` (given a diff)
-and `next_steps`, as read-only tools over stdio for other agents. `ground` only proposes
+`mcp` serves the same check, plus `article_search`, `ground`, `pr_check` (given a diff),
+`timeline` and `next_steps`, as read-only tools over stdio for other agents. `ground` only proposes
 lines; pinning one stays a person's step with `ground --apply`. For example
 `claude mcp add eucg -- eu-compliance-guard mcp --input .eu-compliance-guard/declarations.json`.
 

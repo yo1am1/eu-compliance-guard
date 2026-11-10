@@ -64,6 +64,24 @@ def act_names(targets) -> dict[str, list[list[str]]]:
     return names
 
 
+INSTRUMENTS = {"Regulation", "Regulations", "Directive", "Decision", "Act", "Code", "Convention", "Treaty", "Order"}
+UNRECOGNISED = "an act not recognised"
+
+
+def _cites_other_act(window: str) -> bool:
+    """'Article 9 of the Product Liability Directive', 'Article 4 of Directive (EU) 2019/770': the
+    citation names an instrument ("of" within its first words, then a capitalised Regulation,
+    Directive, Act, ...) that no declared or known act matched. 'of this Regulation' is not one."""
+    words = [word.strip("(),;:.'\"“”") for word in window.split()][:14]
+    if "of" not in words[1:5]:
+        return False
+    following = words[words.index("of", 1) + 1:]
+    for index, word in enumerate(following[:10]):
+        if word in INSTRUMENTS:
+            return not (index and following[index - 1].lower() in ("this", "that", "the same"))
+    return False
+
+
 def _names_act(window: str, names: dict[str, list[list[str]]]) -> str | None:
     """The act whose name appears first in the window, if any."""
     words = _tokens(window)
@@ -148,11 +166,17 @@ def check(text: str, catalogue: dict[str, dict[str, dict]], names: dict[str, lis
               for source, acts in catalogue.items() for key, item in acts.items()}
     cited = _citations(text)
     starts = sorted({position for position, _ in cited})
-    named = [(position, key, _names_act(_window(text, position, starts), names) if names else None)
-             for position, key in cited]
+    named = []
+    for position, key in cited:
+        window = _window(text, position, starts)
+        act = _names_act(window, names) if names else None
+        named.append((position, key, UNRECOGNISED if act is None and _cites_other_act(window) else act))
     citations = []
     for _, key, act in named:
         if any(item["article"] == key and item["act"] == act for item in citations):
+            continue
+        if act == UNRECOGNISED:
+            citations.append({"article": key, "act": act, "found_in": [], "ok": False, "reason": "act-not-recognised"})
             continue
         if act is not None and act not in catalogue:
             citations.append({"article": key, "act": act, "found_in": [], "ok": False, "reason": "act-not-retained"})
@@ -186,6 +210,9 @@ def format_check(report: dict) -> str:
         cited = f"{item['article']} of {item['act']}" if item.get("act") else item["article"]
         if item["ok"]:
             lines.append(f"- {cited}: exists in {', '.join(item['found_in'])}")
+        elif item.get("reason") == "act-not-recognised":
+            lines.append(f"- {item['article']}: NOT CHECKED, it cites an act the tool does not recognise; "
+                         "declare that act as a source target to check it")
         elif item.get("reason") == "act-not-retained":
             lines.append(f"- {cited}: NOT CHECKED, the latest run retained no text of {item['act']}")
         else:

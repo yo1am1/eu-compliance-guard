@@ -83,6 +83,18 @@ class OfficialTextTests(unittest.TestCase):
                                 self.acts, names)
         self.assertEqual([item["ok"] for item in wrong["quotations"]], [False])
 
+    def test_a_citation_of_an_unrecognised_act_is_not_checked_against_another(self):
+        from types import SimpleNamespace as Target
+        names = citations.act_names([Target(id="gdpr", intended_identifier="32016R0679", intended_url=None)])
+        text = ("Article 9 of the Product Liability Directive applies. Article 4 of Directive (EU) 2019/770 too. "
+                "Article 17 of this Regulation gives erasure. Article 6 of the GDPR is the basis.")
+        report = citations.check(text, self.acts, names)
+        self.assertEqual([(item["article"], item["act"], item["ok"]) for item in report["citations"]],
+                         [("Article 9", citations.UNRECOGNISED, False), ("Article 4", citations.UNRECOGNISED, False),
+                          ("Article 17", None, True), ("Article 6", "gdpr", True)])
+        self.assertIn("Article 9: NOT CHECKED, it cites an act the tool does not recognise", citations.format_check(report))
+        self.assertFalse(report["ok"])
+
     def test_search_finds_the_erasure_article(self):
         found = articles.suggest("users can delete their account and all personal data", self.acts, top=3)
         self.assertIn(("gdpr", "Article 17"), [(item["source"], item["article"]) for item in found])
