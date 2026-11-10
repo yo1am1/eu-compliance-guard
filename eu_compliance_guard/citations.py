@@ -72,7 +72,7 @@ def _cites_other_act(window: str) -> bool:
     """'Article 9 of the Product Liability Directive', 'Article 4 of Directive (EU) 2019/770': the
     citation names an instrument ("of" within its first words, then a capitalised Regulation,
     Directive, Act, ...) that no declared or known act matched. 'of this Regulation' is not one."""
-    words = [word.strip("(),;:.'\"“”") for word in window.split()][:14]
+    words = [word.strip(PUNCTUATION) for word in window.split()][:14]
     if "of" not in words[1:5]:
         return False
     following = words[words.index("of", 1) + 1:]
@@ -102,6 +102,9 @@ CITING = {"article": ("Article", False), "art.": ("Article", False), "art": ("Ar
           "section": ("Section", False), "s.": ("Section", False), "sections": ("Section", True), "ss.": ("Section", True),
           "regulation": ("Regulation", False), "reg.": ("Regulation", False), "regulations": ("Regulation", True),
           "regs.": ("Regulation", True)}
+PUNCTUATION = "(),;:.'\"“”"
+# Marks that may open a citing word in prose or Markdown: "(Article 5)", "**Art. 5**", "[Article 5]".
+LEADING = "([{*_`'\"“‘«„"
 
 
 def _citations(text: str) -> list[tuple[int, str]]:
@@ -110,21 +113,27 @@ def _citations(text: str) -> list[tuple[int, str]]:
     found, words, position = [], [], 0
     for word in text.split():
         position = text.index(word, position)
-        words.append((position, word))
+        head, dot, rest = word.lstrip(LEADING).partition(".")
+        if dot and rest[:1].isdecimal() and (head + dot).lower() in CITING:
+            words += [(position, head + dot), (position, rest)]  # "Art.17" reads as "Art. 17"
+        else:
+            words.append((position, word))
         position += len(word)
     for index, (position, word) in enumerate(words):
-        lowered = word.lower()
+        lowered = word.lstrip(LEADING).lower()
         if lowered not in CITING:
             continue
         name, plural = CITING[lowered]
         for _, following in words[index + 1:index + 8]:
-            number = following.strip("(),;:.'\"“”")
-            key = articles.article_key(f"{name} {number}") if following[:1] != "(" else None
-            if key is None:
+            # A plural may name both ends of a range: "Articles 15–22".
+            parts = following.replace("–", "-").split("-") if plural else [following]
+            keys = [] if following[:1] == "(" else [
+                key for part in parts if (key := articles.article_key(f"{name} {part.strip(PUNCTUATION)}"))]
+            if not keys:
                 if following.lower() in ("and", "or", "to", "&"):
                     continue
                 break
-            found.append((position, key))
+            found += [(position, key) for key in keys]
             if not following.endswith(",") and not plural:
                 break
     return found

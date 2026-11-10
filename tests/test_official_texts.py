@@ -97,6 +97,19 @@ class OfficialTextTests(unittest.TestCase):
         self.assertIn("Article 9: NOT CHECKED, it cites an act the tool does not recognise", citations.format_check(report))
         self.assertFalse(report["ok"])
 
+    def test_citations_in_brackets_markdown_ranges_and_without_a_space_are_checked(self):
+        text = ("Erasure (Article 200 GDPR) is covered by **Article 201**, Art.202(1)(a), `Article 203`, [Art. 17] "
+                "and Articles 5–204. Sections 12-205 differ.")
+        report = citations.check(text, self.acts)
+        self.assertEqual([(item["article"], item["ok"]) for item in report["citations"]],
+                         [("Article 200", False), ("Article 201", False), ("Article 202", False), ("Article 203", False),
+                          ("Article 17", True), ("Article 5", True), ("Article 204", False), ("Section 12", False),
+                          ("Section 205", False)])
+        self.assertFalse(report["ok"])
+        # A hyphen after a single citation is no range, and an act number is still no provision.
+        self.assertEqual(citations._citations("Article 5-compliant; Regulation (EU) 2016/679; Art. 6(1)(f)"),
+                         [(0, "Article 5"), (47, "Article 6")])
+
     def test_search_finds_the_erasure_article(self):
         found = articles.suggest("users can delete their account and all personal data", self.acts, top=3)
         self.assertIn(("gdpr", "Article 17"), [(item["source"], item["article"]) for item in found])
