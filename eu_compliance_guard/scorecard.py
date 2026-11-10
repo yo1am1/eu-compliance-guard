@@ -368,7 +368,7 @@ STEP_TEXT = {
     "fact": "Confirm fact {subject}",
     "source": "Read and select the source text of {subject}",
     "applicability": "Record whether {subject} applies",
-    "mapping": "Map {subject} to a candidate obligation",
+    "mapping": "Map or remap {subject} to a candidate obligation",
     "review": "Review the evidence for {subject}",
     "family": "Screen the eleven legal families",
 }

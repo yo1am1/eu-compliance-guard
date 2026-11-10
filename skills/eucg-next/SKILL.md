@@ -45,6 +45,10 @@ requirements`. Then work on step 1 only, by its `kind`:
   <declarations>`. It reuses or creates a candidate obligation pinning that article and
   never records a decision. Then say that applicability stays unresolved until a named
   reviewer decides, and that the obligation still needs its review methods.
+  When the action says "Remap or exclude", the requirement is already mapped, to an
+  obligation reviewed as not applicable. `accept` alone leaves that mapping in place: ask
+  the owner whether another article applies (then `accept` it) and whether to remove the
+  not-applicable obligation from the requirement's `obligation_refs` in the declarations.
 - `review`: the action names an obligation's review methods that have not passed, or a
   requirement whose open gaps the report lists. Show them from the report. Recording an
   evidence review needs a named reviewer who looked at the evidence; never write one on
