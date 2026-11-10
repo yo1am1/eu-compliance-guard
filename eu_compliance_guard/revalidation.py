@@ -75,7 +75,7 @@ PIN_GAPS = {"no_pin": "source provision pins missing",
             "source_review_open": "source provision or reviewed source support unresolved",
             "locator_not_listed": "source provision or reviewed source support unresolved",
             "non_binding_for_duty": "candidate authority cannot establish a binding duty"}
-BINDING_SOURCE_TYPES = ("eu_act", "national_act", "judgment", "synthetic_fixture")
+BINDING_SOURCE_TYPES = m.BINDING_SOURCE_TYPES
 POLICY = {"workflow": "offline-declared-review-v1", "tool_version": __version__,
           "budget": "cooperative-only", "network": False, "technical_execution": False}
 _SPACE = frozenset(b" \t\n\r\f\v")
@@ -661,11 +661,7 @@ class _Assembly:
                     and observation and observation.availability == "available" and observation.digest == selected.evidence.digest)
 
     def evidence_ready(self, identity) -> bool:
-        evidence, retained_evidence = self.evidence, self.retained_evidence
-        item = evidence[identity]
-        return retained_evidence(identity) and (item.provenance != "independently_verified" or any(
-            ref != identity and ref in evidence and retained_evidence(ref)
-            and evidence[ref].provenance in ("documented", "observed") for ref in item.source_refs))
+        return m.evidence_admitted(identity, self.evidence, self.retained_evidence)
 
     def open_evidence_and_facts(self) -> None:
         """Gaps for evidence that is not ready and facts that are assumed, unknown or conflicting."""
@@ -674,7 +670,7 @@ class _Assembly:
             if not evidence_ready(identity):
                 record_gap(f"Evidence {identity}: {EVIDENCE_UNREADY_GAP}")
         for fact in facts.values():
-            if fact.basis in ("assumed", "unknown") or fact.conflicts:
+            if m.open_fact(fact):
                 record_gap(f"Fact {fact.id}: assumed, unknown or conflicting declaration needs review.")
 
     def review_sources(self) -> None:
@@ -691,9 +687,7 @@ class _Assembly:
                 if admission.state != "accepted":
                     problems.append(admission.reason)
             target = targets[selected.target_id]
-            if any(getattr(source, field) != getattr(target, target_field) for field, target_field in (
-                    ("type", "intended_type"), ("url", "intended_url"), ("identifier", "intended_identifier"),
-                    ("publisher", "publisher"), ("language", "language"), ("jurisdiction", "jurisdiction"))):
+            if not m.same_identity(source, target):
                 problems.append("candidate identity/classification disagrees with selected source")
             if target.family not in m.LEGAL_FAMILIES:
                 problems.append("unsupported source topic requires specialist/national research")
@@ -748,7 +742,7 @@ class _Assembly:
             problems.append(FACT_PINS_MISSING_GAP)
         for pin in pins:
             fact = facts[pin.id]
-            if fact.basis in ("assumed", "unknown") or fact.conflicts:
+            if m.open_fact(fact):
                 problems.append(FACT_OPEN_GAP)
             if not all(evidence_ready(identity) for identity in fact.evidence_ids):
                 problems.append(FACT_EVIDENCE_GAP)
@@ -766,7 +760,7 @@ class _Assembly:
             problems.extend(original.gaps)
             if original.applicability == "unresolved":
                 problems.append("declared applicability remains unresolved")
-            if not original.reviewer or not original.reviewer.strip() or not original.reviewed_at or not original.rationale.strip():
+            if not m.accountable(original):
                 problems.append("accountable applicability reasoning missing")
             if _after_run(original.reviewed_at, timestamp):
                 problems.append("applicability review dated after this run")
@@ -829,8 +823,7 @@ class _Assembly:
                 missing.append(NOT_ASSESSED if not_applicable else "Accountable evidence review missing.")
                 manual_states.append("pending")
             else:
-                accountable = bool(review.reviewer and review.reviewer.strip() and review.reviewed_at and review.rationale.strip()
-                                   and not _after_run(review.reviewed_at, timestamp))
+                accountable = m.accountable(review) and not _after_run(review.reviewed_at, timestamp)
                 if review.state == "insufficient" and accountable:
                     outcome = "observed_failure"
                     manual_states.append("unsupported")
@@ -916,8 +909,7 @@ class _Assembly:
             if original:
                 if original.applicability == "unresolved":
                     problems.append("Family applicability remains unresolved.")
-                if (not original.reviewer or not original.reviewer.strip() or not original.reviewed_at
-                        or not original.rationale.strip() or original.assessment_date != declared.scope.assessment_date):
+                if not m.accountable(original) or original.assessment_date != declared.scope.assessment_date:
                     problems.append("Accountable family reasoning/date missing.")
                 if _after_run(original.reviewed_at, timestamp):
                     problems.append("Family screening dated after this run.")
@@ -1125,10 +1117,13 @@ def run(input_path: str | os.PathLike, output_path: str | os.PathLike, *, fetch_
             from . import consolidation
             versions = consolidation.requests(declared)
             options = {"transport_factory": transport_factory} if transport_factory else {}
+            network_started = time.monotonic()
             try:
                 retrievals = sources.retrieve(requests, **options)
                 # The same consent, host registry and bounds: is a newer consolidated version in force?
-                notes = consolidation.notes(versions, sources.retrieve([item[2] for item in versions], **options)) if versions else []
+                # Both retrievals share the run's one network time budget.
+                notes = consolidation.notes(versions, sources.retrieve([item[2] for item in versions], **options,
+                    network_seconds=sources.NETWORK_SECONDS - (time.monotonic() - network_started))) if versions else []
             except sources.RetrievalHelperError:
                 raise RevalidationError("retrieval-failed") from None
             # The network has its own fixed budget; local assembly keeps its cooperative budget.
