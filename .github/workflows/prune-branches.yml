@@ -19,6 +19,7 @@ env:
     claude/split-long-functions
     audit/team-2-6
     release/2.6.1
+    claude/publish-2.6.0
 
 jobs:
   prune:
