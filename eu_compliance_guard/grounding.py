@@ -400,7 +400,6 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
     unobservable = not_observable(declared.scope)
     sized = {fact.id for fact in declared.scope.size_and_sector}
     results, covered = [], set()
-    terms_at = {f"{line.path}:{line.number}": line.terms for line in index.lines}
     for fact in facts.values():
         stale = any(identity not in current for identity in fact.evidence_ids)
         if fact.basis not in ("assumed", "unknown") and not fact.conflicts and not stale:
@@ -410,7 +409,7 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
         candidates = search(index, query, top) if observable else []
         # A candidate found only through concept vocabulary (gtag for a cookie fact) does not show
         # the fact, so it stays listed as a touchpoint no fact covers.
-        covered.update(item["location"] for item in candidates if set(query) & set(terms_at[item["location"]]))
+        covered.update(item["location"] for item in candidates if any(match["via"] == "fact" for match in item["matched"]))
         results.append({"fact": fact.id, "key": fact.key, "basis": fact.basis, "observable": observable,
                         "slot": "size_and_sector" if fact.id in sized else None,
                         "stale": stale, "candidates": candidates,
@@ -420,7 +419,7 @@ def ground(path: str | os.PathLike, top: int = 3) -> dict:
                            else "no code evidence found; ask the owner")})
     undeclared, accounted = [], covered | cited
     for key, (label, vocabulary) in CONCEPTS.items():
-        hits = [line for line in index.lines if vocabulary & set(line.terms) and len(vocabulary & set(line.terms)) >= 2
+        hits = [line for line in index.lines if len(vocabulary & line.terms.keys()) >= 2
                 and f"{line.path}:{line.number}" not in accounted]
         if hits:
             undeclared.append({"concept": key, "label": label, "count": len(hits),
