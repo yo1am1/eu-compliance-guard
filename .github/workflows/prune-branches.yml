@@ -16,14 +16,9 @@ permissions:
 
 env:
   BRANCHES: >-
-    claude/publish-2.5.1
-    claude/semantic-search
-    claude/seal-runs
-    claude/simplify
-    claude/remove-unused
-    claude/e2e
-    claude/readme-style
-    claude/release-2.6.0
+    claude/split-long-functions
+    audit/team-2-6
+    release/2.6.1
 
 jobs:
   prune:
