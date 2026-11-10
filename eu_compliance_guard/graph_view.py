@@ -124,10 +124,14 @@ def render(project: m.ProjectGraph, declared: m.RevalidationInput | None = None,
     law = _law_links(declared) if declared else {}
     fact_rows = [f"<tr><td><code>{escape(fact)}</code></td><td>{escape('; '.join(items))}</td></tr>" for fact, items in sorted(law.items())]
     function_rows = []
+    callees: dict[str, list[str]] = {}
+    callers: dict[str, list[str]] = {}
+    for edge in calls:  # one pass: scanning every call for each function shown took seconds on a large project
+        callees.setdefault(edge.source, []).append(nodes[edge.target].name)
+        callers.setdefault(edge.target, []).append(nodes[edge.source].name)
     for key in sorted(shown, key=lambda item: (nodes[item].path, nodes[item].line)):
         node = nodes[key]
-        out = sorted(nodes[edge.target].name for edge in calls if edge.source == key)
-        into = sorted(nodes[edge.source].name for edge in calls if edge.target == key)
+        out, into = sorted(callees.get(key, [])), sorted(callers.get(key, []))
         function_rows.append(f'<tr id="{_anchor(key)}"><td><code>{escape(node.path)}:{node.line}</code></td><td>{escape(node.name)}</td>'
                              f"<td>{escape(', '.join(node.concepts) or '—')}</td><td>{escape(', '.join(node.data) or '—')}</td>"
                              f"<td>{escape(', '.join(into) or '—')}</td><td>{escape(', '.join(out) or '—')}</td></tr>")
