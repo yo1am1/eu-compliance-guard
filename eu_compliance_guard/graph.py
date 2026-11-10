@@ -142,7 +142,8 @@ class _FileVisitor(ast.NodeVisitor):
 
     def __init__(self, path: str, text: str):
         self.path, self.text = path, text
-        self.lines = text.splitlines(keepends=True)  # split once: per-definition splitting was quadratic
+        # Split once, at the line ends the parser counts (\n, \r\n, \r): a form feed stays inside its line.
+        self.lines = grounding._lines(text.replace("\r\n", "\n").replace("\r", "\n"))
         self.scope = [(node_id(path), "")]
         self.definitions: list[tuple] = []  # id, kind, qualname, line, end line, concepts, data, parent
         self.calls: list[tuple[str, str | None, str, int]] = []  # caller id, qualifier, called name, line
@@ -154,7 +155,7 @@ class _FileVisitor(ast.NodeVisitor):
         parent, prefix = self.scope[-1]
         qualname = f"{prefix}.{node.name}" if prefix else node.name
         identity = node_id(self.path, qualname)
-        segment = "".join(self.lines[node.lineno - 1:node.end_lineno or node.lineno]) or node.name
+        segment = "\n".join(self.lines[node.lineno - 1:node.end_lineno or node.lineno]) or node.name
         self.definitions.append((identity, kind, qualname, node.lineno, node.end_lineno or node.lineno,
                                  _concepts(segment), _data(node), parent))
         self.scope.append((identity, qualname))
@@ -250,7 +251,7 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
         return by_module.get((crate, module)), rest
 
     for path, (result, text) in sorted(read.items()):
-        lines = text.splitlines()
+        lines = grounding._lines(text)  # at \n only, as the tokenizer counts lines
         file_id = node_id(path)
         nodes[file_id] = m.GraphNode(id=file_id, kind="file", path=path, name=path, line=1,
                                      end_line=max(1, len(lines)), concepts=_concepts(text), data=[])
@@ -378,7 +379,7 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
             skipped += 1
             continue
         nodes[node_id(path)] = m.GraphNode(id=node_id(path), kind="file", path=path, name=path, line=1,
-                                           end_line=max(1, len(text.splitlines())), concepts=_concepts(text), data=[])
+                                           end_line=max(1, len(visitor.lines)), concepts=_concepts(text), data=[])
         for identity, kind, qualname, line, end, concepts, data, parent in visitor.definitions:
             nodes[identity] = m.GraphNode(id=identity, kind=kind, path=path, name=qualname, line=line, end_line=end,
                                           concepts=concepts, data=data)

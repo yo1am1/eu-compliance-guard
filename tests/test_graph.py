@@ -84,6 +84,14 @@ class GraphTests(unittest.TestCase):
         self.assertEqual({(provenance, target) for provenance, source, target in calls(g.build_graph(root))
                           if source == "src/app/reports.py::export"}, {("extracted", "src/app/storage.py::save")})
 
+    def test_a_form_feed_does_not_shift_the_lines_a_definition_is_read_from(self):
+        (self.root / "app/paged.py").write_text("def first():\n    return 1\n\f\ndef ask(prompt):\n    return openai.complete(prompt)\n")
+        (self.root / "paged.rs").write_text("fn first() {}\n\x0c\nfn ask(p: &str) {\n    let x = 1;\n    openai_complete(p) }\n")
+        nodes = {f"{node.path}::{node.name}": node for node in g.build_graph(self.root).nodes}
+        for path in ("app/paged.py", "paged.rs"):
+            self.assertEqual(nodes[f"{path}::ask"].concepts, ["ai"], path)
+        self.assertEqual((nodes["app/paged.py::app/paged.py"].end_line, nodes["paged.rs::paged.rs"].end_line), (5, 5))
+
     def test_graph_is_byte_identical_wherever_the_project_lives(self):
         first = g.to_json(g.build_graph(self.root))
         self.assertEqual(g.to_json(g.build_graph(self.root)), first)
