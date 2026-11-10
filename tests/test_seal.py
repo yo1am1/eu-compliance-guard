@@ -64,6 +64,7 @@ class SealTests(unittest.TestCase):
     def test_a_report_rewritten_with_new_checksums_is_detected(self):
         run = self.run_named("run-1")
         self.assertEqual(cli("seal", "--input", self.input)[0], 0)
+        shutil.copytree(run, self.root / "copy")
         # What the run's own checksums cannot catch: rewrite the report, then recompute the marker.
         report = run / "report.md"
         os.chmod(report, 0o600)
@@ -80,6 +81,13 @@ class SealTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(json.loads(out)["entries"][0]["run"], "changed")
         self.assertEqual(cli("seal", "--input", self.input)[0], 2)  # and it cannot be sealed again under the same id
+        # An untouched copy of the run in another folder does not hide the change.
+        shutil.move(self.root / "copy", self.state / "run-9")
+        code, out = cli("seal", "--check", "--input", self.input, "--json")
+        self.assertEqual((code, json.loads(out)["entries"][0]["run"]), (1, "changed"))
+        shutil.rmtree(run)
+        code, out = cli("seal", "--check", "--input", self.input, "--json")
+        self.assertEqual((code, json.loads(out)["entries"][0]["run"]), (0, "intact"))
 
     def test_a_rewritten_or_reordered_log_breaks_the_chain(self):
         self.run_named("run-1")

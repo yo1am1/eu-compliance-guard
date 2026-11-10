@@ -101,22 +101,24 @@ def check(declarations: str | os.PathLike, state: str | os.PathLike | None, allo
     """The chain, each sealed run still in `state`, and signatures. `ok` is False on any break."""
     from .view import ViewError, verify_run
     entries = _read(Path(declarations).parent / LOG_NAME)
-    local: dict[str, tuple[Path, str]] = {}
+    local: dict[str, list[tuple[Path, str]]] = {}  # a run id can be in several folders: a copy must not hide a change
     for folder in sorted(Path(state).iterdir()) if state and Path(state).is_dir() else []:
         found = _marker(folder) if folder.name.startswith("run-") and folder.is_dir() and not folder.is_symlink() else None
         if found:
-            local[found[0]] = (folder, found[1])
+            local.setdefault(found[0], []).append((folder, found[1]))
     results, previous = [], None
     for number, (entry, line) in enumerate(entries, 1):
         chain = entry.seq == number and entry.previous == previous
         previous = _digest(line)
-        if entry.run_id not in local:
+        copies = local.get(entry.run_id, [])
+        if not copies:
             run = "not on this machine"
-        elif local[entry.run_id][1] != entry.marker:
+        elif any(marker != entry.marker for _, marker in copies):
             run = "changed"
         else:
             try:
-                verify_run(local[entry.run_id][0])
+                for folder, _ in copies:
+                    verify_run(folder)
                 run = "intact"
             except ViewError:
                 run = "changed"
