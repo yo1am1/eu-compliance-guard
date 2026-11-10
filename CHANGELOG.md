@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- `revalidate --fetch-official` could never confirm an EU act as current: the identity check
+  looked for the CELEX number, which Publications Office pages do not print. It now also
+  accepts the act's own "2016/679" form, and a fetch byte-identical to the declared source
+  needs no second identity signal. Checked against all six EU texts in `fixtures/official/`.
+
 ## 2.5.0 — 2026-11-07
 
 Stabilisation before 3.0: an audit of everything 2.2 to 2.4 added, and the open choices
