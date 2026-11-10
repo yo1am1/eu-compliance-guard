@@ -16,7 +16,7 @@ imports under `.eu-compliance-guard/`) and its private runs. It never gives a co
 every legal decision, and the tool records who decided what, against which text and
 evidence. No output, test or example implies a real compliance audit.
 
-**Version 2.5.0.** See the [changelog](CHANGELOG.md) and the [roadmap](docs/roadmap.md).
+**Version 2.5.1.** See the [changelog](CHANGELOG.md) and the [roadmap](docs/roadmap.md).
 
 ![Walkthrough: the band and side panel in Claude Code, then article text and articles to read in the report](docs/images/walkthrough.gif)
 

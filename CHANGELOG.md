@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 2.5.1 — 2026-11-10
+
+Fixes from a full audit of 2.5.0 (nine auditors, one verifier, findings re-checked against the
+code and sources). No new features: the tool now does what its documentation says, and the
+documentation says only what the tool does. Checked live: GDPR, ePrivacy and CRA fetched from
+the Publications Office match the shipped test texts byte for byte and are confirmed current.
 
 ### Fixed
 
