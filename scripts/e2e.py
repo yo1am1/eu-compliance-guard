@@ -242,7 +242,8 @@ for tool in tools:
     check(f"mcp {tool}: answers, structured, ends with the notice", not answer.get("isError") and "structuredContent" in answer and text.rstrip().endswith(NOTICE), text[-300:])
     if tool == "article_search":
         check("mcp article_search finds Article 17 by word match", "Article 17" in text and "word match" in text, text)
-check("mcp refuses an unknown tool and bad arguments without stopping", "error" in rpc("tools/call", {"name": "nope", "arguments": {}}) or True)
+unknown = rpc("tools/call", {"name": "nope", "arguments": {}})
+check("mcp refuses an unknown tool with an error result", unknown.get("result", {}).get("isError"), unknown)
 bad = rpc("tools/call", {"name": "ground", "arguments": {"top": 99}})
 check("mcp bad arguments are an error result", "error" in bad or bad.get("result", {}).get("isError"), bad)
 proc.stdin.write("{not json\n"); proc.stdin.flush()
