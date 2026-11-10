@@ -944,81 +944,83 @@ class DependencyComparison(Record):
         return self
 
 
-class RevalidationBundle(Record):
-    schema_version: SchemaVersion
-    project_id: Id
-    synthetic: bool
-    input_digest: Digest
-    run: AuditRun
-    manifest: InputManifest
-    declarations: RevalidationInput
-    evidence: Annotated[list[Evidence], Field(max_length=201)]
-    obligation_dispositions: Annotated[list[ObligationDisposition], Field(max_length=200)]
-    requirement_assessments: Annotated[list[RequirementAssessment], Field(max_length=200)]
-    effective_applicability_decisions: Annotated[list[ApplicabilityDecision], Field(max_length=200)]
-    family_screenings: Annotated[list[FamilyScreening], Field(min_length=11, max_length=11)]
-    gaps: GapTexts
-    next_actions: GapTexts
-    # One attempt per fetched target; retrieved bytes are unreviewed candidates, never declared sources.
-    source_attempts: Annotated[list[SourceAttempt], Field(max_length=16)] = Field(default_factory=list)
-    retrieved_sources: Annotated[list[LegalSource], Field(max_length=16)] = Field(default_factory=list)
-    comparison: DependencyComparison | None = None
-    current_assessments: Annotated[list[CurrentAssessment], Field(max_length=200)] = Field(default_factory=list)
+class _BundleCheck:
+    """The invariants of a finished run's bundle, checked in a fixed order: the first one broken is the
+    error reported. Each step may rely on the lookups the earlier steps built."""
 
-    @model_validator(mode="after")
-    def membership(self) -> RevalidationBundle:
+    STEPS = ("run_identity", "predecessor", "declared_evidence", "coverage", "retrieval", "effective_decisions",
+             "method_dispositions", "requirement_assessments", "family_screenings", "finished_run")
+
+    def __init__(self, bundle: RevalidationBundle):
+        self.bundle, self.declared = bundle, bundle.declarations
+
+    def run(self) -> None:
+        for step in self.STEPS:
+            getattr(self, step)()
+
+    def run_identity(self) -> None:
+        """The run, manifest and declarations belong together, and the run is finished."""
+        bundle, declared = self.bundle, self.declared
         # Nested declarations keep their own per-record limit. A run's derived records (its gaps,
         # dispositions, assessments) are bounded per list and in total, as their declared maxima allow.
-        _collection_bounds(self, list_limit=5000, aggregate=50000, record_limit=None)
-        declared = self.declarations
-        if (self.project_id != declared.project_id or self.run.project_id != self.project_id
-                or self.synthetic != declared.synthetic or self.run.manifest_id != self.manifest.id
-                or self.run.permission_id != declared.scope.permission_id
-                or self.manifest.scope_revision != declared.scope.revision
-                or self.manifest.fixture_digest != self.input_digest):
+        _collection_bounds(bundle, list_limit=5000, aggregate=50000, record_limit=None)
+        if (bundle.project_id != declared.project_id or bundle.run.project_id != bundle.project_id
+                or bundle.synthetic != declared.synthetic or bundle.run.manifest_id != bundle.manifest.id
+                or bundle.run.permission_id != declared.scope.permission_id
+                or bundle.manifest.scope_revision != declared.scope.revision
+                or bundle.manifest.fixture_digest != bundle.input_digest):
             raise ValueError("bundle project/synthetic/run/manifest mismatch")
-        if self.run.state not in ("partial", "completed"):
+        if bundle.run.state not in ("partial", "completed"):
             raise ValueError("bundle requires a finished run")
-        evidence = _unique_records(self.evidence)
+        evidence = _unique_records(bundle.evidence)
         expected_evidence = {item.evidence.id: item.evidence for item in declared.evidence}
+        self.evidence, self.expected_evidence = evidence, expected_evidence
+
+    def predecessor(self) -> None:
+        """A first run claims no predecessor; a later one carries exactly one retained comparison proof."""
+        bundle, evidence, expected_evidence = self.bundle, self.evidence, self.expected_evidence
         proof_ids = set(evidence) - set(expected_evidence)
-        if self.comparison is None:
-            if self.run.parent_run_id is not None or self.current_assessments or proof_ids:
+        if bundle.comparison is None:
+            if bundle.run.parent_run_id is not None or bundle.current_assessments or proof_ids:
                 raise ValueError("first run cannot contain predecessor claims")
         else:
-            comparison = self.comparison
-            if (self.run.parent_run_id != comparison.previous_run_id or self.run.id == comparison.previous_run_id
-                    or self.manifest.id == comparison.previous_manifest_id or len(proof_ids) != 1):
+            comparison = bundle.comparison
+            if (bundle.run.parent_run_id != comparison.previous_run_id or bundle.run.id == comparison.previous_run_id
+                    or bundle.manifest.id == comparison.previous_manifest_id or len(proof_ids) != 1):
                 raise ValueError("comparison predecessor/proof mismatch")
             proof = evidence[next(iter(proof_ids))]
-            if (proof.project_id != self.project_id or proof.run_id != self.run.id
-                    or proof.manifest_id != self.manifest.id or proof.kind != "dependency_comparison"
+            if (proof.project_id != bundle.project_id or proof.run_id != bundle.run.id
+                    or proof.manifest_id != bundle.manifest.id or proof.kind != "dependency_comparison"
                     or proof.digest != content_digest(canonical_json(comparison))
                     or proof.provenance != "observed" or proof.availability != "available"
                     or proof.redaction != "safe" or proof.media_type != "application/json"
                     or proof.attempt_id is not None or proof.source_refs != ["comparison.json"]
                     or proof.browser_context is not None):
                 raise ValueError("comparison proof must describe retained comparison metadata")
-            overlays = _unique_records(self.current_assessments, lambda item: item.obligation_disposition_id)
-            _unique_records(self.current_assessments)
+            overlays = _unique_records(bundle.current_assessments, lambda item: item.obligation_disposition_id)
+            _unique_records(bundle.current_assessments)
             changed_keys = {f"{item.kind}:{item.identity}" for item in comparison.changes}
             if set(overlays) != set(comparison.historical_disposition_ids):
                 raise ValueError("comparison must cover every historical disposition")
             for overlay in overlays.values():
-                if (overlay.project_id != self.project_id or overlay.historical_run_id != comparison.previous_run_id
+                if (overlay.project_id != bundle.project_id or overlay.historical_run_id != comparison.previous_run_id
                         or overlay.expected_manifest_id != comparison.previous_manifest_id
-                        or overlay.observed_manifest_id != self.manifest.id
+                        or overlay.observed_manifest_id != bundle.manifest.id
                         or overlay.comparison_evidence_ids != [proof.id] or not overlay.reasons):
                     raise ValueError("historical freshness overlay membership mismatch")
                 if (bool(overlay.changed_dependencies) != (overlay.freshness == "stale")
                         or not set(overlay.changed_dependencies) <= changed_keys):
                     raise ValueError("stale overlay needs retained changed dependencies")
+
+    def declared_evidence(self) -> None:
+        """Every declared evidence record is retained, with its declared provenance."""
+        bundle, evidence, expected_evidence = self.bundle, self.evidence, self.expected_evidence
         if not set(expected_evidence) <= set(evidence):
             raise ValueError("bundle must retain every declared evidence record")
         for identity in expected_evidence:
             item = evidence[identity]
-            if (item.project_id != self.project_id or item.run_id != self.run.id
-                    or item.manifest_id != self.manifest.id):
+            if (item.project_id != bundle.project_id or item.run_id != bundle.run.id
+                    or item.manifest_id != bundle.manifest.id):
                 raise ValueError("output evidence membership mismatch")
             original = expected_evidence[item.id]
             if item.model_dump(exclude={"run_id", "manifest_id", "digest", "availability"}) != original.model_dump(exclude={"run_id", "manifest_id", "digest", "availability"}):
@@ -1027,26 +1029,35 @@ class RevalidationBundle(Record):
                 raise ValueError("changed evidence digest must remain corrupt")
             if original.availability != "available" and item.availability == "available":
                 raise ValueError("offline observation cannot upgrade unavailable evidence")
+
+    def coverage(self) -> None:
+        """Every requirement and obligation has exactly one effective record."""
+        bundle, declared = self.bundle, self.declared
         obligations = {item.id: item for item in declared.obligations}
         requirements = {item.id: item for item in declared.requirements}
         reviews = {item.id: item for item in declared.evidence_reviews}
-        decisions = _unique_records(self.effective_applicability_decisions)
-        by_obligation = _unique_records(self.effective_applicability_decisions, lambda item: item.obligation.id)
-        dispositions = _unique_records(self.obligation_dispositions)
-        by_disposition = _unique_records(self.obligation_dispositions, lambda item: item.obligation_id)
-        assessments = _unique_records(self.requirement_assessments, lambda item: item.requirement.id)
+        decisions = _unique_records(bundle.effective_applicability_decisions)
+        by_obligation = _unique_records(bundle.effective_applicability_decisions, lambda item: item.obligation.id)
+        dispositions = _unique_records(bundle.obligation_dispositions)
+        by_disposition = _unique_records(bundle.obligation_dispositions, lambda item: item.obligation_id)
+        assessments = _unique_records(bundle.requirement_assessments, lambda item: item.requirement.id)
         if set(by_obligation) != set(obligations) or set(by_disposition) != set(obligations) or set(assessments) != set(requirements):
             raise ValueError("bundle must cover every requirement and obligation")
         source_by_id = {item.source.id: item.source for item in declared.sources}
         facts = {item.id: item for item in scope_facts(declared.scope)}
-        observed_files = {item.path: item.digest for item in self.manifest.source_files}
+        observed_files = {item.path: item.digest for item in bundle.manifest.source_files}
         selected_sources = {item.source.id: item for item in declared.sources}
         selected_evidence = {item.evidence.id: item for item in declared.evidence}
         targets = {item.id: item for item in declared.source_targets}
         source_reviews = {(item.source_id, item.assessment_date): item for item in declared.source_reviews}
-        attempts = _unique_records(self.source_attempts)
-        _unique_records(self.source_attempts, lambda item: item.source_target_id)
-        retrieved = _unique_records(self.retrieved_sources)
+        self.obligations, self.requirements, self.reviews, self.decisions, self.by_obligation, self.dispositions, self.by_disposition, self.assessments, self.source_by_id, self.facts, self.observed_files, self.selected_sources, self.selected_evidence, self.targets, self.source_reviews = obligations, requirements, reviews, decisions, by_obligation, dispositions, by_disposition, assessments, source_by_id, facts, observed_files, selected_sources, selected_evidence, targets, source_reviews
+
+    def retrieval(self) -> None:
+        """Each retrieval attempt matches its target, and each retrieved candidate has exactly one attempt."""
+        bundle, source_by_id, selected_sources, targets = self.bundle, self.source_by_id, self.selected_sources, self.targets
+        attempts = _unique_records(bundle.source_attempts)
+        _unique_records(bundle.source_attempts, lambda item: item.source_target_id)
+        retrieved = _unique_records(bundle.retrieved_sources)
         if set(retrieved) & set(source_by_id):
             raise ValueError("retrieved candidate identity collides with a declared source")
         referenced = set()
@@ -1080,52 +1091,59 @@ class RevalidationBundle(Record):
             raise ValueError("every retrieved candidate needs exactly one attempt")
         # Retrieved bytes per target; a declared source is withdrawn when the host served other bytes than its own.
         fetched_digests = {item.source_target_id: item.retrieval.digest for item in attempts.values() if item.retrieved_source}
+        self.attempts, self.retrieved, self.fetched_digests = attempts, retrieved, fetched_digests
 
-        def admitted_source(source_id: str) -> bool:
-            pending = [source_id]
-            seen = set()
-            while pending:
-                identity = pending.pop()
-                if identity in seen:
-                    continue
-                seen.add(identity)
-                selected = selected_sources[identity]
-                source = selected.source
-                target = targets[selected.target_id]
-                review = source_reviews.get((identity, declared.scope.assessment_date))
-                if not (
-                        fetched_digests.get(selected.target_id, source.content_digest) == source.content_digest
-                        and selected.file and observed_files.get(selected.file.path) == source.content_digest
-                        and selected.media_type.lower() in ("text/plain", "text/html", "application/xhtml+xml")
-                        and (selected.charset is None or selected.charset.lower() == "utf-8")
-                        and source.type == target.intended_type and source.url == target.intended_url
-                        and source.identifier == target.intended_identifier and source.publisher == target.publisher
-                        and source.language == target.language and source.jurisdiction == target.jurisdiction
-                        and review and review.state == "reviewed_for_assessment"
-                        and review.reviewer and review.reviewer.strip() and review.last_successful_verification
-                        and not review.gaps and all(review.review_notes.get(topic, "").strip()
-                                                   for topic in get_args(SourceReviewTopic))):
-                    return False
-                pending.extend([*source.related_source_ids, *review.act_chain,
-                                *review.case_law_refs, *review.national_overlay_ids])
-            return True
+    def admitted_source(self, source_id: str) -> bool:
+        declared, observed_files, selected_sources, targets, source_reviews, fetched_digests = self.declared, self.observed_files, self.selected_sources, self.targets, self.source_reviews, self.fetched_digests
+        pending = [source_id]
+        seen = set()
+        while pending:
+            identity = pending.pop()
+            if identity in seen:
+                continue
+            seen.add(identity)
+            selected = selected_sources[identity]
+            source = selected.source
+            target = targets[selected.target_id]
+            review = source_reviews.get((identity, declared.scope.assessment_date))
+            if not (
+                    fetched_digests.get(selected.target_id, source.content_digest) == source.content_digest
+                    and selected.file and observed_files.get(selected.file.path) == source.content_digest
+                    and selected.media_type.lower() in ("text/plain", "text/html", "application/xhtml+xml")
+                    and (selected.charset is None or selected.charset.lower() == "utf-8")
+                    and source.type == target.intended_type and source.url == target.intended_url
+                    and source.identifier == target.intended_identifier and source.publisher == target.publisher
+                    and source.language == target.language and source.jurisdiction == target.jurisdiction
+                    and review and review.state == "reviewed_for_assessment"
+                    and review.reviewer and review.reviewer.strip() and review.last_successful_verification
+                    and not review.gaps and all(review.review_notes.get(topic, "").strip()
+                                               for topic in get_args(SourceReviewTopic))):
+                return False
+            pending.extend([*source.related_source_ids, *review.act_chain,
+                            *review.case_law_refs, *review.national_overlay_ids])
+        return True
 
-        def retained_evidence(identity: str) -> bool:
-            item = evidence[identity]
-            selected = selected_evidence[identity]
-            return bool(item.availability == "available" and item.redaction == "safe"
-                        and item.digest == selected.evidence.digest and selected.path
-                        and observed_files.get(selected.path) == item.digest)
+    def retained_evidence(self, identity: str) -> bool:
+        evidence, observed_files, selected_evidence = self.evidence, self.observed_files, self.selected_evidence
+        item = evidence[identity]
+        selected = selected_evidence[identity]
+        return bool(item.availability == "available" and item.redaction == "safe"
+                    and item.digest == selected.evidence.digest and selected.path
+                    and observed_files.get(selected.path) == item.digest)
 
-        def admitted_evidence(identity: str) -> bool:
-            item = evidence[identity]
-            proof = item.provenance != "independently_verified" or any(
-                ref != identity and ref in evidence and retained_evidence(ref)
-                and evidence[ref].provenance in ("documented", "observed") for ref in item.source_refs)
-            return retained_evidence(identity) and proof
+    def admitted_evidence(self, identity: str) -> bool:
+        evidence, retained_evidence = self.evidence, self.retained_evidence
+        item = evidence[identity]
+        proof = item.provenance != "independently_verified" or any(
+            ref != identity and ref in evidence and retained_evidence(ref)
+            and evidence[ref].provenance in ("documented", "observed") for ref in item.source_refs)
+        return retained_evidence(identity) and proof
 
+    def effective_decisions(self) -> None:
+        """A resolved decision is the declared, accountable one, resting on admitted facts, sources and evidence."""
+        bundle, declared, evidence, obligations, decisions, source_by_id, facts, admitted_source, admitted_evidence = self.bundle, self.declared, self.evidence, self.obligations, self.decisions, self.source_by_id, self.facts, self.admitted_source, self.admitted_evidence
         for decision in decisions.values():
-            if decision.project_id != self.project_id:
+            if decision.project_id != bundle.project_id:
                 raise ValueError("effective decision project mismatch")
             _require_pin(decision.obligation, obligations)
             _require_pin(decision.scope, {declared.scope.id: declared.scope})
@@ -1148,7 +1166,7 @@ class RevalidationBundle(Record):
                 item.id == decision.id for item in declared.applicability_decisions)
             if synthetic_dependency and not decision.synthetic:
                 raise ValueError("effective decision lost synthetic provenance")
-            if decision.synthetic and not self.synthetic:
+            if decision.synthetic and not bundle.synthetic:
                 raise ValueError("synthetic effective decision in real bundle")
             original = next((item for item in declared.applicability_decisions if item.id == decision.id), None)
             if decision.applicability != "unresolved" and (
@@ -1169,8 +1187,12 @@ class RevalidationBundle(Record):
                     or not all(admitted_source(identity) for identity in obligation.overlay_ids)
                     or not all(pin in decision.provisions for pin in obligation.source_provisions)):
                 raise ValueError("resolved effective decision lacks accountable review")
+
+    def method_dispositions(self) -> None:
+        """Each disposition matches its decision; a passed method has admitted sources and reviewed evidence."""
+        bundle, obligations, reviews, decisions, dispositions, source_by_id, admitted_source, admitted_evidence = self.bundle, self.obligations, self.reviews, self.decisions, self.dispositions, self.source_by_id, self.admitted_source, self.admitted_evidence
         for disposition in dispositions.values():
-            if disposition.project_id != self.project_id or disposition.run_id != self.run.id:
+            if disposition.project_id != bundle.project_id or disposition.run_id != bundle.run.id:
                 raise ValueError("disposition membership mismatch")
             _require_pin(SourceRef(id=disposition.obligation_id, revision=disposition.obligation_revision), obligations)
             decision = decisions.get(disposition.applicability_decision_id)
@@ -1211,7 +1233,11 @@ class RevalidationBundle(Record):
                         and reviews[identity].reviewer.strip() and reviews[identity].reviewed_at
                         and reviews[identity].rationale.strip() for identity in method.review_ids):
                     raise ValueError("documentary failure lacks an accountable insufficient review")
-        for assessment in self.requirement_assessments:
+
+    def requirement_assessments(self) -> None:
+        """A supported requirement has a complete supported mapping."""
+        bundle, evidence, requirements, reviews, dispositions, facts, observed_files, admitted_evidence = self.bundle, self.evidence, self.requirements, self.reviews, self.dispositions, self.facts, self.observed_files, self.admitted_evidence
+        for assessment in bundle.requirement_assessments:
             _require_pin(assessment.requirement, requirements)
             _require_ids(assessment.obligation_disposition_ids, dispositions)
             _require_ids(assessment.evidence_ids, evidence)
@@ -1239,12 +1265,16 @@ class RevalidationBundle(Record):
                 raise ValueError("supported requirement lacks complete supported mapping")
             if assessment.state == "outside_declared_assessment" and not assessment.rationale.strip():
                 raise ValueError("outside assessment needs a reasoned exclusion")
-        screenings = _unique_records(self.family_screenings, lambda item: item.family)
+
+    def family_screenings(self) -> None:
+        """All families are screened; a resolved screening is the declared, accountable one."""
+        bundle, declared, source_by_id, facts, admitted_source, admitted_evidence = self.bundle, self.declared, self.source_by_id, self.facts, self.admitted_source, self.admitted_evidence
+        screenings = _unique_records(bundle.family_screenings, lambda item: item.family)
         if set(screenings) != set(LEGAL_FAMILIES):
             raise ValueError("bundle must screen every candidate legal family")
-        for item in self.family_screenings:
+        for item in bundle.family_screenings:
             _require_pin(item.scope, {declared.scope.id: declared.scope})
-            if item.synthetic and not self.synthetic:
+            if item.synthetic and not bundle.synthetic:
                 raise ValueError("synthetic screening in real bundle")
             for pin in item.fact_refs:
                 _require_pin(pin, facts)
@@ -1268,9 +1298,13 @@ class RevalidationBundle(Record):
                            for pin in item.fact_refs)
                     or not all(admitted_source(pin.id) for pin in item.source_refs)):
                 raise ValueError("resolved screening lacks accountable admitted review")
-        if self.run.state == "completed" and (self.gaps or self.run.gaps or not requirements or not obligations
-                or self.source_attempts or self.retrieved_sources
-                or any(item.gaps or item.state in ("unresolved", "conflicting") for item in self.requirement_assessments)
+
+    def finished_run(self) -> None:
+        """A completed run hides no open gap, and the manifest stays within the offline workflow."""
+        bundle, expected_evidence, obligations, requirements, decisions, dispositions, source_by_id, admitted_source, admitted_evidence = self.bundle, self.expected_evidence, self.obligations, self.requirements, self.decisions, self.dispositions, self.source_by_id, self.admitted_source, self.admitted_evidence
+        if bundle.run.state == "completed" and (bundle.gaps or bundle.run.gaps or not requirements or not obligations
+                or bundle.source_attempts or bundle.retrieved_sources
+                or any(item.gaps or item.state in ("unresolved", "conflicting") for item in bundle.requirement_assessments)
                 or any(item.gaps or item.applicability == "unresolved" for item in decisions.values())
                 or any(item.manual_review in ("pending", "unresolved")
                        or any(method.outcome in ("unresolved_review", "blocked", "not_tested", "lead")
@@ -1278,11 +1312,37 @@ class RevalidationBundle(Record):
                        for item in dispositions.values())
                 or any(not admitted_source(identity) or not source.synthetic for identity, source in source_by_id.items())
                 or any(not admitted_evidence(identity) for identity in expected_evidence)
-                or any(item.freshness != "current_for_recorded_inputs" for item in self.current_assessments)
-                or any(item.gaps or item.applicability == "unresolved" for item in self.family_screenings)):
+                or any(item.freshness != "current_for_recorded_inputs" for item in bundle.current_assessments)
+                or any(item.gaps or item.applicability == "unresolved" for item in bundle.family_screenings)):
             raise ValueError("completed processing cannot hide open gaps")
-        if len(self.manifest.source_files) > 32 or self.manifest.browser_state is not None or self.manifest.graph_digest is not None:
+        if len(bundle.manifest.source_files) > 32 or bundle.manifest.browser_state is not None or bundle.manifest.graph_digest is not None:
             raise ValueError("manifest exceeds offline workflow scope")
+
+
+class RevalidationBundle(Record):
+    schema_version: SchemaVersion
+    project_id: Id
+    synthetic: bool
+    input_digest: Digest
+    run: AuditRun
+    manifest: InputManifest
+    declarations: RevalidationInput
+    evidence: Annotated[list[Evidence], Field(max_length=201)]
+    obligation_dispositions: Annotated[list[ObligationDisposition], Field(max_length=200)]
+    requirement_assessments: Annotated[list[RequirementAssessment], Field(max_length=200)]
+    effective_applicability_decisions: Annotated[list[ApplicabilityDecision], Field(max_length=200)]
+    family_screenings: Annotated[list[FamilyScreening], Field(min_length=11, max_length=11)]
+    gaps: GapTexts
+    next_actions: GapTexts
+    # One attempt per fetched target; retrieved bytes are unreviewed candidates, never declared sources.
+    source_attempts: Annotated[list[SourceAttempt], Field(max_length=16)] = Field(default_factory=list)
+    retrieved_sources: Annotated[list[LegalSource], Field(max_length=16)] = Field(default_factory=list)
+    comparison: DependencyComparison | None = None
+    current_assessments: Annotated[list[CurrentAssessment], Field(max_length=200)] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def membership(self) -> RevalidationBundle:
+        _BundleCheck(self).run()
         return self
 
 
