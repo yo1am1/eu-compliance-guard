@@ -29,6 +29,8 @@ STRONG = {"health", "medical", "diagnosis", "biometric", "pregnancy", "religion"
           "gpt", "newsletter", "unsubscribe", "subscription", "cancellation", "refund", "withdrawal", "retention",
           "geolocation", "fingerprint", "analytics", "tracking", "gtag", "mixpanel", "hotjar", "aria", "a11y", "dob",
           "reqwest", "ureq"}  # Rust HTTP client crates: unambiguous names, unlike Python's "requests"
+# Words that are health data only about a person: alone they are layout ("font-weight", "height").
+NEEDS_PERSON = {"weight", "height", "heart"}
 GIT_PREFIXES = ("a/", "b/", "c/", "i/", "w/", "o/", "1/", "2/")  # git's default, mnemonic and --no-index prefixes
 
 
@@ -286,9 +288,18 @@ def parse_diff(text: str) -> tuple[dict[str, list[tuple[int, str]]], set[str], i
 
 
 def concepts_in(line: str) -> list[str]:
+    """Concepts a line touches: a strong term, or two terms of one concept. Next to personal data,
+    one special-category term ("weight", "height") or a web address (sending it to a third party)
+    is enough: `{"email": user.email, "weight": user.weight_kg}` posted to "https://ads.example"."""
     terms = set(tokens(line))
-    return [key for key, (_, vocabulary) in CONCEPTS.items()
-            if (hits := vocabulary & terms) and (len(hits) >= 2 or hits & STRONG)]
+    found = {key for key, (_, vocabulary) in CONCEPTS.items()
+             if (hits := vocabulary & terms - NEEDS_PERSON) and (len(hits) >= 2 or hits & STRONG)}
+    if "personal_data" in found:
+        if CONCEPTS["special_category"][1] & terms:
+            found.add("special_category")
+        if terms & {"http", "https"}:
+            found.add("third_party")
+    return [key for key in CONCEPTS if key in found]
 
 
 def _code(text: str) -> str:

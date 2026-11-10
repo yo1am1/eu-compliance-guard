@@ -37,6 +37,11 @@
   `omitted_edges`).
 - The plugin's session hook crashed at import on Python 3.9, the `python3` of stock macOS, so
   the plugin's context never loaded there. It now runs on Python 3.8 and later.
+- `pr-check` let `--strict` pass a line posting a user's email and weight to a third-party URL:
+  "weight" needed a second health word, and a web address did not count as a third party.
+  Next to personal data, one special-category word or a web address is now enough. "weight",
+  "height" and "heart" no longer count without a person, so CSS such as `font-weight` and
+  `height` is no longer flagged as health data. `graph` uses the same rule.
 
 ## 2.5.0 — 2026-11-07
 
