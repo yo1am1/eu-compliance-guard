@@ -462,6 +462,7 @@ def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
     These are possible paths found by static parsing; they show where to look, never a finding.
     """
     nodes = {node.id: node for node in graph.nodes}
+    sinks_of = {node.id: [concept for concept in node.concepts if concept in SINKS] for node in graph.nodes}
     calls: dict[str, list[tuple[str, str]]] = {}
     for edge in graph.edges:
         if edge.kind == "calls":
@@ -477,7 +478,7 @@ def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
         for _ in range(max_depth + 1):
             following = []
             for current in frontier:
-                sinks = [concept for concept in nodes[current].concepts if concept in SINKS]
+                sinks = sinks_of[current]
                 if sinks:
                     hops, cursor, provenance = [], current, "extracted"
                     while cursor is not None:
@@ -493,7 +494,10 @@ def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
                     continue  # the first sink on a route ends it; what it calls is the sink's own detail
                 for target, provenance in calls.get(current, []):
                     count = guesses[current] + (provenance == "ambiguous")
-                    if target not in previous and count <= MAX_AMBIGUOUS_HOPS:
+                    # A function first reached through a guess is taken again by a route with fewer
+                    # guesses: that route may go on where the guessed one had to stop.
+                    if count <= MAX_AMBIGUOUS_HOPS and (target not in previous
+                                                        or (count < guesses[target] and not sinks_of[target])):
                         previous[target] = (current, provenance)
                         guesses[target] = count
                         following.append(target)

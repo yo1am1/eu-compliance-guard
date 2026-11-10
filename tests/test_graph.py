@@ -266,6 +266,21 @@ class GraphTests(unittest.TestCase):
             self.assertLessEqual(len(flow["hops"]) - 1, g.MAX_AMBIGUOUS_HOPS)
         self.assertTrue(nodes)
 
+    def test_a_guessed_shortcut_does_not_hide_the_flow_behind_it(self):
+        root = Path(self.temporary.name) / "relay"
+        root.mkdir()
+        (root / "b.py").write_text("def relay(x):\n    w.push(x)\n")
+        (root / "c.py").write_text("def relay(x):\n    return 1\n")
+        (root / "d.py").write_text("def push(x):\n    return openai.complete(x)\n")
+        (root / "e.py").write_text("def push(x):\n    return 1\n")
+        route = "personal_data → ai: a.py:{} start → a.py:{} mid → b.py:1 relay → d.py:1 push (ambiguous)"
+        (root / "a.py").write_text("from b import relay\n\ndef start(email):\n    mid(email)\n\ndef mid(x):\n    relay(x)\n")
+        self.assertEqual([g.describe_flow(flow) for flow in g.flows(g.build_graph(root))], [route.format(3, 6)])
+        # The guessed call start -> relay reaches relay first, but may not follow a second guess to push.
+        (root / "a.py").write_text("from b import relay\n\ndef start(email):\n    obj.relay(email)\n    mid(email)\n\n"
+                                   "def mid(x):\n    relay(x)\n")
+        self.assertEqual([g.describe_flow(flow) for flow in g.flows(g.build_graph(root))], [route.format(3, 7)])
+
     def test_the_contract_rejects_dangling_or_unsorted_edges(self):
         graph = g.build_graph(self.root)
         data = graph.model_dump(mode="json")
