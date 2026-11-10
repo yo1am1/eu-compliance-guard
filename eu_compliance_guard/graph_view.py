@@ -54,11 +54,7 @@ def _law_links(declared: m.RevalidationInput) -> dict[str, list[str]]:
 def render(project: m.ProjectGraph, declared: m.RevalidationInput | None = None, project_id: str = "") -> str:
     nodes = {node.id: node for node in project.nodes}
     flows = graphs.flows(project)
-    refs = {ref for item in (declared.evidence if declared else []) for ref in item.evidence.source_refs}
-    facts_by_evidence: dict[str, set[str]] = {}
-    for fact in (m.scope_facts(declared.scope) if declared else []):
-        for evidence in fact.evidence_ids:
-            facts_by_evidence.setdefault(evidence, set()).add(fact.id)
+    by_evidence = graphs.facts_by_evidence(declared) if declared else {}
     flow_nodes = {graphs.node_id(hop["location"].rpartition(":")[0], hop["name"]) for flow in flows for hop in flow["hops"]}
     calls = [edge for edge in project.edges if edge.kind == "calls"]
     interesting = flow_nodes | {node.id for node in project.nodes if node.kind == "function" and (node.concepts or node.data)}
@@ -114,9 +110,7 @@ def render(project: m.ProjectGraph, declared: m.RevalidationInput | None = None,
 
     flow_rows = []
     for flow in flows:
-        facts = sorted({fact for item in (declared.evidence if declared else [])
-                        if graphs.covers(flow, set(item.evidence.source_refs))
-                        for fact in facts_by_evidence.get(item.evidence.id, ())})
+        facts = graphs.facts_on(flow, declared, by_evidence) if declared else []
         route = " → ".join(f'<a href="#{_anchor(graphs.node_id(hop["location"].rpartition(":")[0], hop["name"]))}">'
                            f'{escape(hop["name"])}</a> <code>{escape(hop["location"])}</code>' for hop in flow["hops"])
         flow_rows.append(f"<tr><td>{escape(', '.join(flow['data']))} → {escape(', '.join(flow['sinks']))}</td><td>{route}</td>"
@@ -124,10 +118,14 @@ def render(project: m.ProjectGraph, declared: m.RevalidationInput | None = None,
     law = _law_links(declared) if declared else {}
     fact_rows = [f"<tr><td><code>{escape(fact)}</code></td><td>{escape('; '.join(items))}</td></tr>" for fact, items in sorted(law.items())]
     function_rows = []
+    callees: dict[str, list[str]] = {}
+    callers: dict[str, list[str]] = {}
+    for edge in calls:  # one pass: scanning every call for each function shown took seconds on a large project
+        callees.setdefault(edge.source, []).append(nodes[edge.target].name)
+        callers.setdefault(edge.target, []).append(nodes[edge.source].name)
     for key in sorted(shown, key=lambda item: (nodes[item].path, nodes[item].line)):
         node = nodes[key]
-        out = sorted(nodes[edge.target].name for edge in calls if edge.source == key)
-        into = sorted(nodes[edge.source].name for edge in calls if edge.target == key)
+        out, into = sorted(callees.get(key, [])), sorted(callers.get(key, []))
         function_rows.append(f'<tr id="{_anchor(key)}"><td><code>{escape(node.path)}:{node.line}</code></td><td>{escape(node.name)}</td>'
                              f"<td>{escape(', '.join(node.concepts) or '—')}</td><td>{escape(', '.join(node.data) or '—')}</td>"
                              f"<td>{escape(', '.join(into) or '—')}</td><td>{escape(', '.join(out) or '—')}</td></tr>")

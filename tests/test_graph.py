@@ -59,6 +59,47 @@ class GraphTests(unittest.TestCase):
         self.assertEqual(concepts["app/llm.py::ask_model"], ["ai"])
         self.assertIn("tracking", concepts["app/analytics.py::track"])
 
+    def test_a_plain_import_resolves_its_module_exactly(self):
+        (self.root / "app/reports.py").write_text(
+            "import app.storage\nimport app\nfrom app import billing\nimport json\n\n\n"
+            "def export(rows):\n    billing.save(rows)\n    json.dumps(rows)\n\n\n"
+            "def missing(rows):\n    billing.no_such_function(rows)\n\n\n"
+            "def archive(rows):\n    app.storage.save(rows)\n\n\n"
+            "def save(rows):\n    return rows\n\n\n"
+            "class Report:\n    def flush(self):\n        self.store.save(self.rows)\n")
+        (self.root / "helpers.py").write_text("def save(rows):\n    return rows\n")
+        (self.root / "cli.py").write_text("import helpers\n\n\ndef run(rows):\n    helpers.save(rows)\n")
+        found = calls(g.build_graph(self.root))
+        # Three files define save(): the module named in the call decides, without a guess.
+        self.assertEqual({(provenance, target) for provenance, source, target in found if source == "cli.py::run"},
+                         {("extracted", "helpers.py::save")})
+        self.assertEqual({(provenance, target) for provenance, source, target in found if source == "app/reports.py::export"},
+                         {("extracted", "app/billing.py::save")})
+        self.assertEqual({(provenance, target) for provenance, source, target in found if source == "app/reports.py::archive"},
+                         {("extracted", "app/storage.py::save")})
+        # An attribute's method is not this file's function of the same name: every save() stays a guess.
+        self.assertEqual({(provenance, target) for provenance, source, target in found if source == "app/reports.py::Report.flush"},
+                         {("ambiguous", f"{path}::save") for path in ("app/billing.py", "app/reports.py", "app/storage.py", "helpers.py")})
+
+    def test_imports_resolve_in_a_src_layout(self):
+        root = Path(self.temporary.name) / "packaged"
+        shutil.copytree(FIXTURE / "app", root / "src/app")
+        graph = g.build_graph(root)
+        names = named(graph)
+        self.assertIn(("src/app/coach.py::src/app/coach.py", "src/app/models.py::src/app/models.py"),  # from app.models
+                      {(names[edge.source], names[edge.target]) for edge in graph.edges if edge.kind == "imports"})
+        (root / "src/app/reports.py").write_text("from app.storage import save\n\n\ndef export(rows):\n    save(rows)\n")
+        self.assertEqual({(provenance, target) for provenance, source, target in calls(g.build_graph(root))
+                          if source == "src/app/reports.py::export"}, {("extracted", "src/app/storage.py::save")})
+
+    def test_a_form_feed_does_not_shift_the_lines_a_definition_is_read_from(self):
+        (self.root / "app/paged.py").write_text("def first():\n    return 1\n\f\ndef ask(prompt):\n    return openai.complete(prompt)\n")
+        (self.root / "paged.rs").write_text("fn first() {}\n\x0c\nfn ask(p: &str) {\n    let x = 1;\n    openai_complete(p) }\n")
+        nodes = {f"{node.path}::{node.name}": node for node in g.build_graph(self.root).nodes}
+        for path in ("app/paged.py", "paged.rs"):
+            self.assertEqual(nodes[f"{path}::ask"].concepts, ["ai"], path)
+        self.assertEqual((nodes["app/paged.py::app/paged.py"].end_line, nodes["paged.rs::paged.rs"].end_line), (5, 5))
+
     def test_graph_is_byte_identical_wherever_the_project_lives(self):
         first = g.to_json(g.build_graph(self.root))
         self.assertEqual(g.to_json(g.build_graph(self.root)), first)
@@ -224,6 +265,21 @@ class GraphTests(unittest.TestCase):
         for flow in g.flows(guessed):
             self.assertLessEqual(len(flow["hops"]) - 1, g.MAX_AMBIGUOUS_HOPS)
         self.assertTrue(nodes)
+
+    def test_a_guessed_shortcut_does_not_hide_the_flow_behind_it(self):
+        root = Path(self.temporary.name) / "relay"
+        root.mkdir()
+        (root / "b.py").write_text("def relay(x):\n    w.push(x)\n")
+        (root / "c.py").write_text("def relay(x):\n    return 1\n")
+        (root / "d.py").write_text("def push(x):\n    return openai.complete(x)\n")
+        (root / "e.py").write_text("def push(x):\n    return 1\n")
+        route = "personal_data → ai: a.py:{} start → a.py:{} mid → b.py:1 relay → d.py:1 push (ambiguous)"
+        (root / "a.py").write_text("from b import relay\n\ndef start(email):\n    mid(email)\n\ndef mid(x):\n    relay(x)\n")
+        self.assertEqual([g.describe_flow(flow) for flow in g.flows(g.build_graph(root))], [route.format(3, 6)])
+        # The guessed call start -> relay reaches relay first, but may not follow a second guess to push.
+        (root / "a.py").write_text("from b import relay\n\ndef start(email):\n    obj.relay(email)\n    mid(email)\n\n"
+                                   "def mid(x):\n    relay(x)\n")
+        self.assertEqual([g.describe_flow(flow) for flow in g.flows(g.build_graph(root))], [route.format(3, 7)])
 
     def test_the_contract_rejects_dangling_or_unsorted_edges(self):
         graph = g.build_graph(self.root)

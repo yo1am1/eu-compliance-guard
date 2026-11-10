@@ -38,6 +38,26 @@ class TokenizerTests(unittest.TestCase):
             ("Account.register", "Client", "new", 4), ("Account.register", ".", "post", 4),
             ("Account.register", ".", "send", 4), ("Account.register", None, "helper", 4), ("T.b", ".", "a", 8)])
 
+    def test_only_test_code_is_left_out(self):
+        def items(source):
+            return [item["qualname"] for item in r.read_file("src/lib.rs", source)["items"]]
+
+        # A test-only import or a `not(test)` gate never hides the production item beside it.
+        self.assertEqual(items("#[cfg(test)]\nuse mockall::automock;\n\npub fn send_email() {}\n"), ["send_email"])
+        self.assertEqual(r.read_file("src/lib.rs", "#[cfg(test)]\nuse mockall::automock;\n")["uses"], [])
+        self.assertEqual(items("#[cfg(not(test))]\nfn send_email() {}\n"), ["send_email"])
+        self.assertEqual(items('#[cfg(feature = "test")]\nfn send_email() {}\n'), ["send_email"])
+        # Test code stays out behind a visibility, a runtime's test attribute or its arguments.
+        self.assertEqual(items("#[cfg(test)]\npub(crate) fn fake_user() {}\nfn real() {}\n"), ["real"])
+        self.assertEqual(items("#[cfg(all(test, not(feature = \"slow\")))]\npub(in crate::a) mod helpers { fn f() {} }\n"), [])
+        self.assertEqual(items("#[tokio::test]\nasync fn it_sends() {}\n#[tokio::test(flavor = \"multi_thread\")]\n"
+                               "async fn it_waits() {}\n#[test]\n#[ignore]\nfn slow() {}\nfn real() {}\n"), ["real"])
+
+    def test_an_escaped_quote_char_does_not_swallow_the_code_after_it(self):
+        source = "fn quote(c: char) -> bool { ['\\'','\"'].contains(&c) }\nfn send_email() {}\nfn label() -> &'static str { \"x\" }\n"
+        self.assertEqual([item["qualname"] for item in r.read_file("src/lib.rs", source)["items"]],
+                         ["quote", "send_email", "label"])
+
     def test_module_paths(self):
         self.assertEqual(r.module_path("app/src/lib.rs"), ("app", ()))
         self.assertEqual(r.module_path("app/src/main.rs"), ("app", ()))
@@ -85,6 +105,19 @@ class RustGraphTests(unittest.TestCase):
         calls = {(provenance, target) for provenance, source, target in self.calls(g.build_graph(self.root))
                  if source == "src/platform.rs::start"}
         self.assertEqual(calls, {("extracted", "src/platform.rs::open_db"), ("extracted", "src/helpers.rs::unique_helper")})
+
+    def test_a_full_path_call_resolves_without_a_use(self):
+        (self.root / "src/net.rs").write_text("pub fn send() {}\npub struct Mailer;\nimpl Mailer { pub fn new() {} }\n")
+        (self.root / "src/other.rs").write_text("pub fn send() {}\n")
+        (self.root / "src/billing/signup.rs").write_text(
+            "pub fn signup() { crate::net::send(); crate::net::Mailer::new(); super::super::net::send(); }\n"
+            "pub fn typed() { Vec::<u8>::new(); <u8 as Default>::default(); }\n")
+        found = self.calls(g.build_graph(self.root))
+        self.assertEqual({(provenance, target) for provenance, source, target in found
+                          if source == "src/billing/signup.rs::signup"},
+                         {("extracted", "src/net.rs::send"), ("extracted", "src/net.rs::Mailer.new")})
+        # A type behind generics names no project code, even when one `new` exists in the project.
+        self.assertFalse([target for _, source, target in found if source == "src/billing/signup.rs::typed"])
 
     def test_deterministic_and_separate_from_python(self):
         (self.root / "helper.py").write_text("def ask_model(prompt):\n    return prompt\n\n\ndef caller():\n    ask_model('x')\n")
