@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added (tests)
+
+- `make e2e` (`scripts/e2e.py`, also in CI): every command driven from outside on a fresh
+  fictional project with the real GDPR and ePrivacy texts as declared sources, 109 checks of
+  exit codes, output, files, determinism and the legal notice, including the MCP server over
+  stdio and a tampered run. `--live` also expects both acts confirmed as current by the
+  Publications Office.
+
 ### Removed
 
 - Code no command used (Owner decision, YAGNI): the offline Linux executor helper
