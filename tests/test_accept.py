@@ -50,6 +50,40 @@ class AcceptTests(unittest.TestCase):
         decision = next(item for item in bundle.effective_applicability_decisions if item.obligation.id == obligation.id)
         self.assertEqual(decision.applicability, "unresolved")
 
+    def write_lock(self, keys):
+        from eu_compliance_guard import lawlock
+        lock = m.LawLock(schema_version=1, lock_version=1, project_id="project-example", run_id="run-1", entries=[
+            m.LawLockEntry(target_id="target-example", version=None, source_digest="sha256:" + "0" * 64,
+                           articles=[m.LawLockArticle(key=key, digest="sha256:" + "1" * 64) for key in keys])])
+        lawlock.write(lock, self.root / lawlock.LOCK_NAME)
+
+    def test_accept_refuses_an_article_the_text_does_not_have(self):
+        self.write_lock(["Article 1", "Article 3"])
+        before = self.path.read_bytes()
+        code, out, err = self.cli("accept", "requirement-unmapped=target-example:Article 999", "--input", self.path)
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("unknown-article", err)
+        self.assertEqual(self.path.read_bytes(), before)
+        code, out, _ = self.cli("accept", "requirement-unmapped=target-example:Article 3", "--input", self.path)
+        self.assertEqual(code, 0)
+        self.assertNotIn("not checked", out)
+
+    def test_accept_says_when_there_is_no_text_to_check_against(self):
+        code, out, _ = self.cli("accept", "requirement-unmapped=target-example:Article 3", "--input", self.path)
+        self.assertEqual(code, 0)
+        self.assertIn("Article 3 was not checked against the act: target-example has no retained text or lock entry yet.", out)
+
+    def test_pack_build_refuses_a_pin_the_locked_text_does_not_have(self):
+        from eu_compliance_guard import packs
+        mapping.accept(self.path, "requirement-unmapped=target-example:Article 9")  # no lock yet: accepted, unchecked
+        self.write_lock(["Article 1"])
+        with self.assertRaises(packs.PackError) as raised:
+            packs.build(self.path, "pack-x", "X")
+        self.assertEqual(raised.exception.code, "unknown-article")
+        self.write_lock(["Article 1", "Article 9"])
+        pack = packs.build(self.path, "pack-x", "X")
+        self.assertEqual([[a.key for a in entry.articles] for entry in pack.law], [["Article 9"]])
+
     def test_accept_reuses_an_obligation_pinning_the_same_article_and_is_idempotent(self):
         data = json.loads(self.path.read_text())
         pin = next(item for item in data["obligations"] if item["id"] == "obligation-unmapped")["source_provisions"][0]

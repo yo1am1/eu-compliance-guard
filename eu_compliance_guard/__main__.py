@@ -9,7 +9,7 @@ _ERROR_CODES = {
     "incomplete-run", "corrupt-run",
     "wrong-project", "invalid-revision", "not-observable", "bad-location", "unrelated-line", "no-run",
     "unknown-id", "unreviewed-decision", "bad-principal", "signing-failed", "pack-conflict", "unsigned-pack",
-    "bad-signature",
+    "bad-signature", "unknown-article",
 }
 _DEFAULT_INPUT = ".eu-compliance-guard/declarations.json"
 

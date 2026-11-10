@@ -15,6 +15,10 @@
 - `timeline` now says its dates come from the retained version of each act and that a later
   amending act, such as Regulation (EU) 2026/1744 for the AI Act's high-risk dates, is not
   reflected unless that version includes it.
+- `accept` mapped a requirement to an article the act does not have ("Article 999"), and
+  `pack build` packaged it, dropping it from the pack's law digests without a word. Both now
+  check the article against the locked and declared text and fail with `unknown-article`;
+  with no text to check against, `accept` says so.
 
 ## 2.5.0 — 2026-11-07
 

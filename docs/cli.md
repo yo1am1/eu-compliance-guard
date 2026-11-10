@@ -232,7 +232,10 @@ binding law and a recommendation otherwise, with no invented review methods. Rev
 rise and every pin follows. The file is validated and written atomically, never
 through a link, and running it again changes nothing. No applicability decision is
 recorded: the obligation stays unresolved until a named reviewer decides.
-`/eucg-next` offers this for mapping steps.
+The article must exist in the target's text, read from `eu-law.lock` and the declared source
+copies; otherwise `accept` fails with `unknown-article` and changes nothing. With no text to
+check against yet, it says the article was not checked. `pack build` likewise refuses a pin
+that the locked text does not have. `/eucg-next` offers this for mapping steps.
 
 ## Grounding assumptions in the code
 
