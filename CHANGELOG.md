@@ -23,6 +23,10 @@
   act was declared, and passed it when that act had an Article 9. A citation naming an act it
   does not recognise (a Regulation, Directive, Act, ... that is neither declared nor known) is
   now reported as not checked.
+- `verify` reported a decision signed without `eu-law.lock` as "decision, law and evidence
+  unchanged", although that signature pins no article text. It now says the law is not pinned
+  and to lock and sign again. Tests now cover a changed law digest, changed evidence and a
+  removed decision.
 
 ## 2.5.0 — 2026-11-07
 

@@ -150,8 +150,10 @@ def verify(declarations: str | os.PathLike, allowed_signers: str, lock_path: str
             changed = [part for part in ("decision", "obligation", "law", "evidence") if current[part] != payload[part]]
         except SigningError:
             changed = ["decision removed"]
+        law = payload.get("law") if isinstance(payload.get("law"), list) else []
+        pinned = all(isinstance(item, dict) and item.get("digest") for item in law)
         results.append({"decision": decision_id, "principal": principal, "signature": "valid" if valid else "invalid",
-                        "commit": payload.get("commit"), "changed": changed})
+                        "commit": payload.get("commit"), "changed": changed, "law_pinned": pinned})
     # A reviewed decision with no signature file is listed, so a missing signature is never silent.
     signed = {item["decision"] for item in results}
     for decision in r.load_input(path).applicability_decisions:
@@ -173,6 +175,9 @@ def format_verify(results: list[dict]) -> str:
         elif item["changed"]:
             lines.append(f"- {item['decision']}: signed by {item['principal']}, but since then changed: {', '.join(item['changed'])}"
                          " — review and sign again")
+        elif not item.get("law_pinned", True):
+            lines.append(f"- {item['decision']}: signed by {item['principal']}; decision and evidence unchanged, but the "
+                         "signature pins no article text (signed without eu-law.lock): run lock and sign again")
         else:
             lines.append(f"- {item['decision']}: signed by {item['principal']}; decision, law and evidence unchanged")
     lines.append("A signature shows who recorded a decision against which text; it is not a compliance verdict.")

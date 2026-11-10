@@ -389,7 +389,8 @@ each signature, then compares the signed record with the current files. It repor
 signature as valid and current, valid but out of date (naming what changed since: the
 decision, the obligation, the law or the evidence), or invalid. A signature file must
 hold the decision it is named after, and a reviewed decision with no signature is listed
-as not signed (which does not fail the command). A signature shows who
+as not signed (which does not fail the command). A decision signed before `lock` pins no
+article text; `verify` says so instead of reporting the law unchanged. A signature shows who
 recorded a decision against which text. It does not make the decision right.
 
 ## Citation guard and MCP tools
