@@ -107,6 +107,18 @@ class PluginLayoutTests(unittest.TestCase):
         from eu_compliance_guard.sources import OFFICIAL_HOSTS
         self.assertEqual(set(re.findall(r"`([a-z.-]+\.(?:europa\.eu|gov\.uk))`", audit)), set(OFFICIAL_HOSTS))
 
+    def test_skills_cover_every_step_kind_mcp_tool_and_the_admitted_uk_url(self):
+        from eu_compliance_guard.mcp_server import TOOLS
+        from eu_compliance_guard.nextstep import KINDS
+        walk = (ROOT / "skills/eucg-next/SKILL.md").read_text()
+        for kind in KINDS:
+            self.assertIn(f"- `{kind}`:", walk)
+        help_card = (ROOT / "skills/eucg-help/SKILL.md").read_text()
+        for tool in TOOLS:
+            self.assertIn(f"`{tool['name']}`", help_card)
+        # legislation.gov.uk's /data.xht is a fragment that content screening holds for review; /data.htm is admitted.
+        self.assertNotIn("data.xht", (ROOT / "skills/eucg-audit/SKILL.md").read_text())
+
     def test_hook_config_runs_the_shipped_script(self):
         config = json.loads((ROOT / "hooks/hooks.json").read_text())
         [entry] = config["hooks"]["SessionStart"]
