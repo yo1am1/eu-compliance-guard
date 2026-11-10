@@ -1831,6 +1831,24 @@ class RunCompletion(Record):
         return self
 
 
+class SealEntry(Record):
+    """One line of `.eu-compliance-guard/runs.log`: a run's completion marker, chained to the line before."""
+    schema_version: SchemaVersion
+    seq: Annotated[int, Field(ge=1, le=MAX_SEQUENCE)]
+    project_id: Id
+    run_id: Id
+    marker: Digest  # of the run's complete.json, which lists every artifact's digest
+    previous: Digest | None  # of the previous line as written; None only for the first
+    principal: Annotated[str, Field(min_length=1, max_length=256)] | None
+    signature: Annotated[str, Field(min_length=1, max_length=8192)] | None
+
+    @model_validator(mode="after")
+    def consistent(self) -> SealEntry:
+        if (self.seq == 1) != (self.previous is None) or (self.principal is None) != (self.signature is None):
+            raise ValueError("seal entry chain or signature fields are inconsistent")
+        return self
+
+
 # Review progress (docs/decisions/dashboard-review-progress.md): separate meters, each points out of
 # 10 for recorded review steps of one run. There is deliberately no total, sum or average.
 SCORE_NOTICE = "Points count recorded review steps in this run. They are not a compliance score or verdict."

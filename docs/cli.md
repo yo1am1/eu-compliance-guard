@@ -29,6 +29,7 @@ provides the `eu-compliance-guard` command (also `python -m eu_compliance_guard`
 | `graph [--input <file>] [--json] [--view [--open]]` | Map the project's Python and Rust files, functions, imports, calls and data flows (static) |
 | `export ropa\|dpia [--input <file>] [--format md\|json\|csv] [--output <file>]` | Draft a record of processing activities (Art. 30(1)) or DPIA screening inputs (Art. 35, WP248 criteria) from the declarations |
 | `timeline [--input <file>] [--run <run dir>] [--json]` | List application, entry-into-force and transposition dates quoted from the retained text, reached or upcoming against the assessment date |
+| `seal [--run <run dir>] [--key <ssh key> --principal <name>]` · `seal --check [--allowed-signers <file>] [--json]` | Append a run to the tamper-evident log `runs.log`; check the chain, the sealed runs and signatures (exit 1 on a break) |
 | `semantic status\|setup [--json]` | Optional semantic ranking of article suggestions: show whether it is on and ready, or download the pinned model once |
 | `mcp [--input <file>]` | Serve `cite_check`, `article_search`, `ground`, `pr_check`, `timeline` and `next_steps` as read-only MCP tools over stdio |
 
@@ -393,6 +394,28 @@ hold the decision it is named after, and a reviewed decision with no signature i
 as not signed (which does not fail the command). A decision signed before `lock` pins no
 article text; `verify` says so instead of reporting the law unchanged. A signature shows who
 recorded a decision against which text. It does not make the decision right.
+
+## Sealed runs (tamper evidence)
+
+A run's `complete.json` lists the digest of every artifact, which catches a damaged or
+half-written run. It cannot catch tampering: whoever can write the run folder can change the
+report and recompute the digests. `seal` closes that gap with a log kept in the project,
+`.eu-compliance-guard/runs.log`. Each line holds a run's id, the digest of its `complete.json`,
+and the digest of the line before it. `seal` appends the newest run (or `--run`); sealing the
+same run twice changes nothing, and a run id already sealed with other contents is refused
+(`seal-conflict`).
+
+`seal --check` reads the log and reports, per entry: whether the chain holds, and whether the
+run is intact, changed since it was sealed, or not on this machine (runs live outside the
+repository, so a colleague's clone has the log but not the runs; that is not a failure). It
+also names local runs that are not sealed. It exits 1 on a broken chain, a changed run or an
+invalid signature.
+
+The log is only as strong as its anchor. Commit `runs.log` to Git: rewriting a sealed run then
+also needs a visible rewrite of history. Or sign each entry with your SSH key
+(`--key … --principal …`, checked with `--check --allowed-signers FILE`, the same files as
+`sign` and `verify`). Without either, someone who can write both the runs and the log can
+rewrite both.
 
 ## Citation guard and MCP tools
 

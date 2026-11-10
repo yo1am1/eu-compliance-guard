@@ -7044,6 +7044,92 @@
       "title": "Scorecard",
       "type": "object"
     },
+    "SealEntry": {
+      "additionalProperties": false,
+      "description": "One line of `.eu-compliance-guard/runs.log`: a run's completion marker, chained to the line before.",
+      "properties": {
+        "marker": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Marker",
+          "type": "string"
+        },
+        "previous": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Previous"
+        },
+        "principal": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Principal"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "seq": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "signature": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Signature"
+        }
+      },
+      "required": [
+        "schema_version",
+        "seq",
+        "project_id",
+        "run_id",
+        "marker",
+        "previous",
+        "principal",
+        "signature"
+      ],
+      "title": "SealEntry",
+      "type": "object"
+    },
     "SelectedEvidence": {
       "additionalProperties": false,
       "properties": {

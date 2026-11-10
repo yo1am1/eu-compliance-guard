@@ -312,7 +312,7 @@ def _declarations(path: Path) -> tuple[m.RevalidationInput, Path]:
 
 
 # What the tool itself writes beside the declarations: never project code, and imports are untrusted.
-TOOL_OUTPUTS = ("eu-law.lock", "imports", "signatures")
+TOOL_OUTPUTS = ("eu-law.lock", "imports", "signatures", "runs.log")
 
 
 def _own_files(path, root: Path, declared: m.RevalidationInput | None = None) -> frozenset[str]:

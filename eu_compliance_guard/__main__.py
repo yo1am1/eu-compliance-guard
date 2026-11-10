@@ -9,7 +9,7 @@ _ERROR_CODES = {
     "incomplete-run", "corrupt-run",
     "wrong-project", "invalid-revision", "not-observable", "bad-location", "unrelated-line", "no-run",
     "unknown-id", "unreviewed-decision", "bad-principal", "signing-failed", "pack-conflict", "unsigned-pack",
-    "bad-signature", "unknown-article",
+    "bad-signature", "unknown-article", "seal-conflict", "invalid-seal-log",
 }
 _DEFAULT_INPUT = ".eu-compliance-guard/declarations.json"
 
@@ -159,6 +159,15 @@ def _command(argv: list[str] | None) -> int:
     when.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
     when.add_argument("--run", help="Completed run directory (default: the newest run in this project's state-dir)")
     when.add_argument("--json", action="store_true", help="Print the result as JSON")
+    seal = commands.add_parser("seal", help="Append a run to the tamper-evident log runs.log, or check the log with --check",
+                               allow_abbrev=False)
+    seal.add_argument("--run", help="Completed run directory (default: the newest run in this project's state-dir)")
+    seal.add_argument("--input", default=".eu-compliance-guard/declarations.json", help="Declarations file")
+    seal.add_argument("--key", help="SSH private key to sign the entry with (optional)")
+    seal.add_argument("--principal", help="Signer identity, required with --key")
+    seal.add_argument("--check", action="store_true", help="Verify the chain, the sealed runs on this machine and signatures")
+    seal.add_argument("--allowed-signers", help="With --check: OpenSSH allowed-signers file to verify signatures against")
+    seal.add_argument("--json", action="store_true", help="With --check: print the result as JSON")
     semantic = commands.add_parser("semantic", help="Optional semantic search for article suggestions: show its status or set it up",
                                    allow_abbrev=False)
     semantic.add_argument("action", choices=["status", "setup"],
@@ -284,6 +293,8 @@ def _command(argv: list[str] | None) -> int:
         return _cite_check(args)
     if args.command == "semantic":
         return _semantic(args)
+    if args.command == "seal":
+        return _seal(args)
     if args.command == "timeline":
         return _timeline(args)
     if args.command == "export":
@@ -446,6 +457,33 @@ def _export(args) -> int:
         _emit_text(f"{args.output}: draft {args.kind} export written ({args.format}). Review it before relying on it.")
     else:
         _emit(text, end="")
+    return 0
+
+
+def _seal(args) -> int:
+    import json
+    from . import authoring, nextstep, seal
+    try:
+        state = authoring.state_dir(args.input, create=False)
+        if args.check:
+            report = seal.check(args.input, state, args.allowed_signers)
+        else:
+            run = args.run or nextstep.latest_run(state)
+            if run is None:
+                raise nextstep.NoRun("no-run")
+            result = seal.seal(args.input, run, args.key, args.principal)
+    except KeyboardInterrupt:
+        return 130
+    except Exception as error:
+        code = getattr(error, "code", None)
+        print(f"eu-compliance-guard: {code if code in _ERROR_CODES else 'seal-failed'}: seal failed", file=sys.stderr)
+        return 2
+    if args.check:
+        (_emit(json.dumps(report, indent=2)) if args.json else _emit_text(seal.format_check(report)))
+        return 0 if report["ok"] else 1
+    _emit_text(f"{result['path']}: run {result['run_id']} " + ("was already sealed" if result["already"] else "sealed")
+               + f" as entry {result['seq']}" + (", signed" if result["signed"] else "")
+               + ". Commit runs.log to Git so a rewrite is visible.")
     return 0
 
 
