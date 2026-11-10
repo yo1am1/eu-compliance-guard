@@ -26,6 +26,31 @@ The tests use synthetic data, fake transports and fake processes. They do not au
 machine, contact official sources or a model provider, or change OS policy. Real
 retrieval runs only with `make verify-hosts`, which asks for consent.
 
+## Where things live
+
+Everything is in `eu_compliance_guard/`; each module's first docstring line says what it does.
+
+| Area | Modules |
+| --- | --- |
+| Command line | `__main__.py`: one parser, one handler per command, one error path (`_try`) |
+| Records and schema | `models.py` (every validated record), `schema.py`, `contract.schema.json` (generated) |
+| A run | `revalidation.py` (assemble and publish), `sources.py` (official retrieval), `history.py` (predecessor), `report.py`, `view.py`, `scorecard.py`, `nextstep.py` |
+| Law text | `articles.py` (split and search), `semantic.py` (optional model), `citations.py`, `timeline.py`, `lawlock.py`, `consolidation.py`, `jurisdictions.py` |
+| The project's code | `grounding.py`, `graph.py`, `rust_graph.py`, `graph_view.py`, `prcheck.py` |
+| Declarations | `authoring.py` (`init`, `check`), `mapping.py` (`accept`), `packs.py`, `imports.py`, `exports.py` |
+| Trust | `signing.py` (decisions), `seal.py` (runs) |
+| Shared helpers | `errors.py` (`CodedError`), `files.py` (atomic writes), `notice.py` (the legal notice) |
+| Other entry points | `mcp_server.py`, `evaluation.py` (`make eval`), `hooks/` (session hook and band) |
+
+Conventions that keep it small:
+
+- A new command is a parser entry, a `_name(args)` handler and a line in `_HANDLERS`. The work
+  goes inside `_try(...)`, which prints the one fixed diagnostic; output goes through `_show`.
+- A failure with a fixed code raises a `CodedError` subclass. Never put input text in an error.
+- Project files are written with `files.write_bytes` or `files.replace_existing`, nothing else.
+- `tests/test_hygiene.py` fails on unused imports, a repeated error class, or a second broad
+  `except` in the CLI.
+
 ## Rules the checks enforce
 
 - **Security, then determinism, then features.** The same inputs give byte-identical

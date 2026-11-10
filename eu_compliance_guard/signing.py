@@ -15,7 +15,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from . import articles, lawlock, models as m, revalidation as r
+from . import articles, files, lawlock, models as m, revalidation as r
+from .errors import CodedError
 
 NAMESPACE = "eucg-decision"
 FORMAT = "eucg-decision-v1"
@@ -23,10 +24,8 @@ TIMEOUT = 60
 MAX_SIGNATURE_BYTES = 4 * 1024 * 1024
 
 
-class SigningError(ValueError):
-    def __init__(self, code: str):
-        self.code = code
-        super().__init__(code)
+class SigningError(CodedError):
+    pass
 
 
 def _canonical(value) -> bytes:
@@ -117,7 +116,7 @@ def sign(declarations: str | os.PathLike, decision_id: str, key: str, principal:
     if folder.is_symlink():
         raise SigningError("unsafe-path")
     stored = {"format": FORMAT, "principal": principal, "payload": payload, "signature": armored}
-    return lawlock.write_bytes(folder / f"{decision_id}.json",
+    return files.write_bytes(folder / f"{decision_id}.json",
                                (json.dumps(stored, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"))
 
 

@@ -19,7 +19,8 @@ import os
 from pathlib import Path
 import stat
 
-from . import models as m, revalidation as r
+from . import files, models as m, revalidation as r
+from .errors import CodedError
 
 MAX_FILES = 2000
 MAX_FILE_BYTES = 1024 * 1024
@@ -593,39 +594,9 @@ def apply(path: str | os.PathLike, fact_id: str, location: str, now: str | None 
         return record
     content = (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
     with r._parent(path) as (parent_fd, name):
-        _replace(parent_fd, name, content)
+        files.replace_existing(parent_fd, name, content)
     return record
 
 
-def _replace(parent_fd: int, name: str, content: bytes) -> None:
-    """Atomically replace a writable project file, keeping its permission bits.
-
-    Like an editor, a read-only file is refused rather than replaced: os.access for the
-    caller, and the owner's write bit, which root's access check ignores.
-    """
-    info = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
-    if not stat.S_ISREG(info.st_mode):
-        raise r.RevalidationError("unsafe-path")
-    mode = stat.S_IMODE(info.st_mode) & 0o777
-    if not mode & stat.S_IWUSR or not os.access(name, os.W_OK, dir_fd=parent_fd, follow_symlinks=False):
-        raise r.RevalidationError("io-failed")
-    # Created exclusively without following links, so a planted temp symlink is replaced, never written through.
-    temporary = "." + name + ".tmp"
-    try:
-        os.unlink(temporary, dir_fd=parent_fd)
-    except FileNotFoundError:
-        pass
-    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=parent_fd)
-    with os.fdopen(fd, "wb") as handle:
-        os.fchmod(fd, mode)
-        handle.write(content)
-        handle.flush()
-        os.fsync(fd)
-    os.replace(temporary, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
-    os.fsync(parent_fd)
-
-
-class GroundingError(ValueError):
-    def __init__(self, code: str):
-        self.code = code
-        super().__init__(code)
+class GroundingError(CodedError):
+    pass

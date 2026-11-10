@@ -17,6 +17,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from .errors import CodedError
 
 MODEL = "BAAI/bge-small-en-v1.5"
 MODEL_LABEL = "bge-small-en-v1.5"
@@ -38,10 +39,8 @@ NEAR = 10  # a hit is labelled with each ranking that has it this near the top
 DECIMALS = 4
 
 
-class SemanticError(ValueError):
-    def __init__(self, code: str):
-        self.code = code
-        super().__init__(code)
+class SemanticError(CodedError):
+    pass
 
 
 def _home(variable: str, fallback: str) -> Path:

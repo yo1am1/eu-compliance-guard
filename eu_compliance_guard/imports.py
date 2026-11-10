@@ -14,7 +14,8 @@ import json
 import os
 from pathlib import Path
 
-from . import lawlock, models as m, prcheck, revalidation as r
+from . import files, models as m, prcheck, revalidation as r
+from .errors import CodedError
 
 FORMAT = "eucg-import-v1"
 KINDS = ("wec", "sarif")
@@ -23,10 +24,8 @@ MAX_EXAMPLES = 5
 MAX_TEXT = 160
 
 
-class ImportFailure(ValueError):
-    def __init__(self, code: str):
-        self.code = code
-        super().__init__(code)
+class ImportFailure(CodedError):
+    pass
 
 
 def _plain(value) -> str:
@@ -140,9 +139,9 @@ def import_file(declarations: str | os.PathLike, path: str | os.PathLike, kind: 
     folder.mkdir(mode=0o700, exist_ok=True)
     stem = f"{kind}-{summary['digest'].removeprefix('sha256:')[:16]}"
     # Another tool's output can name the site's users or internals: readable by the owner only.
-    lawlock.write_bytes(folder / f"{stem}.json", raw.content, mode=0o600)
+    files.write_bytes(folder / f"{stem}.json", raw.content, mode=0o600)
     summary["copy"] = f"imports/{stem}.json"
-    target = lawlock.write_bytes(folder / f"{stem}.summary.json",
+    target = files.write_bytes(folder / f"{stem}.summary.json",
                                  (json.dumps(summary, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"),
                                  mode=0o600)
     return target, summary

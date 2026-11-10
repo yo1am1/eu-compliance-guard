@@ -16,6 +16,7 @@ import stat
 from urllib.parse import quote
 
 from .notice import LEGAL_NOTICE
+from .errors import CodedError
 from . import articles, grounding, models as m, nextstep, revalidation as r, scorecard
 
 CSS = """
@@ -50,10 +51,8 @@ ul{margin:0;padding-left:20px}code{font-size:13px;overflow-wrap:anywhere}td:firs
 """
 
 
-class ViewError(ValueError):
-    def __init__(self, code: str):
-        self.code = code
-        super().__init__(code)
+class ViewError(CodedError):
+    pass
 
 
 def _tag(value: str, confirmed: bool = True) -> str:

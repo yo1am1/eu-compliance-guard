@@ -439,11 +439,6 @@ def _explained_query(statement: str) -> dict[str, tuple[float, str]]:
     return terms
 
 
-def _query(statement: str) -> dict[str, float]:
-    """Statement terms at 1.0 plus their legal-vocabulary counterparts at 0.8, all stemmed."""
-    return {term: weight for term, (weight, _) in _explained_query(statement).items()}
-
-
 class _Field:
     """One field of every article, tokenised once: term counts, lengths and document frequencies."""
 
