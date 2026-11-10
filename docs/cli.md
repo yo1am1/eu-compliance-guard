@@ -124,7 +124,8 @@ not be read, becomes a review gap on the run; the declarations are never changed
 - DNS answers must all be public, and the connection is pinned to a validated
   address. TLS is verified.
 - At most three validated redirects are followed. Limits are 8 MiB per response,
-  20 s per target (45 s on legislation.gov.uk) and 300 s per run.
+  20 s per target (45 s on legislation.gov.uk) and 300 s per run, which the act retrieval and
+  the consolidation queries share.
 - Fictional fixture targets are never contacted.
 
 Each target gets a recorded attempt. Accepted bytes are retained as unreviewed
@@ -270,16 +271,19 @@ dependency folders are skipped, and a file that does not parse is counted as ski
 For Rust, `fn` items are functions; `struct`, `enum`, `trait` and `union` items are classes;
 methods are named `Type.method`. Calls resolve through the file's own items, `use` imports
 (`crate::`, `super::`, `self::`) and `mod` declarations, then a unique name in the project;
+a call written as a full path (`crate::net::send()`, `super::super::f()`) resolves without a `use`;
 otherwise up to five candidates are kept as ambiguous. A method call (`.send()`) only reaches
 methods, and common standard-library methods (`.clone()`, `.into()`, `.iter()` …) are never
 linked. Macros are not expanded, so functions generated inside `macro_rules!` are missed.
-Code under `#[cfg(test)]` or `#[test]`, `tests/` and `benches/` is left out. An imported
+Code under `#[cfg(test)]`, `#[test]` or a runtime's test attribute (`#[tokio::test]`), and in
+`tests/` and `benches/`, is left out, whatever its visibility; `#[cfg(not(test))]` code is kept. An imported
 crate's name counts for the functions that use it, so `use reqwest::Client` makes
 `Client::new().post(…)` a third-party call. Python and Rust names are never linked to each
 other. See `docs/decisions/rust-graph.md` for the measurements.
 
 Calls resolve the way Python looks names up: the same file first, then imported names
-and modules. A name that only matches several definitions elsewhere is labelled
+and modules (`import module` then `module.f()`, and dotted `pkg.module.f()`). A top-level
+`src/` folder is treated as a source root; other source roots fall back to name matches. A name that only matches several definitions elsewhere is labelled
 `ambiguous`, never guessed. The same files always give a byte-identical graph
 (`--json`) with one digest. Static parsing misses dynamic calls, so paths through the
 graph are possible paths, and an empty graph never shows compliance.
@@ -356,7 +360,8 @@ declared obligation cites a changed article, so CI can flag it.
 the controller's establishment and roles, then one entry per declared activity with its
 purpose, data subjects, personal data, lawful basis, recipients, locations and transfers,
 storage and retention. Every fact keeps its basis (observed, declared, assumed, unknown),
-and the record lists its gaps: empty fields, assumed or unknown facts, and the security
+and the record lists its gaps: empty fields, a missing establishment, assumed or unknown facts
+(controller roles included), and the security
 measures, which the declarations do not hold. `export dpia` drafts DPIA screening inputs: the
 three cases of Article 35(3) (law) and the nine criteria of the WP29 guidelines endorsed by
 the EDPB (WP248 rev.01, guidance), each with the words in the declarations that suggest it.
@@ -413,7 +418,9 @@ same run twice changes nothing, and a run id already sealed with other contents 
 run is intact, changed since it was sealed, or not on this machine (runs live outside the
 repository, so a colleague's clone has the log but not the runs; that is not a failure). It
 also names local runs that are not sealed. It exits 1 on a broken chain, a changed run or an
-invalid signature.
+invalid signature. A run id found in several run folders counts as changed if any copy differs
+from what was sealed. With `--allowed-signers`, an entry without a signature is printed as
+`NOT signed` (the exit code stays the same), and a signer's name is shown only once verified.
 
 The log is only as strong as its anchor. Commit `runs.log` to Git: rewriting a sealed run then
 also needs a visible rewrite of history. Or sign each entry with your SSH key
@@ -425,13 +432,15 @@ rewrite both.
 
 `cite-check FILE` (or `-` for standard input) checks text an agent wrote against the
 retained official text of the latest run. Every "Article N" it cites must exist in a
-retained act. Every quotation of three words or more must appear in the article cited just
+retained act, also when it is written in brackets or Markdown ("(Article 5 GDPR)",
+"**Article 5**"), without a space ("Art.5") or as a range ("Articles 5–7", both ends). Every quotation of three words or more must appear in the article cited just
 before it, word for word, ignoring case, whitespace and the style of quotation marks. A
 citation followed by an act's name or number ("Article 17 GDPR", "Article 5(3) of the
 ePrivacy Directive", "Article 99 of Regulation (EU) 2016/679") is checked in that act only;
 a well-known act the run did not retain, such as the DSA, is reported as not checked, and
 so is a citation of an act the tool does not recognise ("Article 9 of the Product Liability
-Directive" when that directive is not declared). Only the article is checked: a paragraph
+Directive" when that directive is not declared, or "Article 6 of the same Directive"). An act's
+name is read only after the citation, not before it. Only the article is checked: a paragraph
 or point ("Article 6(9)(z)"), a recital or an annex is not. UK
 citations work the same way: "section 170 of the Data Protection Act 2018", "s. 170 DPA
 2018", "regulation 6 of PECR", "Article 17 UK GDPR". A citation of "the GDPR" is never
@@ -467,7 +476,8 @@ only orders articles to read. It never maps a requirement, decides applicability
 score, and if it fails, word search answers alone. Similarities are rounded before ranking so
 small floating-point differences do not reorder results, but identical ranking on every CPU
 and operating system is not proven; a default install without the extra stays byte-for-byte
-deterministic. An act is embedded once and cached beside the model (about 12 s for the GDPR).
+deterministic. An act is embedded once and cached beside the model (about 12 s for the GDPR); the cache keeps
+its newest 32 files.
 
 ## Obligation packs
 

@@ -20,8 +20,8 @@ compiler sees (macro expansion, types). A tree-sitter parser (a native dependenc
   standard-library constructors (`Ok`, `Some`, `Box` …) are not calls; common standard-library
   methods (`.clone()`, `.into()`, `.iter()` …) are never linked to project code. A method call
   reaches only methods.
-- Test code (`#[cfg(test)]`, `#[test]`, `tests/`, `benches/`) and `macro_rules!` bodies are
-  left out. An imported external crate's name counts for the functions that use it, so
+- Test code (`#[cfg(test)]`, `#[test]`, `#[tokio::test]`-style attributes, `tests/`, `benches/`)
+  and `macro_rules!` bodies are left out; `#[cfg(not(test))]` code is kept. An imported external crate's name counts for the functions that use it, so
   `use reqwest::Client` makes `Client::new().post(…)` a third-party call.
 - Python and Rust names are never linked to each other.
 
