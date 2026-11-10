@@ -26,7 +26,11 @@ Use the CLI command from the SessionStart context, written `<cli>` below, or
   `<cli> init --project-id <stable-id> [--jurisdiction EU --jurisdiction <country>]`.
   Then fill in the project scope, jurisdictions, assessment date
   (today unless the user names one), activities, and facts from the code, with
-  `basis: "unknown"` or `"assumed"` unless the user confirms them. Add requirements
+  `basis: "unknown"` or `"assumed"` unless the user confirms them. Put a fact about what the
+  software does ("sets analytics cookies", "sends body weight to a model") in
+  `scope.technical`: `ground` searches the code for those. `scope.roles` and
+  `scope.size_and_sector` are for organisational facts only the owner can confirm, and are
+  never searched in code. Add requirements
   with stable IDs and source targets on registry hosts only (`eur-lex.europa.eu`,
   `curia.europa.eu`, `commission.europa.eu`, `digital-strategy.ec.europa.eu`,
   `www.edpb.europa.eu`, `publications.europa.eu`). For an act's text, prefer the

@@ -37,7 +37,7 @@ def starter(project_id: str, assessment_date: str | None = None, jurisdictions: 
         "scope": {"id": "scope", "revision": 0, "project_id": project_id,
                   "assessment_date": date.today().isoformat() if assessment_date is None else assessment_date, "environment": "production",
                   "activities": [], "establishment": [], "markets": [], "customer_types": [], "roles": [],
-                  "size_and_sector": [], "jurisdictions": jurisdictions or ["EU"], "included_scenarios": [],
+                  "size_and_sector": [], "technical": [], "jurisdictions": jurisdictions or ["EU"], "included_scenarios": [],
                   "exclusions": [], "permission_id": "declared-scope"},
     })
 

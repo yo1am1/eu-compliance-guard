@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `scope.technical`: a place in the declarations for facts about what the software does ("sets
+  analytics cookies"). Until now such a fact had no obvious slot: under `size_and_sector` it
+  was treated as organisational and never searched for in code, and it only worked under
+  `roles`. `ground` now says so when a fact under `size_and_sector` cannot be searched. Existing
+  declarations stay valid (the list defaults to empty); a file that uses it needs 2.6.1 or later.
+
+### Changed (internal; no behaviour change)
+
+- The three longest functions are split into named steps: assembling a run (379 lines), the
+  bundle validator (318) and the report renderer (285). No function they contained is longer
+  than 68 lines now. Verified byte for byte on 17 reference bundles and reports, and by 20,000
+  deliberately broken bundles that the old and the new validator reject with the same errors.
+
 ## 2.6.0 — 2026-11-10
 
 Better suggestions, tamper evidence, and a smaller code base. Article suggestions can use an

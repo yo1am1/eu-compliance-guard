@@ -94,7 +94,7 @@ def load_run(path, deadline=None, sources_out=None):
 
 def _records(bundle):
     declared = bundle.declarations
-    records = {("scope", declared.scope.id): declared.scope.model_dump(mode="json", exclude={"activities", "roles", "size_and_sector"})}
+    records = {("scope", declared.scope.id): declared.scope.model_dump(mode="json", exclude={"activities", "roles", "size_and_sector", "technical"})}
     for kind, items in (("fact", m.scope_facts(declared.scope)), ("activity", declared.scope.activities),
             ("requirement", declared.requirements), ("target", declared.source_targets),
             ("obligation", declared.obligations), ("control", declared.controls),
