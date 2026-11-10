@@ -52,6 +52,8 @@ class OfficialTextTests(unittest.TestCase):
         self.assertEqual(self.acts["ai-act"]["Article 50"]["title"],
                          "Transparency obligations for providers and deployers of certain AI systems")
         self.assertEqual(self.acts["eprivacy"]["Article 5"]["title"], "Confidentiality of the communications")
+        # The footnotes of a consolidated page are not text of its last article.
+        self.assertEqual(self.acts["eprivacy"]["Article 21"]["text"], "This Directive is addressed to the Member States.")
 
     def test_real_quotations_and_citations(self):
         text = ('Article 17 gives "the right to obtain from the controller the erasure of personal data concerning him or her '
@@ -94,6 +96,24 @@ class OfficialTextTests(unittest.TestCase):
                           ("Article 17", None, True), ("Article 6", "gdpr", True)])
         self.assertIn("Article 9: NOT CHECKED, it cites an act the tool does not recognise", citations.format_check(report))
         self.assertFalse(report["ok"])
+
+    def test_citations_in_brackets_markdown_ranges_and_without_a_space_are_checked(self):
+        text = ("Erasure (Article 200 GDPR) is covered by **Article 201**, Art.202(1)(a), `Article 203`, [Art. 17] "
+                "and Articles 5–204. Sections 12-205 differ.")
+        report = citations.check(text, self.acts)
+        self.assertEqual([(item["article"], item["ok"]) for item in report["citations"]],
+                         [("Article 200", False), ("Article 201", False), ("Article 202", False), ("Article 203", False),
+                          ("Article 17", True), ("Article 5", True), ("Article 204", False), ("Section 12", False),
+                          ("Section 205", False)])
+        self.assertFalse(report["ok"])
+        # A hyphen after a single citation is no range, and an act number is still no provision.
+        self.assertEqual(citations._citations("Article 5-compliant; Regulation (EU) 2016/679; Art. 6(1)(f)"),
+                         [(0, "Article 5"), (47, "Article 6")])
+
+    def test_the_same_act_is_not_an_unrecognised_one(self):
+        report = citations.check("Article 17 and Article 6 of the same Regulation apply.", self.acts, {"gdpr": [["gdpr"]]})
+        self.assertEqual([(item["article"], item["act"], item["ok"]) for item in report["citations"]],
+                         [("Article 17", None, True), ("Article 6", None, True)])
 
     def test_search_finds_the_erasure_article(self):
         found = articles.suggest("users can delete their account and all personal data", self.acts, top=3)
@@ -147,6 +167,15 @@ class TimelineTests(unittest.TestCase):
         self.assertEqual([(e["date"], e["article"], e["kind"], e["status"]) for e in entries],
                          [("2003-10-31", "Article 17", "transposition", "reached")])
 
+    def test_a_uk_commencement_date_with_an_ordinal_day_is_read(self):
+        from eu_compliance_guard import timeline
+        entries = timeline.timeline({"pecr": load("pecr-uksi-2003-2426")}, "2026-11-06")
+        self.assertIn(("2003-12-11", "Regulation 1", "in force", "reached"),
+                      [(e["date"], e["article"], e["kind"], e["status"]) for e in entries])
+        self.assertEqual(timeline._dates("come into force on 1st May 2021, 2nd May 2021 or May 3rd, 2021"),
+                         ["2021-05-01", "2021-05-02", "2021-05-03"])
+        self.assertEqual(timeline._dates("come into force on the 4th of May 2021 or 32nd May 2021 or th May 2021"), [])
+
     def test_status_boundary_and_text_output(self):
         from eu_compliance_guard import timeline
         acts = {"cra": self.acts["cra"]}
@@ -174,7 +203,12 @@ class UkOfficialTextTests(unittest.TestCase):
         self.assertEqual((len(pecr), list(pecr)[0], list(pecr)[-1]), (50, "Regulation 1", "Regulation 37"))
         self.assertEqual(pecr["Regulation 6"]["title"], "Storing information in the terminal equipment of a subscriber or user")
         self.assertTrue(pecr["Regulation 6"]["text"].startswith("—(1) Subject to Schedule A1, a person must not store"))
-        self.assertEqual((len(dpa), list(dpa)[0], list(dpa)[-1]), (259, "Section 1", "Section 215"))
+        self.assertEqual((len(dpa), list(dpa)[0], list(dpa)[-1]), (261, "Section 1", "Section 215"))
+        # Sections 74AA and 74AB are provisions of their own, not a second and third section 74A.
+        self.assertEqual([key for key in dpa if key.startswith("Section 74")],
+                         ["Section 74", "Section 74A", "Section 74AA", "Section 74AB", "Section 74B"])
+        self.assertTrue(dpa["Section 74AA"]["title"] and dpa["Section 74AA"]["title"] != dpa["Section 74A"]["title"])
+        self.assertIn("Article 8ZA", gdpr)
         # A prospective section without an anchor (164B) must not shift the titles after it.
         self.assertEqual(dpa["Section 165"]["title"], "Complaints by data subjects to the Commission")
         self.assertEqual(dpa["Section 170"]["title"], "Unlawful obtaining etc of personal data")
@@ -190,6 +224,10 @@ class UkOfficialTextTests(unittest.TestCase):
                 if not item["title"].strip():
                     untitled.append((act, key))
         self.assertEqual(untitled, [("pecr", "Regulation 29A")])  # its title element is empty in the source
+        # Signatures and the "SCHEDULES" heading follow the last provision; they are not its text.
+        self.assertTrue(pecr["Regulation 37"]["text"].endswith("the day on which that report is published."))
+        self.assertEqual(dpa["Section 215"]["text"], "This Act may be cited as the Data Protection Act 2018.")
+        self.assertNotIn("Done at Brussels", gdpr["Article 99"]["text"])
 
     def test_uk_citations_are_checked_in_the_act_they_name(self):
         from types import SimpleNamespace as Target

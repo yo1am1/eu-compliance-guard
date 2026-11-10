@@ -33,6 +33,7 @@ FILES = {
 QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 CHUNK_WORDS = 180  # an article is embedded in windows of this many words, each led by its title
 MAX_CHUNKS = 5000  # above this the index stays word-only
+MAX_CACHED = 32  # embedding files kept in the cache folder (each at most about 8 MB)
 MAX_MODEL_BYTES = 128 * 1024 * 1024
 RRF_K = 60
 NEAR = 10  # a hit is labelled with each ranking that has it this near the top
@@ -169,6 +170,13 @@ def chunks(title: str, text: str) -> list[str]:
     return [f"{title}. " + " ".join(words[start:start + CHUNK_WORDS]) for start in range(0, max(len(words), 1), CHUNK_WORDS)]
 
 
+def _prune(folder: Path) -> None:
+    """Keep the newest MAX_CACHED embedding files: every new act version or set of acts adds one."""
+    cached = sorted(folder.glob("*.npy"), key=lambda path: (path.stat().st_mtime, path.name))
+    for path in cached[:-MAX_CACHED]:
+        path.unlink(missing_ok=True)
+
+
 def _dot(matrix, vector) -> list[float]:
     if hasattr(matrix, "dot"):
         return [float(value) for value in matrix.dot(vector)]
@@ -210,6 +218,7 @@ class SemanticIndex:
             with open(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600), "wb") as handle:
                 numpy.save(handle, matrix, allow_pickle=False)
             os.replace(temporary, path)
+            _prune(folder)
         except OSError:
             pass  # the cache is an optimisation only
         return matrix

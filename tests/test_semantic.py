@@ -50,7 +50,8 @@ class FusionTests(unittest.TestCase):
         os.environ.pop("EUCG_SEMANTIC", None)
 
     def test_word_search_is_the_default_and_says_so(self):
-        index = articles.ArticleIndex(CATALOGUE)
+        with mock.patch.object(semantic, "status", side_effect=AssertionError("the model is not checked when off")):
+            index = articles.ArticleIndex(CATALOGUE)
         self.assertEqual(index.method, "words")
         found = index.suggest("erase personal data")
         self.assertEqual((found[0]["article"], found[0]["via"]), ("Article 1", ["words"]))
@@ -78,7 +79,8 @@ class FusionTests(unittest.TestCase):
         self.assertEqual(semantic.chunks("Title", ""), ["Title. "])
 
     def test_a_failing_model_never_breaks_suggestions(self):
-        with mock.patch.object(semantic, "status", return_value={"active": True}), \
+        with mock.patch.dict(os.environ, {"EUCG_SEMANTIC": "on"}), \
+                mock.patch.object(semantic, "status", return_value={"active": True}), \
                 mock.patch.object(semantic, "SemanticIndex", side_effect=RuntimeError("boom")):
             index = articles.ArticleIndex(CATALOGUE)
         self.assertEqual(index.method, "words")
@@ -133,6 +135,18 @@ class SwitchTests(unittest.TestCase):
         self.assertIsNone(semantic._snapshot())
         with mock.patch.object(semantic, "installed", return_value=True):
             self.assertEqual(semantic.status()["model"], "wrong digest")
+
+    def test_the_embedding_cache_keeps_only_its_newest_files(self):
+        folder = semantic.cache_dir() / "embeddings"
+        folder.mkdir(parents=True)
+        for number in range(semantic.MAX_CACHED + 3):
+            path = folder / f"{number:02}.npy"
+            path.write_bytes(b"")
+            os.utime(path, (number, number))
+        (folder / "other.txt").write_bytes(b"")
+        semantic._prune(folder)
+        left = sorted(path.name for path in folder.iterdir())
+        self.assertEqual(left, [f"{number:02}.npy" for number in range(3, semantic.MAX_CACHED + 3)] + ["other.txt"])
 
     def test_cli_status_runs_without_the_extra(self):
         import contextlib

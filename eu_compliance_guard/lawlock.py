@@ -70,11 +70,10 @@ def impact(old: m.LawLock, new: m.LawLock, declared: m.RevalidationInput) -> dic
     unchecked = sorted(set(before) - set(after))
     for target_id in sorted(set(after)):
         a = {x.key: x.digest for x in before[target_id].articles} if target_id in before else {}
-        b = {x.key: x.digest for x in after[target_id].articles} if target_id in after else {}
+        b = {x.key: x.digest for x in after[target_id].articles}
         changed = sorted(key for key in set(a) & set(b) if a[key] != b[key])
         added, removed = sorted(set(b) - set(a)), sorted(set(a) - set(b))
-        version = (before[target_id].version if target_id in before else None,
-                   after[target_id].version if target_id in after else None)
+        version = (before[target_id].version if target_id in before else None, after[target_id].version)
         if changed or added or removed or version[0] != version[1]:
             changes.append({"target": target_id, "version_before": version[0], "version_after": version[1],
                             "changed": changed, "added": added, "removed": removed})
