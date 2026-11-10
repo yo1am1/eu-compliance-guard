@@ -225,7 +225,7 @@ def _parser() -> _Parser:
     accept.add_argument("--json", action="store_true", help="Print the result as JSON")
     graph = commands.add_parser("graph", help="Map the project's Python and Rust files, functions, imports and calls (static, read-only)",
                                 allow_abbrev=False)
-    graph.add_argument("--input", default=".eu-compliance-guard/declarations.json",
+    graph.add_argument("--input", default=_DEFAULT_INPUT,
                        help="Declarations file; its files root is the project that is mapped")
     graph.add_argument("--json", action="store_true", help="Print the whole graph as JSON")
     graph.add_argument("--view", action="store_true",
