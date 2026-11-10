@@ -117,6 +117,17 @@ class NextStepTests(unittest.TestCase):
         decision = next(step for step in steps if step["subject"] == "obligation-example")
         self.assertTrue(decision["action"].startswith("Record whether obligation-example applies"))
 
+    def test_a_duty_reviewed_as_not_applicable_asks_to_remap_never_to_review_its_evidence(self):
+        self.payload["applicability_decisions"][0]["applicability"] = "not_applicable"
+        bundle = v.verify_run(self.run_bundle())
+        self.assertEqual({item.obligation_id: item.applicability for item in bundle.obligation_dispositions}["obligation-example"],
+                         "not_applicable")
+        steps = n.next_steps(bundle, top=100)
+        self.assertFalse([step for step in steps if step["kind"] == "review" and step["subject"] == "obligation-example"])
+        remap = next(step for step in steps if step["subject"] == "requirement-example")
+        self.assertEqual((remap["kind"], remap["requirements"]), ("mapping", ["requirement-example"]))
+        self.assertIn("obligation-example was reviewed as not applicable", remap["action"])
+
     def test_targets_the_fetch_refuses_are_never_offered_for_retrieval(self):
         target = dict(self.payload["source_targets"][0], id="target-national", intended_type="national_act",
                       intended_url="https://www.legifrance.gouv.fr/example", intended_identifier="FICTIONAL-FR")

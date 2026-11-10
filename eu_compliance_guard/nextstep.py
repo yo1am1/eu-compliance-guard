@@ -137,11 +137,18 @@ def next_steps(bundle: m.RevalidationBundle, top: int = 3) -> list[dict]:
         if not requirement.obligation_refs:
             steps.append(_step("mapping", requirement.id, {requirement.id},
                                f"Map {requirement.id} to a candidate obligation; the report lists articles to read."))
+        excluded = [ref.id for ref in requirement.obligation_refs
+                    if ref.id in decisions and decisions[ref.id].applicability == "not_applicable"]
+        if excluded:
+            steps.append(_step("mapping", requirement.id, {requirement.id},
+                               f"Remap or exclude {requirement.id}: {', '.join(excluded)} was reviewed as not applicable "
+                               "and cannot support it."))
 
     dispositions = {item.obligation_id: item for item in bundle.obligation_dispositions}
     for obligation, mapped in sorted(by_obligation.items()):
         disposition = dispositions.get(obligation)
-        if disposition is None or disposition.applicability == "unresolved":
+        # Evidence is reviewed only for a duty that applies: no review can pass for any other.
+        if disposition is None or disposition.applicability != "applicable":
             continue
         methods = sorted(item.method for item in disposition.required_method_dispositions if item.outcome != "passed")
         if methods:
