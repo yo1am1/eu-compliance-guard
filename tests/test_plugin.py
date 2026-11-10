@@ -324,6 +324,9 @@ class SessionHookTests(unittest.TestCase):
         self.assertNotIn("rm -rf", text)
         self.assertNotIn("SECRET-GAP", text)
         self.assertIn("Latest run unrecorded", text)
+        # "$" alone would accept a trailing newline; the band's validator does not.
+        (run / "bundle.json").write_text(json.dumps({**forged, "run": {"id": "run-a\n", "state": "partial\n"}}))
+        self.assertIn("Latest run unrecorded ended unrecorded: state unrecorded,", self.hook())
         (run / "bundle.json").write_text("{not json")
         self.assertIn("could not be summarized", self.hook())
         # A bundle of the wrong shape must not silence the hook: the level, rules and CLI still arrive.

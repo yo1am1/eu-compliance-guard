@@ -63,7 +63,7 @@ def project_id(project: Path) -> str | None:
         value = json.loads(raw).get("project_id") if len(raw) <= MAX_DECLARATION_BYTES else None
     except (OSError, ValueError, AttributeError):
         return None
-    return value if isinstance(value, str) and PROJECT_ID.match(value) else None
+    return value if isinstance(value, str) and PROJECT_ID.fullmatch(value) else None
 
 
 def state_dir(identity: str) -> Path:
@@ -74,7 +74,7 @@ def state_dir(identity: str) -> Path:
 
 
 def _safe(value) -> str:
-    return value if isinstance(value, str) and SAFE.match(value) else "unrecorded"
+    return value if isinstance(value, str) and SAFE.fullmatch(value) else "unrecorded"
 
 
 def latest_run(identity: str | None) -> str:
