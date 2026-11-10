@@ -47,7 +47,8 @@ def _concepts(lines: list[set[str]], extra: str = "") -> list[str]:
 # docstrings), as whole word sequences within one identifier: `birth_date`, `emailAddress`,
 # `row["phone"]`. Generic words such as `user`, `name`, `account`, `child` or `age` are not
 # enough on their own: in code they mostly mean something technical (child spans, JWT `kid`,
-# `max_age`), which real repositories showed.
+# `max_age`), which real repositories showed. "health" alone is mostly a check or a release-health
+# metric, so it counts only with a data word ("health_data", "health_record").
 DATA_PHRASES = {
     "personal_data": (("email",), ("e", "mail"), ("phone",), ("mobile", "number"), ("first", "name"), ("last", "name"),
                       ("full", "name"), ("given", "name"), ("family", "name"), ("surname",), ("street",),
@@ -65,10 +66,6 @@ DATA_PHRASES = {
                  ("under", "16"), ("age", "verification"), ("age", "gate"), ("age", "check"), ("child", "account"),
                  ("child", "profile"), ("child", "user"), ("kids", "mode")),
 }
-# Words that make a one-word data phrase technical next to it in the same identifier. "health"
-# alone is no longer a data word: in code it is mostly a check or a release-health metric, so it
-# counts only with a data word ("health_data", "health_record").
-TECHNICAL: dict[str, set[str]] = {}
 MAX_KEY = 40  # a string constant this short without spaces reads as a key, not prose
 
 
@@ -76,21 +73,9 @@ MAX_KEY = 40  # a string constant this short without spaces reads as a key, not 
 def _identifier_data(identifier: str) -> frozenset[str]:
     """The kinds of data one identifier names; cached, since identifiers repeat across a project."""
     words = [word.lower() for word in grounding._words(identifier)]
-    kinds = set()
-    for kind, phrases in DATA_PHRASES.items():
-        for phrase in phrases:
-            size = len(phrase)
-            for at in range(len(words) - size + 1):
-                if tuple(words[at:at + size]) != phrase:
-                    continue
-                neighbours = set(words[max(at - 1, 0):at]) | set(words[at + size:at + size + 1])
-                if size == 1 and TECHNICAL.get(phrase[0], set()) & neighbours:
-                    continue
-                kinds.add(kind)
-                break
-            if kind in kinds:
-                break
-    return frozenset(kinds)
+    return frozenset(kind for kind, phrases in DATA_PHRASES.items()
+                     if any(tuple(words[at:at + len(phrase)]) == phrase
+                            for phrase in phrases for at in range(len(words) - len(phrase) + 1)))
 
 
 def _data(identifiers: set[str]) -> list[str]:
@@ -205,6 +190,14 @@ class _FileVisitor(ast.NodeVisitor):
             self.imports.append((submodule, node.level, node.lineno))
             self.aliases.append((local, submodule, node.level))
             self.symbols.append((local, base, alias.name, node.level))
+
+
+def _guess(candidates: list[str]) -> tuple[list[str], bool]:
+    """(targets, guessed) for a call known by name only, in Python and Rust alike: a name the project
+    defines once is that definition; otherwise the first MAX_AMBIGUOUS candidates are guesses.
+    A name defined twice in one place (cfg, if/else) is one node."""
+    targets = sorted(set(candidates))
+    return (targets, False) if len(targets) == 1 else (targets[:MAX_AMBIGUOUS], True)
 
 
 def _resolve(path: str, module: str, level: int, modules: dict[str, str]) -> str | None:
@@ -325,8 +318,7 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
             return ([found], False) if found else ([], False)
         elif qualifier == ".":
             # A method call: only its name is known, and only a method (Type.name) can answer it.
-            methods = sorted({target for target in by_name.get(name, []) if "." in nodes[target].name})
-            return (methods, False) if len(methods) == 1 else (methods[:MAX_AMBIGUOUS], True)
+            return _guess([target for target in by_name.get(name, []) if "." in nodes[target].name])
         else:
             if qualifier in module_aliases.get(path, {}):
                 found = items_of.get(module_aliases[path][qualifier], {}).get(name)
@@ -340,10 +332,8 @@ def _rust_graph(files) -> tuple[dict, set, int, int, list]:
                 found = items_of.get(target, {}).get(f"{qualname}.{name}")
                 if found:
                     return [found], False
-            matches = sorted(set(by_qualname.get(f"{qualifier}.{name}", [])))
-            return (matches, False) if len(matches) == 1 else (matches[:MAX_AMBIGUOUS], True)
-        targets = sorted(set(by_name.get(name, [])))  # a name defined twice (cfg, if/else) is one node
-        return (targets, False) if len(targets) == 1 else (targets[:MAX_AMBIGUOUS], True)
+            return _guess(by_qualname.get(f"{qualifier}.{name}", []))
+        return _guess(by_name.get(name, []))
 
     for path, (result, _) in sorted(read.items()):
         for caller, qualifier, name, line in result["calls"]:
@@ -428,12 +418,9 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
             continue
         if qualifier is not None and qualifier in scopes.get(path, ({}, {}))[1]:
             continue  # a project module's attribute that defines nothing by that name: no guess
-        targets = sorted(set(by_name.get(name, [])))  # a name defined twice (cfg, if/else) is one node
-        if len(targets) == 1:
-            edges.add((caller, "calls", targets[0], "extracted", line))
-        else:
-            for target in targets[:MAX_AMBIGUOUS]:
-                edges.add((caller, "calls", target, "ambiguous", line))
+        targets, guessed = _guess(by_name.get(name, []))
+        for target in targets:
+            edges.add((caller, "calls", target, "ambiguous" if guessed else "extracted", line))
     rust_nodes, rust_edges, rust_parsed, rust_skipped, rust = _rust_graph(files)
     nodes.update(rust_nodes)
     edges |= rust_edges
@@ -471,6 +458,8 @@ def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
     for edge in graph.edges:
         if edge.kind == "calls":
             calls.setdefault(edge.source, []).append((edge.target, edge.provenance))
+    for targets in calls.values():
+        targets.sort(key=lambda item: (item[1] != "extracted", item))  # extracted calls are followed first
     found = []
     for start in sorted(node.id for node in graph.nodes
                         if node.kind == "function" and node.data and not is_test_file(node.path)):
@@ -494,7 +483,7 @@ def flows(graph: m.ProjectGraph, max_depth: int = MAX_FLOW_DEPTH) -> list[dict]:
                                   "hops": [{"name": nodes[hop].name, "location": f"{nodes[hop].path}:{nodes[hop].line}",
                                             "end_line": nodes[hop].end_line} for hop in hops]})
                     continue  # the first sink on a route ends it; what it calls is the sink's own detail
-                for target, provenance in sorted(calls.get(current, []), key=lambda item: (item[1] != "extracted", item)):
+                for target, provenance in calls.get(current, []):
                     count = guesses[current] + (provenance == "ambiguous")
                     if target not in previous and count <= MAX_AMBIGUOUS_HOPS:
                         previous[target] = (current, provenance)
@@ -516,6 +505,21 @@ def covers(flow: dict, refs: set[str]) -> bool:
             if ref_path == path and number.isdigit() and int(start) <= int(number) <= hop["end_line"]:
                 return True
     return False
+
+
+def facts_by_evidence(declared: m.RevalidationInput) -> dict[str, set[str]]:
+    """Evidence id -> ids of the facts that cite it."""
+    found: dict[str, set[str]] = {}
+    for fact in m.scope_facts(declared.scope):
+        for evidence in fact.evidence_ids:
+            found.setdefault(evidence, set()).add(fact.id)
+    return found
+
+
+def facts_on(flow: dict, declared: m.RevalidationInput, by_evidence: dict[str, set[str]]) -> list[str]:
+    """Ids of the facts whose pinned evidence lies inside one of the flow's functions."""
+    return sorted({fact for item in declared.evidence if covers(flow, set(item.evidence.source_refs))
+                   for fact in by_evidence.get(item.evidence.id, ())})
 
 
 def describe_flow(flow: dict) -> str:

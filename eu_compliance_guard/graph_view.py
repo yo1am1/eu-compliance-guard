@@ -54,11 +54,7 @@ def _law_links(declared: m.RevalidationInput) -> dict[str, list[str]]:
 def render(project: m.ProjectGraph, declared: m.RevalidationInput | None = None, project_id: str = "") -> str:
     nodes = {node.id: node for node in project.nodes}
     flows = graphs.flows(project)
-    refs = {ref for item in (declared.evidence if declared else []) for ref in item.evidence.source_refs}
-    facts_by_evidence: dict[str, set[str]] = {}
-    for fact in (m.scope_facts(declared.scope) if declared else []):
-        for evidence in fact.evidence_ids:
-            facts_by_evidence.setdefault(evidence, set()).add(fact.id)
+    by_evidence = graphs.facts_by_evidence(declared) if declared else {}
     flow_nodes = {graphs.node_id(hop["location"].rpartition(":")[0], hop["name"]) for flow in flows for hop in flow["hops"]}
     calls = [edge for edge in project.edges if edge.kind == "calls"]
     interesting = flow_nodes | {node.id for node in project.nodes if node.kind == "function" and (node.concepts or node.data)}
@@ -114,9 +110,7 @@ def render(project: m.ProjectGraph, declared: m.RevalidationInput | None = None,
 
     flow_rows = []
     for flow in flows:
-        facts = sorted({fact for item in (declared.evidence if declared else [])
-                        if graphs.covers(flow, set(item.evidence.source_refs))
-                        for fact in facts_by_evidence.get(item.evidence.id, ())})
+        facts = graphs.facts_on(flow, declared, by_evidence) if declared else []
         route = " → ".join(f'<a href="#{_anchor(graphs.node_id(hop["location"].rpartition(":")[0], hop["name"]))}">'
                            f'{escape(hop["name"])}</a> <code>{escape(hop["location"])}</code>' for hop in flow["hops"])
         flow_rows.append(f"<tr><td>{escape(', '.join(flow['data']))} → {escape(', '.join(flow['sinks']))}</td><td>{route}</td>"
