@@ -305,4 +305,5 @@ def render_report(bundle: m.RevalidationBundle) -> str:
     field("Assessment gaps", bundle.gaps)
     field("Next actions", bundle.next_actions)
     emit()
+    emit(LEGAL_NOTICE)  # at the end too: a reader who skips to the end still sees it
     return "\n".join(lines) + "\n"

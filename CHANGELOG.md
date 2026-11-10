@@ -49,6 +49,8 @@
 - `import-evidence` summarised a SARIF log passed as `--kind wec` (and the reverse) as an empty
   result. The wrong format is now refused. Imported copies and summaries are written readable
   by their owner only (0600), since another tool's output can name a site's users or internals.
+- The Markdown report had the legal notice only near the top, although the README says every
+  output ends with it. It now ends with it too.
 
 ## 2.5.0 — 2026-11-07
 
