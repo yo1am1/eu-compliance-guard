@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 2.6.1 — 2026-11-10
+
+Fixes from a seven-agent audit of the whole code base, and a place for technical facts in the
+declarations.
 
 ### Added
 
