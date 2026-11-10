@@ -63,7 +63,10 @@ class GraphTests(unittest.TestCase):
         (self.root / "app/reports.py").write_text(
             "import app.storage\nimport app\nfrom app import billing\nimport json\n\n\n"
             "def export(rows):\n    billing.save(rows)\n    json.dumps(rows)\n\n\n"
-            "def missing(rows):\n    billing.no_such_function(rows)\n")
+            "def missing(rows):\n    billing.no_such_function(rows)\n\n\n"
+            "def archive(rows):\n    app.storage.save(rows)\n\n\n"
+            "def save(rows):\n    return rows\n\n\n"
+            "class Report:\n    def flush(self):\n        self.store.save(self.rows)\n")
         (self.root / "helpers.py").write_text("def save(rows):\n    return rows\n")
         (self.root / "cli.py").write_text("import helpers\n\n\ndef run(rows):\n    helpers.save(rows)\n")
         found = calls(g.build_graph(self.root))
@@ -72,6 +75,11 @@ class GraphTests(unittest.TestCase):
                          {("extracted", "helpers.py::save")})
         self.assertEqual({(provenance, target) for provenance, source, target in found if source == "app/reports.py::export"},
                          {("extracted", "app/billing.py::save")})
+        self.assertEqual({(provenance, target) for provenance, source, target in found if source == "app/reports.py::archive"},
+                         {("extracted", "app/storage.py::save")})
+        # An attribute's method is not this file's function of the same name: every save() stays a guess.
+        self.assertEqual({(provenance, target) for provenance, source, target in found if source == "app/reports.py::Report.flush"},
+                         {("ambiguous", f"{path}::save") for path in ("app/billing.py", "app/reports.py", "app/storage.py", "helpers.py")})
 
     def test_imports_resolve_in_a_src_layout(self):
         root = Path(self.temporary.name) / "packaged"

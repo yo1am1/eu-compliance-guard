@@ -95,12 +95,16 @@ def is_test_file(path: str) -> bool:
 
 
 def _called(call: ast.Call) -> tuple[str | None, str] | None:
-    """(qualifier, name): `f()` -> (None, "f"); `module.f()` -> ("module", "f"); `a.b.f()` -> (None, "f")."""
+    """(qualifier, name): `f()` -> (None, "f"); `module.f()` -> ("module", "f"); `a.b.f()` -> ("a.b", "f");
+    `x().f()` -> ("", "f"). Only a bare name is looked up as this file's own function."""
     if isinstance(call.func, ast.Name):
         return None, call.func.id
     if isinstance(call.func, ast.Attribute):
-        owner = call.func.value
-        return (owner.id if isinstance(owner, ast.Name) else None), call.func.attr
+        parts, owner = [], call.func.value
+        while isinstance(owner, ast.Attribute):
+            parts.append(owner.attr)
+            owner = owner.value
+        return (".".join([owner.id, *reversed(parts)]) if isinstance(owner, ast.Name) else ""), call.func.attr
     return None
 
 
@@ -397,9 +401,13 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
             target = _resolve(path, module, level, modules)
             if target is not None and target != path:
                 edges.add((node_id(path), "imports", node_id(target), "extracted", line))
+    def module_of(path: str, qualifier: str) -> str | None:
+        """The project file an owner names: an imported name, or a dotted module path (`app.storage`)."""
+        return scopes.get(path, ({}, {}))[1].get(qualifier) or (modules.get(qualifier) if "." in qualifier else None)
+
     def lookup(path: str, qualifier: str | None, name: str) -> str | None:
         """Python's own lookup order: this file's definitions, then imported names and modules."""
-        symbols, aliases = scopes.get(path, ({}, {}))
+        symbols = scopes.get(path, ({}, {}))[0]
         if qualifier is None:
             if name in top_level.get(path, {}):
                 return top_level[path][name]
@@ -408,7 +416,7 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
                 source = _resolve(path, module, int(level), modules)
                 return top_level.get(source, {}).get(imported) if source else None
             return None
-        source = aliases.get(qualifier)
+        source = module_of(path, qualifier)
         return top_level.get(source, {}).get(name) if source else None
 
     for path, caller, qualifier, name, line in pending_calls:
@@ -416,7 +424,7 @@ def build_graph(root: Path, exclude: frozenset[str] = frozenset()) -> m.ProjectG
         if found is not None:
             edges.add((caller, "calls", found, "extracted", line))
             continue
-        if qualifier is not None and qualifier in scopes.get(path, ({}, {}))[1]:
+        if qualifier is not None and module_of(path, qualifier):
             continue  # a project module's attribute that defines nothing by that name: no guess
         targets, guessed = _guess(by_name.get(name, []))
         for target in targets:
