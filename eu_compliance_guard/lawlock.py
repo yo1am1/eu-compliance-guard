@@ -50,7 +50,7 @@ def write(lock: m.LawLock, path: str | os.PathLike) -> Path:
     return write_bytes(path, to_bytes(lock))
 
 
-def write_bytes(path: str | os.PathLike, content: bytes) -> Path:
+def write_bytes(path: str | os.PathLike, content: bytes, mode: int = 0o644) -> Path:
     """Atomically create or replace a project file, never through a link or over a folder."""
     path = Path(path)
     with r._parent(path) as (parent_fd, name):
@@ -59,7 +59,7 @@ def write_bytes(path: str | os.PathLike, content: bytes) -> Path:
             os.unlink(temporary, dir_fd=parent_fd)
         except FileNotFoundError:
             pass
-        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o644, dir_fd=parent_fd)
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, mode, dir_fd=parent_fd)
         with os.fdopen(fd, "wb") as handle:
             handle.write(content)
             handle.flush()

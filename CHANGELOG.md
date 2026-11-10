@@ -46,6 +46,9 @@
   pinned a fact as "observed source code" to a table-of-contents line of the ePrivacy
   Directive on one shared word ("page"). Declared source copies are no longer indexed or
   pinnable, and `--apply` needs a concept term or two shared words.
+- `import-evidence` summarised a SARIF log passed as `--kind wec` (and the reverse) as an empty
+  result. The wrong format is now refused. Imported copies and summaries are written readable
+  by their owner only (0600), since another tool's output can name a site's users or internals.
 
 ## 2.5.0 — 2026-11-07
 
