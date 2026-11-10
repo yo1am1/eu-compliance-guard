@@ -71,14 +71,15 @@ UNRECOGNISED = "an act not recognised"
 def _cites_other_act(window: str) -> bool:
     """'Article 9 of the Product Liability Directive', 'Article 4 of Directive (EU) 2019/770': the
     citation names an instrument ("of" within its first words, then a capitalised Regulation,
-    Directive, Act, ...) that no declared or known act matched. 'of this Regulation' is not one."""
+    Directive, Act, ...) that no declared or known act matched. 'of this Regulation' and 'of the
+    same Regulation' are not one."""
     words = [word.strip(PUNCTUATION) for word in window.split()][:14]
     if "of" not in words[1:5]:
         return False
     following = words[words.index("of", 1) + 1:]
     for index, word in enumerate(following[:10]):
         if word in INSTRUMENTS:
-            return not (index and following[index - 1].lower() in ("this", "that", "the same"))
+            return not (index and following[index - 1].lower() in ("this", "that", "same"))
     return False
 
 
