@@ -88,6 +88,24 @@ class LawLockTests(unittest.TestCase):
         with self.assertRaises(r.RevalidationError):
             lawlock.impact(lock, other, r.load_input(self.input))
 
+    def test_a_removed_article_reopens_its_citers_and_a_new_version_is_reported(self):
+        first = self.run_with(act("The fictional controller shall retain a review record."), "run-1")
+        lock = lawlock.build(first)
+        entry = lock.entries[0]
+        without_1 = lock.model_copy(update={"run_id": "run-later", "entries": [entry.model_copy(update={
+            "articles": [item for item in entry.articles if item.key != "Article 1"]})]})
+        report = lawlock.impact(lock, without_1, r.load_input(self.input))
+        self.assertEqual(report["changes"][0]["removed"], ["Article 1"])
+        self.assertEqual([item["obligation"] for item in report["obligations"]], ["obligation-example", "obligation-unmapped"])
+        self.assertIn("removed Article 1", lawlock.format_impact(report))
+        # Same articles, new version: a change to show, but no article to reopen.
+        newer = lock.model_copy(update={"run_id": "run-later", "entries": [entry.model_copy(update={"version": "v2"})]})
+        report = lawlock.impact(lock, newer, r.load_input(self.input))
+        self.assertEqual(report["changes"], [{"target": "target-example", "version_before": None, "version_after": "v2",
+                                              "changed": [], "added": [], "removed": []}])
+        self.assertEqual(report["obligations"], [])
+        self.assertIn("(version not recorded → v2): same articles", lawlock.format_impact(report))
+
     def test_a_missing_lock_or_a_linked_lockfile_fails_safely(self):
         run = self.run_with(act("Text."), "run-1")
         code, _ = self.cli("impact", "--input", self.input, "--run", run)

@@ -68,6 +68,13 @@
   dependencies are not locked, and CONTRIBUTING no longer says the band's types are generated.
 - The UK GDPR test text now also credits EUR-Lex, since it derives from Regulation (EU) 2016/679.
 
+### Tests
+
+- New tests pin behaviour that mutations of 2.5.0 showed nothing covered: `impact` on a removed
+  article and on a version-only change (now shown as "version not recorded → v2"), the DPIA
+  screening's count of guidance criteria with signals, signed-decision staleness, the timeline's
+  reached/upcoming boundary and its text output.
+
 ## 2.5.0 — 2026-11-07
 
 Stabilisation before 3.0: an audit of everything 2.2 to 2.4 added, and the open choices

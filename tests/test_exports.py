@@ -70,6 +70,9 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(by_id["wp248-5"]["signals"], [])  # large scale is never guessed from words
         self.assertEqual(by_id["art35-3-a"]["kind"], "law")
         self.assertEqual(by_id["wp248-1"]["kind"], "guidance")
+        expected = sum(1 for item in screening["criteria"] if item["kind"] == "guidance" and item["signals"])
+        self.assertGreater(expected, 0)
+        self.assertEqual(screening["guidance_criteria_with_signals"], expected)
 
     def test_formats_are_safe_and_deterministic(self):
         record = exports.ropa(self.declared)

@@ -131,7 +131,7 @@ def format_impact(report: dict) -> str:
         return "\n".join([f"No locked article changed between {report['lock_run']} and {report['new_run']}.", *unchecked])
     lines = [f"Law changes since the lock ({report['lock_run']} → {report['new_run']}):"]
     for item in report["changes"]:
-        version = (f" (version {item['version_before']} → {item['version_after']})"
+        version = (f" (version {item['version_before'] or 'not recorded'} → {item['version_after'] or 'not recorded'})"
                    if item["version_before"] != item["version_after"] else "")
         parts = [f"changed {', '.join(item['changed'])}" if item["changed"] else "",
                  f"added {', '.join(item['added'])}" if item["added"] else "",
