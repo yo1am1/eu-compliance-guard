@@ -211,47 +211,11 @@ def _check(path, previous) -> dict:
     r._primitives()
     try:
         with r._parent(path) as (fd, name):
-            try:
-                observed = r._read_file(fd, name, limit=m.MAX_REQUEST_BYTES, retain=True)
-            except r.RevalidationError as error:
-                if error.code != "capacity-exceeded":
-                    raise
-                errors.append({"at": "(file)", "problem": "declarations file exceeds the 4 MiB limit"})
+            parsed = _parse(fd, name, errors)
+            if parsed is None:
                 return report
-            if observed.availability != "available":
-                errors.append({"at": "(file)", "problem": "declarations file is " + observed.availability})
-                return report
-            raw = observed.content
-            # json.loads(bytes) would silently accept a byte-order mark or UTF-16/32, which the
-            # record parser then rejects at line 1, column 1. JSON text never holds a raw NUL byte.
-            if raw.startswith(codecs.BOM_UTF8) or b"\x00" in raw:
-                errors.append({"at": "(file)", "problem": ENCODING})
-                return report
-            try:
-                r._check_json_depth(raw)
-                json.loads(raw.decode("utf-8"), object_pairs_hook=r._pairs, parse_float=r._finite,
-                           parse_constant=r._reject_constant)
-            except json.JSONDecodeError as error:
-                errors.append({"at": f"line {error.lineno}, column {error.colno}", "problem": "invalid JSON: " + error.msg})
-                return report
-            except UnicodeDecodeError:
-                errors.append({"at": "(file)", "problem": ENCODING})
-                return report
-            except r.RevalidationError as error:
-                errors.append({"at": "(document)", "problem": "JSON nesting deeper than 32 levels" if error.code == "capacity-exceeded"
-                               else "duplicate JSON key or non-finite number"})
-                return report
-            problems = []
-            try:
-                declared = m.parse_record(m.RevalidationInput, raw, collect=problems)
-            except ValidationError as error:
-                for detail in error.errors(include_input=False, include_url=False):
-                    at, problem = _location(detail["loc"], detail["type"]), detail["msg"].removeprefix("Value error, ")
-                    errors.append({"at": at, "problem": problem})
-                return report
-            # Every cross-reference and bound problem at once, each with its own JSON location.
-            errors.extend({"at": at, "problem": problem} for at, problem in problems)
-            if not problems:
+            declared, input_digest = parsed
+            if not errors:
                 observations = _observe_selected(declared, fd, name, errors, warnings, files)
     except FileNotFoundError:
         errors.append({"at": "(file)", "problem": "declarations file or its folder was not found"})
@@ -259,41 +223,7 @@ def _check(path, previous) -> dict:
     except OSError:
         errors.append({"at": "(file)", "problem": "declarations file could not be opened safely (symlink or permissions)"})
         return report
-    from . import sources as s
-    for index, target in enumerate(declared.source_targets):
-        state = "never fetched (fictional fixture)" if target.intended_type == "synthetic_fixture" else "fetchable"
-        if state == "fetchable":
-            try:
-                # The refusals sources.fetch applies before any request, in the same order.
-                s.allowed_hosts(s.TargetRequest(target.id, target.intended_url, tuple(target.redirect_hosts)))
-                if not s.LANGUAGE.fullmatch(target.language):
-                    raise s.RetrievalFailure("invalid-language")
-            except s.RetrievalFailure as failure:
-                state = "not fetchable: " + failure.code
-                advice = ("use a plain language tag such as en or de-DE" if failure.code == "invalid-language"
-                          else "declare a manually downloaded copy as a selected source instead")
-                warnings.append({"at": f"source_targets[{index}]", "problem": "--fetch-official will refuse this target ("
-                                 + failure.code + "); " + advice})
-        from .jurisdictions import version as act_version
-        version = act_version(target.intended_identifier, target.intended_url)
-        if version is not None and version["jurisdiction"] == "EU" and target.intended_type == "eu_act" \
-                and not version["consolidated"]:
-            warnings.append({"at": f"source_targets[{index}]",
-                             "problem": "base CELEX: the act as first published, not the law in force; declare a "
-                                        "consolidated CELEX (0YYYY…-YYYYMMDD) and review its date"})
-        if version is not None and version["jurisdiction"] == "UK" and not version["consolidated"]:
-            warnings.append({"at": f"source_targets[{index}]",
-                             "problem": "enacted or made text: the act as first published, not the law in force; use the "
-                                        "revised text (no date, or /YYYY-MM-DD) and review its date"})
-        if version is None:
-            label = None
-        elif version["jurisdiction"] == "UK":
-            label = ("as first published" if not version["consolidated"] else
-                     "revised as on " + version["date"] if version["date"] else "latest revised")
-        else:
-            label = "consolidated " + version["date"] if version["consolidated"] else "as first published"
-        targets.append({"at": f"source_targets[{index}]", "id": target.id, "fetch": state,
-                        **({"version": label} if label else {})})
+    _describe_targets(declared, warnings, targets)
     if not declared.requirements:
         warnings.append({"at": "requirements", "problem": "empty: every run will report a coverage gap"})
     if not declared.obligations:
@@ -314,12 +244,97 @@ def _check(path, previous) -> dict:
                 at, detail = problem.split(": ", 1)
                 warnings.append({"at": at, "problem": detail})
     if not errors:
-        errors.extend(_run_problems(declared, observations, observed.digest, prior))
+        errors.extend(_run_problems(declared, observations, input_digest, prior))
     report["valid"] = not errors
     report["counts"] = {"requirements": len(declared.requirements), "obligations": len(declared.obligations),
                         "source_targets": len(declared.source_targets), "sources": len(declared.sources),
                         "evidence": len(declared.evidence), "family_screenings": len(declared.family_screenings)}
     return report
+
+
+def _parse(fd: int, name: str, errors: list) -> tuple[m.RevalidationInput, str] | None:
+    """The declared record and the digest of its file, or None (with the reason in `errors`) when the
+    file does not hold a record. A record with cross-reference or bound problems is still returned."""
+    try:
+        observed = r._read_file(fd, name, limit=m.MAX_REQUEST_BYTES, retain=True)
+    except r.RevalidationError as error:
+        if error.code != "capacity-exceeded":
+            raise
+        errors.append({"at": "(file)", "problem": "declarations file exceeds the 4 MiB limit"})
+        return None
+    if observed.availability != "available":
+        errors.append({"at": "(file)", "problem": "declarations file is " + observed.availability})
+        return None
+    raw = observed.content
+    # json.loads(bytes) would silently accept a byte-order mark or UTF-16/32, which the
+    # record parser then rejects at line 1, column 1. JSON text never holds a raw NUL byte.
+    if raw.startswith(codecs.BOM_UTF8) or b"\x00" in raw:
+        errors.append({"at": "(file)", "problem": ENCODING})
+        return None
+    try:
+        r._check_json_depth(raw)
+        json.loads(raw.decode("utf-8"), object_pairs_hook=r._pairs, parse_float=r._finite,
+                   parse_constant=r._reject_constant)
+    except json.JSONDecodeError as error:
+        errors.append({"at": f"line {error.lineno}, column {error.colno}", "problem": "invalid JSON: " + error.msg})
+        return None
+    except UnicodeDecodeError:
+        errors.append({"at": "(file)", "problem": ENCODING})
+        return None
+    except r.RevalidationError as error:
+        errors.append({"at": "(document)", "problem": "JSON nesting deeper than 32 levels" if error.code == "capacity-exceeded"
+                       else "duplicate JSON key or non-finite number"})
+        return None
+    problems = []
+    try:
+        declared = m.parse_record(m.RevalidationInput, raw, collect=problems)
+    except ValidationError as error:
+        for detail in error.errors(include_input=False, include_url=False):
+            at, problem = _location(detail["loc"], detail["type"]), detail["msg"].removeprefix("Value error, ")
+            errors.append({"at": at, "problem": problem})
+        return None
+    # Every cross-reference and bound problem at once, each with its own JSON location.
+    errors.extend({"at": at, "problem": problem} for at, problem in problems)
+    return declared, observed.digest
+
+
+def _describe_targets(declared: m.RevalidationInput, warnings: list, targets: list) -> None:
+    """Each source target: whether --fetch-official would fetch it, and which version of the act it names."""
+    from . import sources as s
+    from .jurisdictions import version as act_version
+    for index, target in enumerate(declared.source_targets):
+        state = "never fetched (fictional fixture)" if target.intended_type == "synthetic_fixture" else "fetchable"
+        if state == "fetchable":
+            try:
+                # The refusals sources.fetch applies before any request, in the same order.
+                s.allowed_hosts(s.TargetRequest(target.id, target.intended_url, tuple(target.redirect_hosts)))
+                if not s.LANGUAGE.fullmatch(target.language):
+                    raise s.RetrievalFailure("invalid-language")
+            except s.RetrievalFailure as failure:
+                state = "not fetchable: " + failure.code
+                advice = ("use a plain language tag such as en or de-DE" if failure.code == "invalid-language"
+                          else "declare a manually downloaded copy as a selected source instead")
+                warnings.append({"at": f"source_targets[{index}]", "problem": "--fetch-official will refuse this target ("
+                                 + failure.code + "); " + advice})
+        version = act_version(target.intended_identifier, target.intended_url)
+        if version is not None and version["jurisdiction"] == "EU" and target.intended_type == "eu_act" \
+                and not version["consolidated"]:
+            warnings.append({"at": f"source_targets[{index}]",
+                             "problem": "base CELEX: the act as first published, not the law in force; declare a "
+                                        "consolidated CELEX (0YYYY…-YYYYMMDD) and review its date"})
+        if version is not None and version["jurisdiction"] == "UK" and not version["consolidated"]:
+            warnings.append({"at": f"source_targets[{index}]",
+                             "problem": "enacted or made text: the act as first published, not the law in force; use the "
+                                        "revised text (no date, or /YYYY-MM-DD) and review its date"})
+        if version is None:
+            label = None
+        elif version["jurisdiction"] == "UK":
+            label = ("as first published" if not version["consolidated"] else
+                     "revised as on " + version["date"] if version["date"] else "latest revised")
+        else:
+            label = "consolidated " + version["date"] if version["consolidated"] else "as first published"
+        targets.append({"at": f"source_targets[{index}]", "id": target.id, "fetch": state,
+                        **({"version": label} if label else {})})
 
 
 def _observe_selected(declared: m.RevalidationInput, fd: int, name: str, errors: list, warnings: list, files: list) -> dict:
