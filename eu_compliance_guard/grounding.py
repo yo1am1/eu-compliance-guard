@@ -93,7 +93,31 @@ def _lower(char: str) -> bool:
     return "a" <= char <= "z"
 
 
+class _Runs(dict):
+    """A str.translate table that keeps ASCII letters and decimal digits and turns the rest into spaces."""
+
+    def __missing__(self, code: int):
+        char = chr(code)
+        self[code] = kept = code if (char.isascii() and char.isalpha()) or char.isdecimal() else " "
+        return kept
+
+
+_RUNS = _Runs()
+
+
 def _words(text: str) -> list[str]:
+    """`_split`, faster: most runs of letters or digits are one word ("return", "Path", "HTTP", "42"),
+    which str methods tell without a character loop; only mixed runs are split by hand."""
+    words = []
+    for run in text.translate(_RUNS).split():
+        if run.isdecimal() or (run.isalpha() and (run.isupper() or run[1:].islower())):
+            words.append(run)
+        else:
+            words += _split(run)
+    return words
+
+
+def _split(text: str) -> list[str]:
     """Split identifiers without a regular expression: 'setCookie_maxAge2' -> set, Cookie, max, Age, 2.
 
     A letter followed by lower-case letters is a word; an upper-case run is a word up to the
