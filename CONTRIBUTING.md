@@ -18,7 +18,7 @@ Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/) and make.
 
 ```sh
 uv sync --locked
-make check           # unit tests, JSON Schema drift and compile
+make check           # unit tests and JSON Schema drift
 make e2e             # every command on a fresh fictional project, as a user would run it (offline)
 make readme-images   # rebuild every README image from real output (needs Chromium; see below)
 make plugin-check    # claude plugin validate . and the band tests (needs Claude Code)
@@ -85,8 +85,8 @@ manual capture with `scripts/readme_images.py --round FILE`.
 
 - One change per pull request, with a [Conventional Commit](https://www.conventionalcommits.org/)
   subject such as `fix: …`, `feat: …` or `docs: …`.
-- Add or update tests with the change, and run `make check` before pushing.
-- Describe what changed and how you verified it. CI runs `make check` and the PR screen.
+- Add or update tests with the change, and run `make check` and `make e2e` before pushing.
+- Describe what changed and how you verified it. CI runs `make check`, `make e2e`, the semantic check and the PR screen.
 
 ## Releases
 

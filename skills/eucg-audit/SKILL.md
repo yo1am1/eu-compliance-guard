@@ -41,11 +41,11 @@ Use the CLI command from the SessionStart context, written `<cli>` below, or
   `-` + the consolidation date (for example `02002L0058-20091219` for ePrivacy as
   amended in 2009), and record that date. Never assume a consolidation is the latest
   one: ask the owner or a reviewer to confirm it. For UK law, the only registry host is
-  `www.legislation.gov.uk`: use `https://www.legislation.gov.uk/<type>/<year>/<number>/data.xht`
+  `www.legislation.gov.uk`: use `https://www.legislation.gov.uk/<type>/<year>/<number>/data.htm`
   (for example `ukpga/2018/12` for the Data Protection Act 2018, `eur/2016/679` for the UK
   GDPR, `uksi/2003/2426` for PECR), with `jurisdiction: "UK"` and `intended_type:
   "national_act"`. Without a date it returns the latest revised text; add `/<YYYY-MM-DD>`
-  before `/data.xht` for the text on a date, and record it. Set `"synthetic": false` only for
+  before `/data.htm` for the text on a date, and record it. Set `"synthetic": false` only for
   a real project.
 - Never fill reviewer, `reviewed_at`, applicability, source reviews or evidence
   reviews yourself. They stay empty or unresolved until a named human supplies them.
@@ -97,7 +97,7 @@ a safe failure for it. When the user has downloaded the act (PDF or saved HTML):
    `related_source_ids` to `[]`, and `synthetic` to `false`.
 3. Use the same SHA-256 for `file.digest` and `source.content_digest`. Run `check`:
    a wrong digest is reported with the observed value to copy.
-4. In 1.0 only text and HTML sources can support a mapping. A PDF can be declared and
+4. Only text and HTML sources can support a mapping. A PDF can be declared and
    reviewed, but it always stays a "needs manual identity review" gap. If the act should
    support obligations, ask the user to also save the HTML version from EUR-Lex and
    declare that file. Never write the source review yourself.

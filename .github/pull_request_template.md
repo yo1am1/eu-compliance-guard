@@ -4,7 +4,7 @@
 
 ## Verification
 
-- [ ] `make check` passes
+- [ ] `make check` and `make e2e` pass
 - [ ] `make plugin-check` passes (when the plugin, band or skills changed)
 - [ ] Tests added or updated; synthetic data only
 - [ ] `make contracts` run if `models.py` changed
