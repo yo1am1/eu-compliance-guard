@@ -20,6 +20,10 @@ data or evidence, and nothing here is reviewed or interpreted.
 They were fetched with the tool's own official-host retrieval (`sources.fetch`) and
 compressed with gzip at a fixed timestamp, so the files are reproducible.
 
+The AI Act file is the original 2024 text. Regulation (EU) 2026/1744 has since amended it
+(among other things, the high-risk application dates), so its dates are test data for the
+parser, not the current law.
+
 Source: © European Union, https://eur-lex.europa.eu. Reuse is authorised under Commission
 Decision 2011/833/EU. Only European Union legislation published in the Official Journal is
 deemed authentic; these copies are for testing only.

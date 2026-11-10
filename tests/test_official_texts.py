@@ -122,6 +122,31 @@ class TimelineTests(unittest.TestCase):
         self.assertEqual(timeline._dates("shall apply from 2 August 2026 and from August 3, 2027"), ["2026-08-02", "2027-08-03"])
         self.assertEqual(timeline._dates("shall apply from 31 February 2026 or 2 Augustus 2026 or 2 August 26"), [])
         self.assertIsNone(timeline._kind("The Commission shall report by 2 August 2028."))
+        # The date of a cited act is not an application date; "as of" is.
+        self.assertEqual(timeline._dates("Directive 2002/21/EC of 7 March 2002 shall apply."), [])
+        self.assertEqual(timeline._dates("It shall apply as of 2 August 2026."), ["2026-08-02"])
+        # A non-ASCII digit is not a day and never crashes the timeline.
+        self.assertEqual(timeline._dates("shall apply from ² August 2026 or 2 August ²⁰²⁶"), [])
+        self.assertEqual(timeline._kind("Member States shall bring into force the provisions"), "transposition")
+
+    def test_eprivacy_dates_are_its_own(self):
+        from eu_compliance_guard import timeline
+        entries = timeline.timeline({"eprivacy": load("eprivacy-02002L0058-20091219")}, "2026-11-06")
+        self.assertEqual([(e["date"], e["article"], e["kind"], e["status"]) for e in entries],
+                         [("2003-10-31", "Article 17", "transposition", "reached")])
+
+    def test_status_boundary_and_text_output(self):
+        from eu_compliance_guard import timeline
+        acts = {"cra": self.acts["cra"]}
+        on_the_day = {e["date"]: e["status"] for e in timeline.timeline(acts, "2026-09-11")}
+        self.assertEqual((on_the_day["2026-09-11"], on_the_day["2027-12-11"]), ("reached", "upcoming"))
+        text = timeline.format_timeline(timeline.timeline(acts, "2026-09-11"), "2026-09-11", ["cra"])
+        self.assertIn("- 2026-09-11 (reached) · cra Article 71 · applies", text)
+        self.assertIn("- 2027-12-11 (upcoming) · cra Article 71 · applies", text)
+        self.assertIn("not reflected unless that version includes it", text)
+        self.assertTrue(text.endswith("a reviewer decides."))
+        self.assertEqual(timeline.format_timeline([], None, ["cra"]),
+                         "No dated application, entry-into-force or transposition clause in the retained text of cra.")
 
 
 class UkOfficialTextTests(unittest.TestCase):

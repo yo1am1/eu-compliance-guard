@@ -8,6 +8,13 @@
   looked for the CELEX number, which Publications Office pages do not print. It now also
   accepts the act's own "2016/679" form, and a fetch byte-identical to the declared source
   needs no second identity signal. Checked against all six EU texts in `fixtures/official/`.
+- `timeline` took the date of a cited act for an application date (ePrivacy Article 2:
+  "Directive 2002/21/EC … of 7 March 2002 … shall apply") and missed transposition deadlines
+  worded "shall bring into force" (ePrivacy Article 17, 31 October 2003). A superscript digit
+  next to a month no longer crashes it, and a long clause with many dates is no longer quadratic.
+- `timeline` now says its dates come from the retained version of each act and that a later
+  amending act, such as Regulation (EU) 2026/1744 for the AI Act's high-risk dates, is not
+  reflected unless that version includes it.
 
 ## 2.5.0 — 2026-11-07
 

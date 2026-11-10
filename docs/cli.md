@@ -365,8 +365,13 @@ article, the kind, and the clause word for word, and is marked reached or upcomi
 the declarations' assessment date (never today, so the output is deterministic). For example,
 the AI Act's Article 113 yields 2 February 2025, 2 August 2025, 2 August 2026 and 2 August
 2027; the Cyber Resilience Act's Article 71 yields 11 June 2026, 11 September 2026 and 11
-December 2027. A date that is only described ("the twentieth day following publication") is
-not computed. A directive's dates bind Member States; when national law applies is a
+December 2027 in the original text. Dates are only as current as the retained version:
+Regulation (EU) 2026/1744 later moved the AI Act's high-risk dates (Annex III to 2 December
+2027, Annex I to 2 August 2028), which a timeline of the original text cannot show; the
+output says so, and `revalidate --fetch-official` flags a newer consolidated version. A date
+that is only described ("the twentieth day following publication") is not computed, and the
+date of a cited act ("Directive 2002/21/EC … of 7 March 2002") is not an application date.
+A directive's dates bind Member States; when national law applies is a
 reviewer's question. The timeline shows what the text says, never whether it applies.
 
 ## Signed decisions
