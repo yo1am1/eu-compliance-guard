@@ -537,183 +537,212 @@ def _retrieval_review(content: bytes, media_type: str, target: m.SourceTarget) -
     return reasons
 
 
-def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObservation], *,
-             input_digest: str, timestamp: str, run_id: str, manifest_id: str,
-             retrievals: list | None = None, notes: list[str] | None = None) -> m.RevalidationBundle:
-    """Pure recorded-review assembly; observations/time/IDs/retrieval results are explicit testable inputs.
+class _Assembly:
+    """One run being assembled from declarations, file observations and retrieval results.
 
-    `notes` are review gaps found during retrieval, such as a newer consolidation in force."""
-    from .sources import FAILURES
-    declared = m.RevalidationInput.model_validate(declarations)
-    gaps = []
-    actions = []
-    facts = {item.id: item for item in m.scope_facts(declared.scope)}
-    sources = {item.source.id: item for item in declared.sources}
-    targets = {item.id: item for item in declared.source_targets}
-    source_reviews = {(item.source_id, item.assessment_date): item for item in declared.source_reviews}
-    evidence = {}
-    selected_evidence = {item.evidence.id: item for item in declared.evidence}
-    source_gaps = {}
+    The steps run in a fixed order (see `assemble`); each records its gaps as it finds them, and the
+    order of the gaps is part of the output."""
 
-    def record_gap(message):
-        if message not in gaps:
-            gaps.append(message)
-            actions.append("Resolve recorded gap: " + message)
+    def __init__(self, declarations: m.RevalidationInput, observations: dict[str, FileObservation], *,
+                 input_digest: str, timestamp: str, run_id: str, manifest_id: str,
+                 retrievals: list | None, notes: list[str] | None):
+        declared = m.RevalidationInput.model_validate(declarations)
+        self.declared, self.observations, self.input_digest = declared, observations, input_digest
+        self.timestamp, self.run_id, self.manifest_id = timestamp, run_id, manifest_id
+        self.retrievals, self.notes = retrievals, notes
+        self.gaps: list[str] = []
+        self.actions: list[str] = []
+        self.facts = {item.id: item for item in m.scope_facts(declared.scope)}
+        self.sources = {item.source.id: item for item in declared.sources}
+        self.targets = {item.id: item for item in declared.source_targets}
+        self.source_reviews = {(item.source_id, item.assessment_date): item for item in declared.source_reviews}
+        self.evidence: dict = {}
+        self.selected_evidence = {item.evidence.id: item for item in declared.evidence}
+        self.source_gaps: dict = {}
+        self.attempts, self.candidates, self.outcomes = [], [], {}
+        self.original_decisions = {item.obligation.id: item for item in declared.applicability_decisions}
+        self.reviews = {(item.obligation.id, item.method): item for item in declared.evidence_reviews}
+        self.decisions, self.dispositions, self.assessments, self.screenings = [], [], [], []
 
-    attempts, candidates, outcomes = [], [], {}
-    prior_by_target, declared_digests = {}, {}
-    for item in declared.sources:
-        prior_by_target.setdefault(item.target_id, item.source)
-        declared_digests.setdefault(item.target_id, set()).add(item.source.content_digest)
-    for result in retrievals or []:
-        target = targets[result.target_id]
-        if result.requested_url != target.intended_url:
-            raise RevalidationError("invalid-output")
-        prior = prior_by_target.get(target.id)
-        failure, admission, reasons = result.failure, None, []
-        digest = m.content_digest(result.content) if result.content is not None else None
-        if failure is None:
-            admission = admit_source_content(result.content, result.media_type, result.charset)
-            reasons = _retrieval_review(result.content, result.media_type, target)
-            if digest in declared_digests.get(target.id, ()):
-                # The same bytes as a declared source of this target: identity rests on that source's review.
-                reasons = [reason for reason in reasons if reason != "intended-identifier-not-found"]
-            if admission.state == "rejected":
-                failure = "content-rejected"
-        retained = failure is None
-        candidate = None
-        if retained:
-            candidate = m.LegalSource(id=_derived_id("retrieved", f"{target.id}:{digest}"), revision=0,
-                type=target.intended_type, publisher=target.publisher, identifier=target.intended_identifier,
-                url=result.final_url, language=target.language, jurisdiction=target.jurisdiction,
-                retrieved_at=result.ended_at, content_digest=digest, provisions=[], related_source_ids=[],
-                synthetic=target.intended_type == "synthetic_fixture")
-            candidates.append(candidate)
-        comparison = ("not_compared" if not retained else "no_prior_source" if prior is None
-                      else "same_bytes" if prior.content_digest == digest else "different_bytes")
-        translation = "declared-language-unverified" in reasons
-        state = "retrieval_failed" if not retained else "translation_unverified" if translation else "retrieved"
-        safe = None
-        if failure is not None:
-            safe = m.SafeError(code=failure, safe_message=FAILURES.get(failure, "Retrieved content looks like a login, challenge or error page."))
-        elif translation:
-            safe = m.SafeError(code="language-unverified", safe_message="Retrieved page language differs from the target; translation is unverified.")
-        provenance = m.RetrievalProvenance(requested_url=result.requested_url,
-            final_url=result.final_url if result.content is not None else None, redirects=list(result.redirects),
-            started_at=result.started_at, ended_at=result.ended_at, status=result.status,
-            media_type=result.media_type, charset=result.charset, bytes_read=result.bytes_read, digest=digest,
-            artifact_path="sources/" + digest.removeprefix("sha256:") + ".bin" if retained else None,
-            admission=admission.state if admission else None, admission_reason=admission.reason if admission else None,
-            comparison=comparison)
-        attempts.append(m.SourceAttempt(id=_derived_id("attempt", f"{run_id}:{target.id}"), source_target_id=target.id,
-            intended_url=target.intended_url, intended_identifier=target.intended_identifier, publisher=target.publisher,
-            intended_type=target.intended_type, language=target.language, attempted_at=result.started_at, state=state,
-            retrieved_source=m.SourceRef(id=candidate.id, revision=0) if candidate else None,
-            last_successful_source=m.SourceRef(id=prior.id, revision=prior.revision) if prior else None,
-            failure=safe, retrieval=provenance))
-        if not retained:
-            record_gap(f"Source target {target.id}: official retrieval failed ({failure}); no fresh content was recorded.")
-            outcomes[target.id] = (None, False)
-            continue
-        record_gap(f"Source target {target.id}: retrieved candidate {candidate.id} requires accountable source review; "
-                   "official hosting establishes neither binding status, completeness, applicability nor currency.")
-        if admission.state != "accepted":
-            record_gap(f"Source target {target.id}: retrieved content needs review ({admission.reason}).")
-        for reason in reasons:
-            record_gap(f"Source target {target.id}: retrieved content needs review ({reason}).")
-        # Fetched digest and whether it was admitted as text; each declared source compares its own bytes.
-        outcomes[target.id] = (digest, state == "retrieved" and admission.state == "accepted" and not reasons)
+    def record_gap(self, message: str) -> None:
+        if message not in self.gaps:
+            self.gaps.append(message)
+            self.actions.append("Resolve recorded gap: " + message)
 
-    for selected in declared.evidence:
-        item = selected.evidence
-        observation = observations.get(selected.path, FileObservation("missing"))
-        availability = item.availability
-        if observation.digest is not None and observation.digest != item.digest:
-            availability = "corrupt"
-        elif availability == "available":
-            availability = observation.availability
-        updated = item.model_dump()
-        updated.update(run_id=run_id, manifest_id=manifest_id, availability=availability,
-                       digest=observation.digest or item.digest)
-        evidence[item.id] = m.Evidence.model_validate(updated)
+    def retrieval_attempts(self) -> None:
+        """Record each official retrieval: its provenance, the unreviewed candidate and what it confirms."""
+        declared, run_id, retrievals, targets, attempts, candidates, outcomes, record_gap = self.declared, self.run_id, self.retrievals, self.targets, self.attempts, self.candidates, self.outcomes, self.record_gap
+        from .sources import FAILURES
+        prior_by_target, declared_digests = {}, {}
+        for item in declared.sources:
+            prior_by_target.setdefault(item.target_id, item.source)
+            declared_digests.setdefault(item.target_id, set()).add(item.source.content_digest)
+        for result in retrievals or []:
+            target = targets[result.target_id]
+            if result.requested_url != target.intended_url:
+                raise RevalidationError("invalid-output")
+            prior = prior_by_target.get(target.id)
+            failure, admission, reasons = result.failure, None, []
+            digest = m.content_digest(result.content) if result.content is not None else None
+            if failure is None:
+                admission = admit_source_content(result.content, result.media_type, result.charset)
+                reasons = _retrieval_review(result.content, result.media_type, target)
+                if digest in declared_digests.get(target.id, ()):
+                    # The same bytes as a declared source of this target: identity rests on that source's review.
+                    reasons = [reason for reason in reasons if reason != "intended-identifier-not-found"]
+                if admission.state == "rejected":
+                    failure = "content-rejected"
+            retained = failure is None
+            candidate = None
+            if retained:
+                candidate = m.LegalSource(id=_derived_id("retrieved", f"{target.id}:{digest}"), revision=0,
+                    type=target.intended_type, publisher=target.publisher, identifier=target.intended_identifier,
+                    url=result.final_url, language=target.language, jurisdiction=target.jurisdiction,
+                    retrieved_at=result.ended_at, content_digest=digest, provisions=[], related_source_ids=[],
+                    synthetic=target.intended_type == "synthetic_fixture")
+                candidates.append(candidate)
+            comparison = ("not_compared" if not retained else "no_prior_source" if prior is None
+                          else "same_bytes" if prior.content_digest == digest else "different_bytes")
+            translation = "declared-language-unverified" in reasons
+            state = "retrieval_failed" if not retained else "translation_unverified" if translation else "retrieved"
+            safe = None
+            if failure is not None:
+                safe = m.SafeError(code=failure, safe_message=FAILURES.get(failure, "Retrieved content looks like a login, challenge or error page."))
+            elif translation:
+                safe = m.SafeError(code="language-unverified", safe_message="Retrieved page language differs from the target; translation is unverified.")
+            provenance = m.RetrievalProvenance(requested_url=result.requested_url,
+                final_url=result.final_url if result.content is not None else None, redirects=list(result.redirects),
+                started_at=result.started_at, ended_at=result.ended_at, status=result.status,
+                media_type=result.media_type, charset=result.charset, bytes_read=result.bytes_read, digest=digest,
+                artifact_path="sources/" + digest.removeprefix("sha256:") + ".bin" if retained else None,
+                admission=admission.state if admission else None, admission_reason=admission.reason if admission else None,
+                comparison=comparison)
+            attempts.append(m.SourceAttempt(id=_derived_id("attempt", f"{run_id}:{target.id}"), source_target_id=target.id,
+                intended_url=target.intended_url, intended_identifier=target.intended_identifier, publisher=target.publisher,
+                intended_type=target.intended_type, language=target.language, attempted_at=result.started_at, state=state,
+                retrieved_source=m.SourceRef(id=candidate.id, revision=0) if candidate else None,
+                last_successful_source=m.SourceRef(id=prior.id, revision=prior.revision) if prior else None,
+                failure=safe, retrieval=provenance))
+            if not retained:
+                record_gap(f"Source target {target.id}: official retrieval failed ({failure}); no fresh content was recorded.")
+                outcomes[target.id] = (None, False)
+                continue
+            record_gap(f"Source target {target.id}: retrieved candidate {candidate.id} requires accountable source review; "
+                       "official hosting establishes neither binding status, completeness, applicability nor currency.")
+            if admission.state != "accepted":
+                record_gap(f"Source target {target.id}: retrieved content needs review ({admission.reason}).")
+            for reason in reasons:
+                record_gap(f"Source target {target.id}: retrieved content needs review ({reason}).")
+            # Fetched digest and whether it was admitted as text; each declared source compares its own bytes.
+            outcomes[target.id] = (digest, state == "retrieved" and admission.state == "accepted" and not reasons)
 
-    def retained_evidence(identity):
+    def observe_evidence(self) -> None:
+        """Evidence metadata as observed in this run: availability and digest of each selected file."""
+        declared, observations, run_id, manifest_id, evidence = self.declared, self.observations, self.run_id, self.manifest_id, self.evidence
+        for selected in declared.evidence:
+            item = selected.evidence
+            observation = observations.get(selected.path, FileObservation("missing"))
+            availability = item.availability
+            if observation.digest is not None and observation.digest != item.digest:
+                availability = "corrupt"
+            elif availability == "available":
+                availability = observation.availability
+            updated = item.model_dump()
+            updated.update(run_id=run_id, manifest_id=manifest_id, availability=availability,
+                           digest=observation.digest or item.digest)
+            evidence[item.id] = m.Evidence.model_validate(updated)
+
+    def retained_evidence(self, identity) -> bool:
+        observations, evidence, selected_evidence = self.observations, self.evidence, self.selected_evidence
         item = evidence[identity]
         selected = selected_evidence[identity]
         observation = observations.get(selected.path)
         return bool(item.availability == "available" and item.redaction == "safe" and selected.path
                     and observation and observation.availability == "available" and observation.digest == selected.evidence.digest)
 
-    def evidence_ready(identity):
+    def evidence_ready(self, identity) -> bool:
+        evidence, retained_evidence = self.evidence, self.retained_evidence
         item = evidence[identity]
         return retained_evidence(identity) and (item.provenance != "independently_verified" or any(
             ref != identity and ref in evidence and retained_evidence(ref)
             and evidence[ref].provenance in ("documented", "observed") for ref in item.source_refs))
 
-    for identity in evidence:
-        if not evidence_ready(identity):
-            record_gap(f"Evidence {identity}: {EVIDENCE_UNREADY_GAP}")
-    for fact in facts.values():
-        if fact.basis in ("assumed", "unknown") or fact.conflicts:
-            record_gap(f"Fact {fact.id}: assumed, unknown or conflicting declaration needs review.")
-    for selected in declared.sources:
-        source = selected.source
-        problems = []
-        observation = observations.get(selected.file.path) if selected.file else None
-        if not observation or observation.availability != "available" or observation.digest != source.content_digest or observation.content is None:
-            problems.append("selected content unavailable or corrupt")
-        else:
-            admission = admit_source_content(observation.content, selected.media_type, selected.charset)
-            if admission.state != "accepted":
-                problems.append(admission.reason)
-        target = targets[selected.target_id]
-        if any(getattr(source, field) != getattr(target, target_field) for field, target_field in (
-                ("type", "intended_type"), ("url", "intended_url"), ("identifier", "intended_identifier"),
-                ("publisher", "publisher"), ("language", "language"), ("jurisdiction", "jurisdiction"))):
-            problems.append("candidate identity/classification disagrees with selected source")
-        if target.family not in m.LEGAL_FAMILIES:
-            problems.append("unsupported source topic requires specialist/national research")
-        review = source_reviews.get((source.id, declared.scope.assessment_date))
-        if not review or review.state != "reviewed_for_assessment" or not review.reviewer or not review.reviewer.strip() or not review.last_successful_verification:
-            problems.append("accountable source review missing for assessment date")
-        if review and _after_run(review.last_successful_verification, timestamp):
-            problems.append("source review dated after this run")
-        if review:
-            problems.extend("source review gap: " + gap for gap in review.gaps)
-        for topic in get_args(m.SourceReviewTopic):
-            if not review or not review.review_notes.get(topic, "").strip():
-                problems.append("source note missing: " + topic)
-        fetched = outcomes.get(selected.target_id)
-        outcome = (None if fetched is None else "unconfirmed" if fetched[0] is None
-                   else "changed" if fetched[0] != source.content_digest else "confirmed" if fetched[1] else "unconfirmed")
-        if outcome == "changed":
-            problems.append("official retrieval returned different bytes; review the new candidate revision")
-        if not source.synthetic and outcome != "confirmed":
-            problems.append(OFFLINE_FRESHNESS_GAP if retrievals is None else FETCH_UNCONFIRMED_GAP)
-        source_gaps[source.id] = problems
-        for problem in problems:
-            record_gap(f"Source {source.id}: {problem}")
-    for _ in sources:
-        changed = False
-        for identity, selected in sources.items():
-            review = source_reviews.get((identity, declared.scope.assessment_date))
-            dependencies = [*selected.source.related_source_ids]
-            if review:
-                dependencies.extend([*review.act_chain, *review.case_law_refs, *review.national_overlay_ids])
-            if not source_gaps[identity] and any(source_gaps[ref] for ref in dependencies):
-                problem = "referenced source content/review unresolved"
-                source_gaps[identity].append(problem)
-                record_gap(f"Source {identity}: {problem}")
-                changed = True
-        if not changed:
-            break
-    for target in declared.source_targets:
-        if not any(item.target_id == target.id for item in declared.sources):
-            record_gap(f"Source target {target.id}: no selected source candidate.")
-        if target.family not in m.LEGAL_FAMILIES:
-            record_gap(f"Source target {target.id}: unsupported topic requires specialist/national research.")
+    def open_evidence_and_facts(self) -> None:
+        """Gaps for evidence that is not ready and facts that are assumed, unknown or conflicting."""
+        facts, evidence, record_gap, evidence_ready = self.facts, self.evidence, self.record_gap, self.evidence_ready
+        for identity in evidence:
+            if not evidence_ready(identity):
+                record_gap(f"Evidence {identity}: {EVIDENCE_UNREADY_GAP}")
+        for fact in facts.values():
+            if fact.basis in ("assumed", "unknown") or fact.conflicts:
+                record_gap(f"Fact {fact.id}: assumed, unknown or conflicting declaration needs review.")
 
-    def fact_problems(pins):
+    def review_sources(self) -> None:
+        """Each selected source: content, identity against its target, accountable review and freshness."""
+        declared, observations, timestamp, retrievals, targets, source_reviews, source_gaps, outcomes, record_gap = self.declared, self.observations, self.timestamp, self.retrievals, self.targets, self.source_reviews, self.source_gaps, self.outcomes, self.record_gap
+        for selected in declared.sources:
+            source = selected.source
+            problems = []
+            observation = observations.get(selected.file.path) if selected.file else None
+            if not observation or observation.availability != "available" or observation.digest != source.content_digest or observation.content is None:
+                problems.append("selected content unavailable or corrupt")
+            else:
+                admission = admit_source_content(observation.content, selected.media_type, selected.charset)
+                if admission.state != "accepted":
+                    problems.append(admission.reason)
+            target = targets[selected.target_id]
+            if any(getattr(source, field) != getattr(target, target_field) for field, target_field in (
+                    ("type", "intended_type"), ("url", "intended_url"), ("identifier", "intended_identifier"),
+                    ("publisher", "publisher"), ("language", "language"), ("jurisdiction", "jurisdiction"))):
+                problems.append("candidate identity/classification disagrees with selected source")
+            if target.family not in m.LEGAL_FAMILIES:
+                problems.append("unsupported source topic requires specialist/national research")
+            review = source_reviews.get((source.id, declared.scope.assessment_date))
+            if not review or review.state != "reviewed_for_assessment" or not review.reviewer or not review.reviewer.strip() or not review.last_successful_verification:
+                problems.append("accountable source review missing for assessment date")
+            if review and _after_run(review.last_successful_verification, timestamp):
+                problems.append("source review dated after this run")
+            if review:
+                problems.extend("source review gap: " + gap for gap in review.gaps)
+            for topic in get_args(m.SourceReviewTopic):
+                if not review or not review.review_notes.get(topic, "").strip():
+                    problems.append("source note missing: " + topic)
+            fetched = outcomes.get(selected.target_id)
+            outcome = (None if fetched is None else "unconfirmed" if fetched[0] is None
+                       else "changed" if fetched[0] != source.content_digest else "confirmed" if fetched[1] else "unconfirmed")
+            if outcome == "changed":
+                problems.append("official retrieval returned different bytes; review the new candidate revision")
+            if not source.synthetic and outcome != "confirmed":
+                problems.append(OFFLINE_FRESHNESS_GAP if retrievals is None else FETCH_UNCONFIRMED_GAP)
+            source_gaps[source.id] = problems
+            for problem in problems:
+                record_gap(f"Source {source.id}: {problem}")
+
+    def propagate_source_gaps(self) -> None:
+        """A source resting on an unresolved source is unresolved too; targets without a source are gaps."""
+        declared, sources, source_reviews, source_gaps, record_gap = self.declared, self.sources, self.source_reviews, self.source_gaps, self.record_gap
+        for _ in sources:
+            changed = False
+            for identity, selected in sources.items():
+                review = source_reviews.get((identity, declared.scope.assessment_date))
+                dependencies = [*selected.source.related_source_ids]
+                if review:
+                    dependencies.extend([*review.act_chain, *review.case_law_refs, *review.national_overlay_ids])
+                if not source_gaps[identity] and any(source_gaps[ref] for ref in dependencies):
+                    problem = "referenced source content/review unresolved"
+                    source_gaps[identity].append(problem)
+                    record_gap(f"Source {identity}: {problem}")
+                    changed = True
+            if not changed:
+                break
+        for target in declared.source_targets:
+            if not any(item.target_id == target.id for item in declared.sources):
+                record_gap(f"Source target {target.id}: no selected source candidate.")
+            if target.family not in m.LEGAL_FAMILIES:
+                record_gap(f"Source target {target.id}: unsupported topic requires specialist/national research.")
+
+    def fact_problems(self, pins) -> list[str]:
+        facts, evidence_ready = self.facts, self.evidence_ready
         problems = []
         if not pins:
             problems.append(FACT_PINS_MISSING_GAP)
@@ -725,15 +754,13 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
                 problems.append(FACT_EVIDENCE_GAP)
         return problems
 
-    def provision_problems(pins, duty=False):
+    def provision_problems(self, pins, duty=False) -> list[str]:
+        sources, source_gaps = self.sources, self.source_gaps
         return [PIN_GAPS[code] for code in pin_problems(pins, sources, source_gaps, duty)]
 
-    original_decisions = {item.obligation.id: item for item in declared.applicability_decisions}
-    decisions = []
-    dispositions = []
-    reviews = {(item.obligation.id, item.method): item for item in declared.evidence_reviews}
-    for obligation in declared.obligations:
-        original = original_decisions.get(obligation.id)
+    def _applicability_problems(self, obligation, original) -> list[str]:
+        """Why a declared applicability decision cannot stand as it is (none when it can)."""
+        declared, timestamp, source_gaps, evidence_ready, fact_problems, provision_problems = self.declared, self.timestamp, self.source_gaps, self.evidence_ready, self.fact_problems, self.provision_problems
         problems = []
         if original:
             problems.extend(original.gaps)
@@ -764,6 +791,11 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
             problems.append("referenced national overlay content/review unresolved")
         if obligation.family not in m.LEGAL_FAMILIES:
             problems.append("unsupported obligation topic requires specialist/national research")
+        return problems
+
+    def _effective_decision(self, obligation, original, problems):
+        """The declared decision when nothing is open; otherwise an unresolved one that lists the gaps."""
+        declared = self.declared
         if original and not problems:
             decision = original.model_copy(update={"synthetic": declared.synthetic or original.synthetic})
         else:
@@ -775,9 +807,11 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
             data.update(id=_derived_id("unresolved", obligation.id), synthetic=declared.synthetic,
                         applicability="unresolved", rationale="Effective applicability awaits accountable review.", gaps=list(dict.fromkeys(problems)))
             decision = m.ApplicabilityDecision.model_validate(data)
-        decisions.append(decision)
-        for problem in problems:
-            record_gap(f"Obligation {obligation.id}: {problem}")
+        return decision
+
+    def _method_dispositions(self, obligation, decision, problems):
+        """The outcome of each required review method, and the overall manual-review state."""
+        timestamp, reviews, record_gap, evidence_ready = self.timestamp, self.reviews, self.record_gap, self.evidence_ready
         method_dispositions = []
         manual_states = []
         if not obligation.required_methods:
@@ -820,102 +854,146 @@ def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObse
                 review_ids=[review.id] if review else [], missing_evidence=list(dict.fromkeys(missing))))
         manual = ("unsupported" if "unsupported" in manual_states else "pending" if not manual_states or "pending" in manual_states
                   else "unresolved" if "unresolved" in manual_states else "supported")
-        dispositions.append(m.ObligationDisposition(id=_derived_id("disposition", obligation.id), project_id=declared.project_id,
-            run_id=run_id, obligation_id=obligation.id, obligation_revision=obligation.revision,
-            applicability=decision.applicability, applicability_decision_id=decision.id,
-            rationale=decision.rationale, required_method_dispositions=method_dispositions, manual_review=manual))
-    dispositions_by_obligation = {item.obligation_id: item for item in dispositions}
-    assessments = []
-    for requirement in declared.requirements:
-        mapped = [dispositions_by_obligation[pin.id] for pin in requirement.obligation_refs]
-        requirement_gaps = fact_problems(requirement.fact_refs) if requirement.fact_refs else []
-        if not all(evidence_ready(identity) for identity in requirement.evidence_ids):
-            requirement_gaps.append(REQUIREMENT_EVIDENCE_GAP)
-        if requirement.origin:
-            observation = observations.get(requirement.origin.path)
-            if not observation or observation.availability != "available" or observation.digest != requirement.origin.digest:
-                requirement_gaps.append(REQUIREMENT_ORIGIN_GAP)
-        if not mapped:
-            requirement_gaps.append(NO_MAPPING_GAP)
-        if any(item.applicability == "not_applicable" for item in mapped):
-            requirement_gaps.append(MAPPED_NOT_APPLICABLE_GAP)
-        # Blame the mapped obligations only when one of them is open, not for the requirement's own gaps.
-        if not all(item.manual_review == "supported" and item.applicability == "applicable"
-                   and item.required_method_dispositions and all(method.outcome == "passed" for method in item.required_method_dispositions)
-                   for item in mapped if item.applicability != "not_applicable"):
-            requirement_gaps.append(METHODS_OPEN_GAP)
-        supported = not requirement_gaps
-        state = "supported" if supported else "conflicting" if any(item.manual_review == "unsupported" for item in mapped) else "unresolved"
-        for problem in requirement_gaps:
-            record_gap(f"Requirement {requirement.id}: {problem}")
-        review_ids = list(dict.fromkeys(identity for item in mapped for method in item.required_method_dispositions for identity in method.review_ids))
-        evidence_ids = list(dict.fromkeys([*requirement.evidence_ids, *(identity for review in declared.evidence_reviews
-            if review.id in review_ids for identity in review.evidence_ids)]))
-        assessments.append(m.RequirementAssessment(requirement=m.SourceRef(id=requirement.id, revision=requirement.revision),
-            obligation_disposition_ids=[item.id for item in mapped], evidence_ids=evidence_ids, review_ids=review_ids,
-            state=state, rationale="Recorded mapping supports this declared requirement only." if supported else "Declared mapping needs review.",
-            gaps=requirement_gaps, next_actions=["Review declared requirement and every mapped method."] if requirement_gaps else []))
-    screenings = []
-    supplied_screenings = {item.family: item for item in declared.family_screenings}
-    for family in m.LEGAL_FAMILIES:
-        original = supplied_screenings.get(family)
-        problems = list(original.gaps) if original else ["Family screening attestation missing."]
-        if original:
-            if original.applicability == "unresolved":
-                problems.append("Family applicability remains unresolved.")
-            if (not original.reviewer or not original.reviewer.strip() or not original.reviewed_at
-                    or not original.rationale.strip() or original.assessment_date != declared.scope.assessment_date):
-                problems.append("Accountable family reasoning/date missing.")
-            if _after_run(original.reviewed_at, timestamp):
-                problems.append("Family screening dated after this run.")
-            problems.extend(fact_problems(original.fact_refs))
-            if not original.source_refs or any(source_gaps[pin.id] for pin in original.source_refs):
-                problems.append("Reviewed family sources unresolved.")
-        if original and not problems:
-            item = original.model_copy(update={"synthetic": declared.synthetic or original.synthetic})
-        else:
-            data = original.model_dump() if original else dict(family=family,
-                scope={"id": declared.scope.id, "revision": declared.scope.revision}, assessment_date=declared.scope.assessment_date,
-                rationale=FAMILY_DESCRIPTIONS[family], fact_refs=[], source_refs=[])
-            data.update(synthetic=declared.synthetic, applicability="unresolved", gaps=list(dict.fromkeys(problems)))
-            item = m.FamilyScreening.model_validate(data)
-        screenings.append(item)
-        for problem in problems:
-            record_gap(f"Family {family}: {problem}")
-    if not declared.requirements:
-        record_gap("Declared requirement register is empty.")
-    if not declared.obligations:
-        record_gap("Candidate obligation register is empty.")
-    if declared.scope.exclusions:
-        record_gap("Declared scope exclusions remain outside this assessment.")
-    if not declared.scope.jurisdictions or any(j not in {item.source.jurisdiction for item in declared.sources}
-                                                for j in declared.scope.jurisdictions):
-        record_gap("Specialist/national jurisdiction coverage requires an explicit reviewed legal basis.")
-    for note in notes or []:
-        record_gap(note)
-    manifest_data = dict(id=manifest_id, source_files=[{"path": path, "digest": item.digest}
-        for path, item in observations.items() if path in _selected_files(declared) and item.digest],
-        exclusions=declared.scope.exclusions, scope_revision=declared.scope.revision,
-        fact_digest=m.content_digest(_json_bytes([item.model_dump(mode="json") for item in facts.values()])),
-        registry_digest=m.content_digest(_json_bytes({"targets": [item.model_dump(mode="json") for item in declared.source_targets],
-            "obligations": [item.model_dump(mode="json") for item in declared.obligations],
-            "controls": [item.model_dump(mode="json") for item in declared.controls]})),
-        source_versions=[f"{item.id}:{item.revision}:{item.content_digest}" for item in [*(selected.source for selected in declared.sources), *candidates]],
-        fixture_digest=input_digest, tool_versions=["eu-compliance-guard:" + __version__],
-        config_digest=m.content_digest(_json_bytes(POLICY if retrievals is None else fetch_policy())),
-        environment_identity=declared.scope.environment, browser_state=None, graph_digest=None)
-    manifest = m.InputManifest.model_validate({**manifest_data, "digest": m.content_digest(_json_bytes(manifest_data))})
-    run_record = m.AuditRun(id=run_id, project_id=declared.project_id, revision=0, state="partial" if gaps else "completed",
-        manifest_id=manifest_id, permission_id=declared.scope.permission_id, coverage_plan=list(FAMILY_DESCRIPTIONS.values()),
-        started_at=timestamp, ended_at=timestamp, terminal_sequence=0, gaps=gaps, budgets=m.Budgets(run_seconds=300, check_seconds=300))
-    try:
-        return m.RevalidationBundle(schema_version=1, project_id=declared.project_id, synthetic=declared.synthetic,
-            input_digest=input_digest, run=run_record, manifest=manifest, declarations=declared, evidence=list(evidence.values()),
-            obligation_dispositions=dispositions, requirement_assessments=assessments,
-            effective_applicability_decisions=decisions, family_screenings=screenings, gaps=gaps, next_actions=actions,
-            source_attempts=attempts, retrieved_sources=candidates)
-    except ValidationError as error:
-        raise _output_validation_error(error) from None
+        return method_dispositions, manual
+
+    def review_obligations(self) -> None:
+        """The effective applicability decision and method dispositions of every candidate obligation."""
+        declared, run_id, decisions, dispositions, original_decisions, record_gap = self.declared, self.run_id, self.decisions, self.dispositions, self.original_decisions, self.record_gap
+        for obligation in declared.obligations:
+            original = original_decisions.get(obligation.id)
+            problems = self._applicability_problems(obligation, original)
+            decision = self._effective_decision(obligation, original, problems)
+            decisions.append(decision)
+            for problem in problems:
+                record_gap(f"Obligation {obligation.id}: {problem}")
+            method_dispositions, manual = self._method_dispositions(obligation, decision, problems)
+            dispositions.append(m.ObligationDisposition(id=_derived_id("disposition", obligation.id), project_id=declared.project_id,
+                run_id=run_id, obligation_id=obligation.id, obligation_revision=obligation.revision,
+                applicability=decision.applicability, applicability_decision_id=decision.id,
+                rationale=decision.rationale, required_method_dispositions=method_dispositions, manual_review=manual))
+
+    def assess_requirements(self) -> None:
+        """Each requirement: supported only when its facts, evidence, origin and mapped obligations all are."""
+        declared, observations, dispositions, assessments, record_gap, evidence_ready, fact_problems = self.declared, self.observations, self.dispositions, self.assessments, self.record_gap, self.evidence_ready, self.fact_problems
+        dispositions_by_obligation = {item.obligation_id: item for item in dispositions}
+        for requirement in declared.requirements:
+            mapped = [dispositions_by_obligation[pin.id] for pin in requirement.obligation_refs]
+            requirement_gaps = fact_problems(requirement.fact_refs) if requirement.fact_refs else []
+            if not all(evidence_ready(identity) for identity in requirement.evidence_ids):
+                requirement_gaps.append(REQUIREMENT_EVIDENCE_GAP)
+            if requirement.origin:
+                observation = observations.get(requirement.origin.path)
+                if not observation or observation.availability != "available" or observation.digest != requirement.origin.digest:
+                    requirement_gaps.append(REQUIREMENT_ORIGIN_GAP)
+            if not mapped:
+                requirement_gaps.append(NO_MAPPING_GAP)
+            if any(item.applicability == "not_applicable" for item in mapped):
+                requirement_gaps.append(MAPPED_NOT_APPLICABLE_GAP)
+            # Blame the mapped obligations only when one of them is open, not for the requirement's own gaps.
+            if not all(item.manual_review == "supported" and item.applicability == "applicable"
+                       and item.required_method_dispositions and all(method.outcome == "passed" for method in item.required_method_dispositions)
+                       for item in mapped if item.applicability != "not_applicable"):
+                requirement_gaps.append(METHODS_OPEN_GAP)
+            supported = not requirement_gaps
+            state = "supported" if supported else "conflicting" if any(item.manual_review == "unsupported" for item in mapped) else "unresolved"
+            for problem in requirement_gaps:
+                record_gap(f"Requirement {requirement.id}: {problem}")
+            review_ids = list(dict.fromkeys(identity for item in mapped for method in item.required_method_dispositions for identity in method.review_ids))
+            evidence_ids = list(dict.fromkeys([*requirement.evidence_ids, *(identity for review in declared.evidence_reviews
+                if review.id in review_ids for identity in review.evidence_ids)]))
+            assessments.append(m.RequirementAssessment(requirement=m.SourceRef(id=requirement.id, revision=requirement.revision),
+                obligation_disposition_ids=[item.id for item in mapped], evidence_ids=evidence_ids, review_ids=review_ids,
+                state=state, rationale="Recorded mapping supports this declared requirement only." if supported else "Declared mapping needs review.",
+                gaps=requirement_gaps, next_actions=["Review declared requirement and every mapped method."] if requirement_gaps else []))
+
+    def screen_families(self) -> None:
+        """The effective screening of each candidate legal family."""
+        declared, timestamp, source_gaps, screenings, record_gap, fact_problems = self.declared, self.timestamp, self.source_gaps, self.screenings, self.record_gap, self.fact_problems
+        supplied_screenings = {item.family: item for item in declared.family_screenings}
+        for family in m.LEGAL_FAMILIES:
+            original = supplied_screenings.get(family)
+            problems = list(original.gaps) if original else ["Family screening attestation missing."]
+            if original:
+                if original.applicability == "unresolved":
+                    problems.append("Family applicability remains unresolved.")
+                if (not original.reviewer or not original.reviewer.strip() or not original.reviewed_at
+                        or not original.rationale.strip() or original.assessment_date != declared.scope.assessment_date):
+                    problems.append("Accountable family reasoning/date missing.")
+                if _after_run(original.reviewed_at, timestamp):
+                    problems.append("Family screening dated after this run.")
+                problems.extend(fact_problems(original.fact_refs))
+                if not original.source_refs or any(source_gaps[pin.id] for pin in original.source_refs):
+                    problems.append("Reviewed family sources unresolved.")
+            if original and not problems:
+                item = original.model_copy(update={"synthetic": declared.synthetic or original.synthetic})
+            else:
+                data = original.model_dump() if original else dict(family=family,
+                    scope={"id": declared.scope.id, "revision": declared.scope.revision}, assessment_date=declared.scope.assessment_date,
+                    rationale=FAMILY_DESCRIPTIONS[family], fact_refs=[], source_refs=[])
+                data.update(synthetic=declared.synthetic, applicability="unresolved", gaps=list(dict.fromkeys(problems)))
+                item = m.FamilyScreening.model_validate(data)
+            screenings.append(item)
+            for problem in problems:
+                record_gap(f"Family {family}: {problem}")
+
+    def coverage_gaps(self) -> None:
+        """Gaps about the registers, the scope and jurisdictions, and notes found during retrieval."""
+        declared, notes, record_gap = self.declared, self.notes, self.record_gap
+        if not declared.requirements:
+            record_gap("Declared requirement register is empty.")
+        if not declared.obligations:
+            record_gap("Candidate obligation register is empty.")
+        if declared.scope.exclusions:
+            record_gap("Declared scope exclusions remain outside this assessment.")
+        if not declared.scope.jurisdictions or any(j not in {item.source.jurisdiction for item in declared.sources}
+                                                    for j in declared.scope.jurisdictions):
+            record_gap("Specialist/national jurisdiction coverage requires an explicit reviewed legal basis.")
+        for note in notes or []:
+            record_gap(note)
+
+    def bundle(self) -> m.RevalidationBundle:
+        """The manifest, the run record and the validated bundle."""
+        declared, observations, input_digest, timestamp, run_id, manifest_id, retrievals, gaps, actions, facts, evidence, attempts, candidates, decisions, dispositions, assessments, screenings = self.declared, self.observations, self.input_digest, self.timestamp, self.run_id, self.manifest_id, self.retrievals, self.gaps, self.actions, self.facts, self.evidence, self.attempts, self.candidates, self.decisions, self.dispositions, self.assessments, self.screenings
+        manifest_data = dict(id=manifest_id, source_files=[{"path": path, "digest": item.digest}
+            for path, item in observations.items() if path in _selected_files(declared) and item.digest],
+            exclusions=declared.scope.exclusions, scope_revision=declared.scope.revision,
+            fact_digest=m.content_digest(_json_bytes([item.model_dump(mode="json") for item in facts.values()])),
+            registry_digest=m.content_digest(_json_bytes({"targets": [item.model_dump(mode="json") for item in declared.source_targets],
+                "obligations": [item.model_dump(mode="json") for item in declared.obligations],
+                "controls": [item.model_dump(mode="json") for item in declared.controls]})),
+            source_versions=[f"{item.id}:{item.revision}:{item.content_digest}" for item in [*(selected.source for selected in declared.sources), *candidates]],
+            fixture_digest=input_digest, tool_versions=["eu-compliance-guard:" + __version__],
+            config_digest=m.content_digest(_json_bytes(POLICY if retrievals is None else fetch_policy())),
+            environment_identity=declared.scope.environment, browser_state=None, graph_digest=None)
+        manifest = m.InputManifest.model_validate({**manifest_data, "digest": m.content_digest(_json_bytes(manifest_data))})
+        run_record = m.AuditRun(id=run_id, project_id=declared.project_id, revision=0, state="partial" if gaps else "completed",
+            manifest_id=manifest_id, permission_id=declared.scope.permission_id, coverage_plan=list(FAMILY_DESCRIPTIONS.values()),
+            started_at=timestamp, ended_at=timestamp, terminal_sequence=0, gaps=gaps, budgets=m.Budgets(run_seconds=300, check_seconds=300))
+        try:
+            return m.RevalidationBundle(schema_version=1, project_id=declared.project_id, synthetic=declared.synthetic,
+                input_digest=input_digest, run=run_record, manifest=manifest, declarations=declared, evidence=list(evidence.values()),
+                obligation_dispositions=dispositions, requirement_assessments=assessments,
+                effective_applicability_decisions=decisions, family_screenings=screenings, gaps=gaps, next_actions=actions,
+                source_attempts=attempts, retrieved_sources=candidates)
+        except ValidationError as error:
+            raise _output_validation_error(error) from None
+
+
+ASSEMBLY_STEPS = ("retrieval_attempts", "observe_evidence", "open_evidence_and_facts", "review_sources",
+                  "propagate_source_gaps", "review_obligations", "assess_requirements", "screen_families", "coverage_gaps")
+
+
+def assemble(declarations: m.RevalidationInput, observations: dict[str, FileObservation], *,
+             input_digest: str, timestamp: str, run_id: str, manifest_id: str,
+             retrievals: list | None = None, notes: list[str] | None = None) -> m.RevalidationBundle:
+    """Pure recorded-review assembly; observations/time/IDs/retrieval results are explicit testable inputs.
+
+    `notes` are review gaps found during retrieval, such as a newer consolidation in force."""
+    run = _Assembly(declarations, observations, input_digest=input_digest, timestamp=timestamp, run_id=run_id,
+                    manifest_id=manifest_id, retrievals=retrievals, notes=notes)
+    for step in ASSEMBLY_STEPS:
+        getattr(run, step)()
+    return run.bundle()
 
 
 def _write(fd: int, name: str, content: bytes, deadline: float) -> None:
