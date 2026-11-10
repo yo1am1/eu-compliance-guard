@@ -314,6 +314,23 @@ class SessionHookTests(unittest.TestCase):
         self.assertIn("Latest run unrecorded", text)
         (run / "bundle.json").write_text("{not json")
         self.assertIn("could not be summarized", self.hook())
+        # A bundle of the wrong shape must not silence the hook: the level, rules and CLI still arrive.
+        (run / "bundle.json").write_text(json.dumps({**forged, "run": "x"}))
+        text = self.hook()
+        self.assertIn("could not be summarized", text)
+        self.assertIn("CLI for this machine", text)
+
+    def test_the_latest_run_is_the_last_completed_as_next_and_the_band_pick_it(self):
+        self.enable()
+        (self.project / ".eu-compliance-guard/declarations.json").write_text('{"project_id": "project-example"}')
+        for number in (9, 10):  # "run-9" sorts after "run-10" by name
+            run = self.state / f"run-{number}"
+            run.mkdir(parents=True)
+            (run / "bundle.json").write_text(json.dumps({"project_id": "project-example", "run": {"id": f"id-{number}"},
+                                                         "declarations": {"scope": {}}}))
+            (run / "complete.json").write_text("{}")
+            os.utime(run / "complete.json", (number, number))
+        self.assertIn("Latest run id-10 ", self.hook())
 
 
 if __name__ == "__main__":
